@@ -9,6 +9,7 @@ import HowItWorks from './HowItWorks';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
+import { logSearch, logPlaceClick } from '@/lib/analytics';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -66,21 +67,23 @@ export default function AppClient() {
   // ---- Fetch places ----
   const fetchPlaces = useCallback(
     async (mp, filters) => {
-      if (!mp) return;
+      if (!mp) return [];
       const cats = filters || activeFilters;
 
       if (cats.length === 0) {
         setPlaces([]);
-        return;
+        return [];
       }
 
       setPlacesLoading(true);
       try {
         const results = await searchNearby(mp, cats);
         setPlaces(results);
+        return results;
       } catch (err) {
         console.error('POI search error:', err);
         setPlaces([]);
+        return [];
       } finally {
         setPlacesLoading(false);
       }
@@ -149,7 +152,23 @@ export default function AppClient() {
       );
 
       // Fetch places
-      await fetchPlaces(routeData.midpoint, activeFilters);
+      const fetchedPlaces = await fetchPlaces(routeData.midpoint, activeFilters);
+
+      // Fire-and-forget analytics
+      logSearch({
+        fromName: from.name,
+        fromLat: from.lat,
+        fromLng: from.lon,
+        toName: to.name,
+        toLat: to.lat,
+        toLng: to.lon,
+        midpointLat: routeData.midpoint.lat,
+        midpointLng: routeData.midpoint.lon,
+        distanceMiles: routeData.totalDistance / 1609.344,
+        durationSeconds: routeData.totalDuration,
+        activeFilters,
+        placesFound: fetchedPlaces.length,
+      });
     } catch (err) {
       console.error('Split error:', err);
       showToast(err.message || 'Something went wrong. Please try again.');
@@ -197,7 +216,22 @@ export default function AppClient() {
   // ---- Handle place click (from map or list) ----
   const handlePlaceClick = useCallback((placeId) => {
     setActivePlaceId(placeId);
-  }, []);
+
+    // Fire-and-forget place click analytics
+    const place = places.find((p) => p.id === placeId);
+    if (place) {
+      logPlaceClick({
+        placeName: place.name,
+        placeCategory: place.category,
+        placeLat: place.lat,
+        placeLng: place.lon,
+        placeRating: place.rating,
+        fromTo: fromValue && toValue ? `${fromValue} → ${toValue}` : null,
+        midpointLat: midpoint?.lat ?? null,
+        midpointLng: midpoint?.lon ?? null,
+      });
+    }
+  }, [places, fromValue, toValue, midpoint]);
 
   // ---- Auto-run from URL params on mount ----
   useEffect(() => {
@@ -244,7 +278,23 @@ export default function AppClient() {
         setMidpoint(routeData.midpoint);
         setHasResults(true);
 
-        await fetchPlaces(routeData.midpoint, activeFilters);
+        const fetchedPlaces = await fetchPlaces(routeData.midpoint, activeFilters);
+
+        // Fire-and-forget analytics
+        logSearch({
+          fromName: from.name,
+          fromLat: from.lat,
+          fromLng: from.lon,
+          toName: to.name,
+          toLat: to.lat,
+          toLng: to.lon,
+          midpointLat: routeData.midpoint.lat,
+          midpointLng: routeData.midpoint.lon,
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+          activeFilters,
+          placesFound: fetchedPlaces.length,
+        });
       } catch (err) {
         console.error('Auto-split error:', err);
         showToast(err.message || 'Failed to load shared route.');
