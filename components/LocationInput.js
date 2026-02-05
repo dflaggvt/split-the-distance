@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback } from 'react';
 
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
 export default function LocationInput({
   value,
   onChange,
@@ -20,24 +22,12 @@ export default function LocationInput({
 
   const internalRef = useRef(null);
   const inputRef = externalRef || internalRef;
-  const autocompleteService = useRef(null);
-  const placesService = useRef(null);
-  const sessionToken = useRef(null);
   const debounceTimer = useRef(null);
 
-  const getSessionToken = () => {
-    if (!sessionToken.current) {
-      sessionToken.current =
-        new google.maps.places.AutocompleteSessionToken();
-    }
-    return sessionToken.current;
-  };
-
-  const resetSessionToken = () => {
-    sessionToken.current = null;
-  };
-
-  const fetchPredictions = useCallback((input) => {
+  /**
+   * Fetch autocomplete predictions via Places API (New) REST endpoint
+   */
+  const fetchPredictions = useCallback(async (input) => {
     if (!input || input.length < 2) {
       setPredictions([]);
       setIsOpen(false);
@@ -45,34 +35,53 @@ export default function LocationInput({
       return;
     }
 
-    if (!autocompleteService.current) {
-      autocompleteService.current =
-        new google.maps.places.AutocompleteService();
-    }
-
     setIsLoading(true);
     setIsOpen(true);
 
-    autocompleteService.current.getPlacePredictions(
-      {
-        input,
-        sessionToken: getSessionToken(),
-        types: ['geocode', 'establishment'],
-      },
-      (results, status) => {
-        setIsLoading(false);
-        if (
-          status === google.maps.places.PlacesServiceStatus.OK &&
-          results
-        ) {
-          setPredictions(results);
-          setHighlightIndex(-1);
-        } else {
-          setPredictions([]);
-          setIsOpen(false);
+    try {
+      const response = await fetch(
+        'https://places.googleapis.com/v1/places:autocomplete',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': API_KEY,
+          },
+          body: JSON.stringify({ input }),
         }
+      );
+
+      if (!response.ok) {
+        console.error('Autocomplete API error:', response.status);
+        setPredictions([]);
+        setIsOpen(false);
+        setIsLoading(false);
+        return;
       }
-    );
+
+      const data = await response.json();
+      const suggestions = (data.suggestions || [])
+        .filter((s) => s.placePrediction)
+        .map((s) => {
+          const pp = s.placePrediction;
+          return {
+            placeId: pp.placeId,
+            description: pp.text?.text || '',
+            mainText: pp.structuredFormat?.mainText?.text || pp.text?.text || '',
+            secondaryText: pp.structuredFormat?.secondaryText?.text || '',
+          };
+        });
+
+      setPredictions(suggestions);
+      setHighlightIndex(-1);
+      if (suggestions.length === 0) setIsOpen(false);
+    } catch (err) {
+      console.error('Autocomplete fetch error:', err);
+      setPredictions([]);
+      setIsOpen(false);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const debouncedFetch = useCallback(
@@ -83,8 +92,36 @@ export default function LocationInput({
     [fetchPredictions]
   );
 
+  /**
+   * Get place details (lat/lng) via Places API (New) REST endpoint
+   */
+  const getPlaceDetails = useCallback(async (placeId) => {
+    try {
+      const response = await fetch(
+        `https://places.googleapis.com/v1/places/${placeId}`,
+        {
+          method: 'GET',
+          headers: {
+            'X-Goog-Api-Key': API_KEY,
+            'X-Goog-FieldMask': 'location,displayName,formattedAddress',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error('Place details API error:', response.status);
+        return null;
+      }
+
+      return await response.json();
+    } catch (err) {
+      console.error('Place details fetch error:', err);
+      return null;
+    }
+  }, []);
+
   const selectPrediction = useCallback(
-    (prediction) => {
+    async (prediction) => {
       if (!prediction) return;
 
       setHasSelected(true);
@@ -93,38 +130,19 @@ export default function LocationInput({
       setPredictions([]);
 
       // Get place details for lat/lng
-      if (!placesService.current) {
-        placesService.current = new google.maps.places.PlacesService(
-          document.createElement('div')
-        );
+      const details = await getPlaceDetails(prediction.placeId);
+      if (details?.location) {
+        const result = {
+          name: prediction.description,
+          displayName: details.formattedAddress || prediction.description,
+          lat: details.location.latitude,
+          lon: details.location.longitude,
+          placeId: prediction.placeId,
+        };
+        if (onSelect) onSelect(result);
       }
-
-      placesService.current.getDetails(
-        {
-          placeId: prediction.place_id,
-          fields: ['geometry', 'formatted_address', 'name'],
-          sessionToken: getSessionToken(),
-        },
-        (place, status) => {
-          resetSessionToken(); // end session after getDetails
-          if (
-            status === google.maps.places.PlacesServiceStatus.OK &&
-            place
-          ) {
-            const result = {
-              name: prediction.description,
-              displayName:
-                place.formatted_address || prediction.description,
-              lat: place.geometry.location.lat(),
-              lon: place.geometry.location.lng(),
-              placeId: prediction.place_id,
-            };
-            if (onSelect) onSelect(result);
-          }
-        }
-      );
     },
-    [onChange, onSelect]
+    [onChange, onSelect, getPlaceDetails]
   );
 
   const handleInputChange = (e) => {
@@ -178,7 +196,6 @@ export default function LocationInput({
     setPredictions([]);
     setIsOpen(false);
     setHasSelected(false);
-    resetSessionToken();
     if (onClear) onClear();
     inputRef.current?.focus();
   };
@@ -234,7 +251,7 @@ export default function LocationInput({
           ) : (
             predictions.map((prediction, i) => (
               <div
-                key={prediction.place_id}
+                key={prediction.placeId}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   selectPrediction(prediction);
@@ -250,12 +267,11 @@ export default function LocationInput({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-gray-800 truncate">
-                    {prediction.structured_formatting?.main_text ||
-                      prediction.description}
+                    {prediction.mainText || prediction.description}
                   </div>
-                  {prediction.structured_formatting?.secondary_text && (
+                  {prediction.secondaryText && (
                     <div className="text-xs text-gray-400 truncate">
-                      {prediction.structured_formatting.secondary_text}
+                      {prediction.secondaryText}
                     </div>
                   )}
                 </div>

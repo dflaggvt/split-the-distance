@@ -22,7 +22,8 @@ const MapView = dynamic(() => import('./MapView'), {
 });
 
 // Must be a static constant to prevent useJsApiLoader from re-loading
-const LIBRARIES = ['places'];
+// Places library no longer needed — we use Places API (New) REST endpoints
+const LIBRARIES = [];
 
 export default function AppClient() {
   const searchParams = useSearchParams();

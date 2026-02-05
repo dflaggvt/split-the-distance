@@ -1,7 +1,7 @@
 'use client';
 
 export default function PlaceCard({ place, isActive, onClick }) {
-  const photoUrl = place.photos?.[0]?.getUrl?.({ maxWidth: 100, maxHeight: 80 });
+  const photoUrl = place.photoUrl || null;
 
   return (
     <div
