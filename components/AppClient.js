@@ -3,13 +3,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { useJsApiLoader } from '@react-google-maps/api';
 import SearchPanel from './SearchPanel';
 import HowItWorks from './HowItWorks';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
 
-// Dynamic import for MapView — Leaflet doesn't work with SSR
+// Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
   ssr: false,
   loading: () => (
@@ -19,8 +20,17 @@ const MapView = dynamic(() => import('./MapView'), {
   ),
 });
 
+// Must be a static constant to prevent useJsApiLoader from re-loading
+const LIBRARIES = ['places'];
+
 export default function AppClient() {
   const searchParams = useSearchParams();
+
+  // Load Google Maps
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    libraries: LIBRARIES,
+  });
 
   // ---- State ----
   const [fromValue, setFromValue] = useState('');
@@ -191,7 +201,7 @@ export default function AppClient() {
 
   // ---- Auto-run from URL params on mount ----
   useEffect(() => {
-    if (initialLoadDone.current) return;
+    if (!isLoaded || initialLoadDone.current) return;
     initialLoadDone.current = true;
 
     const fromParam = searchParams.get('from');
@@ -201,17 +211,14 @@ export default function AppClient() {
       setFromValue(fromParam);
       setToValue(toParam);
 
-      // Small delay for UX, then auto-trigger
       const timer = setTimeout(() => {
-        // We need to trigger the split with the params directly
-        // since state updates are async
         autoSplit(fromParam, toParam);
       }, 500);
 
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLoaded]);
 
   // ---- Auto split from URL params ----
   const autoSplit = useCallback(
@@ -219,13 +226,15 @@ export default function AppClient() {
       setLoading(true);
       try {
         const fromResults = await searchLocations(fromVal);
-        if (fromResults.length === 0) throw new Error(`Could not find: "${fromVal}"`);
+        if (fromResults.length === 0)
+          throw new Error(`Could not find: "${fromVal}"`);
         const from = fromResults[0];
         setFromLocation(from);
         setFromValue(from.name);
 
         const toResults = await searchLocations(toVal);
-        if (toResults.length === 0) throw new Error(`Could not find: "${toVal}"`);
+        if (toResults.length === 0)
+          throw new Error(`Could not find: "${toVal}"`);
         const to = toResults[0];
         setToLocation(to);
         setToValue(to.name);
@@ -246,12 +255,64 @@ export default function AppClient() {
     [fetchPlaces, activeFilters, showToast]
   );
 
+  // ---- Loading state while Google Maps loads ----
+  if (!isLoaded) {
+    return (
+      <>
+        {/* Header (always visible) */}
+        <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
+          <div className="w-full max-w-[1440px] mx-auto px-5 flex items-center">
+            <a
+              href="/"
+              className="flex items-center gap-2.5 no-underline text-gray-900"
+            >
+              <svg
+                className="shrink-0"
+                viewBox="0 0 32 32"
+                width="32"
+                height="32"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M16 2C10.477 2 6 6.477 6 12c0 7.5 10 18 10 18s10-10.5 10-18c0-5.523-4.477-10-10-10z"
+                  fill="#0d9488"
+                  stroke="#0f766e"
+                  strokeWidth="1.5"
+                />
+                <circle cx="16" cy="12" r="4" fill="white" />
+                <path
+                  d="M4 16h6M22 16h6"
+                  stroke="#0d9488"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span className="text-lg font-bold tracking-tight">
+                Split The Distance
+              </span>
+            </a>
+          </div>
+        </header>
+        <div className="flex items-center justify-center h-[calc(100vh-56px)] mt-14 bg-gray-50">
+          <div className="flex flex-col items-center gap-3">
+            <span className="inline-block w-8 h-8 border-[3px] border-gray-200 border-t-teal-500 rounded-full animate-spin" />
+            <span className="text-sm text-gray-400">Loading Google Maps...</span>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
         <div className="w-full max-w-[1440px] mx-auto px-5 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2.5 no-underline text-gray-900">
+          <a
+            href="/"
+            className="flex items-center gap-2.5 no-underline text-gray-900"
+          >
             <svg
               className="shrink-0"
               viewBox="0 0 32 32"
@@ -335,9 +396,7 @@ export default function AppClient() {
 
           {/* Mobile panel toggle */}
           <button
-            onClick={() => {
-              setMobileCollapsed((prev) => !prev);
-            }}
+            onClick={() => setMobileCollapsed((prev) => !prev)}
             className="hidden max-md:flex absolute top-3 left-3 z-[800] w-11 h-11 border-none rounded-md bg-white shadow-md text-gray-700 cursor-pointer items-center justify-center"
             aria-label="Toggle results panel"
           >
@@ -364,15 +423,13 @@ export default function AppClient() {
         <div className="max-w-[800px] mx-auto text-center flex items-center justify-center gap-2 flex-wrap">
           <span>Split The Distance © {new Date().getFullYear()}</span>
           <span className="text-gray-600">·</span>
-          <span>Powered by OpenStreetMap, OSRM &amp; Overpass</span>
+          <span>Powered by Google Maps Platform</span>
         </div>
       </footer>
 
       {/* Toast */}
       {toast && (
-        <div
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-[10px] shadow-xl flex items-center gap-2.5 text-sm font-medium z-[9999] max-w-[calc(100vw-32px)] animate-slideUp"
-        >
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-[10px] shadow-xl flex items-center gap-2.5 text-sm font-medium z-[9999] max-w-[calc(100vw-32px)] animate-slideUp">
           <span>⚠️</span>
           <span>{toast}</span>
           <button

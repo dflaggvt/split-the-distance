@@ -18,41 +18,20 @@ body {
   line-height: 1.5;
 }
 
-/* --- Leaflet container fix --- */
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  font-family: var(--font-sans);
-}
-
-/* --- Custom marker icon cleanup --- */
-.custom-marker-icon {
-  background: none !important;
-  border: none !important;
-}
-
-/* --- POI marker hover effect --- */
-.poi-marker div {
-  transition: transform 0.15s ease, border-color 0.15s ease;
-}
-.poi-marker:hover div {
-  transform: scale(1.15);
-  border-color: #0d9488;
-}
-
-/* --- Leaflet popup style overrides --- */
-.leaflet-popup-content-wrapper {
-  border-radius: 10px;
+/* --- Google Maps overrides --- */
+.gm-style .gm-style-iw-c {
+  border-radius: 10px !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
-    0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  font-family: var(--font-sans);
+    0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
 }
 
-.leaflet-popup-content {
-  margin: 12px 16px;
-  font-family: var(--font-sans);
-  line-height: 1.5;
+.gm-style .gm-style-iw-d {
+  overflow: auto !important;
+}
+
+/* Hide Google Maps "powered by" in info windows for cleaner look */
+.gm-style .gm-style-iw-tc {
+  display: none;
 }
 
 /* --- Custom scrollbar for panel --- */

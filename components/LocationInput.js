@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { searchLocations } from '@/lib/geocoding';
-import { debounce } from '@/lib/utils';
+import { useState, useRef, useCallback } from 'react';
 
 export default function LocationInput({
   value,
@@ -10,73 +8,138 @@ export default function LocationInput({
   onSelect,
   onClear,
   placeholder,
-  variant = 'from', // 'from' or 'to'
+  variant = 'from',
   onEnter,
   inputRef: externalRef,
 }) {
-  const [results, setResults] = useState([]);
+  const [predictions, setPredictions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [hasSelected, setHasSelected] = useState(false);
+
   const internalRef = useRef(null);
-  const dropdownRef = useRef(null);
   const inputRef = externalRef || internalRef;
+  const autocompleteService = useRef(null);
+  const placesService = useRef(null);
+  const sessionToken = useRef(null);
+  const debounceTimer = useRef(null);
 
-  // Debounced search
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const debouncedSearch = useCallback(
-    debounce(async (query) => {
-      if (query.length < 3) {
-        setResults([]);
-        setIsOpen(false);
+  const getSessionToken = () => {
+    if (!sessionToken.current) {
+      sessionToken.current =
+        new google.maps.places.AutocompleteSessionToken();
+    }
+    return sessionToken.current;
+  };
+
+  const resetSessionToken = () => {
+    sessionToken.current = null;
+  };
+
+  const fetchPredictions = useCallback((input) => {
+    if (!input || input.length < 2) {
+      setPredictions([]);
+      setIsOpen(false);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!autocompleteService.current) {
+      autocompleteService.current =
+        new google.maps.places.AutocompleteService();
+    }
+
+    setIsLoading(true);
+    setIsOpen(true);
+
+    autocompleteService.current.getPlacePredictions(
+      {
+        input,
+        sessionToken: getSessionToken(),
+        types: ['geocode', 'establishment'],
+      },
+      (results, status) => {
         setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        setIsOpen(true);
-        const data = await searchLocations(query);
-        setResults(data);
-        setHighlightIndex(-1);
-        if (data.length === 0) {
+        if (
+          status === google.maps.places.PlacesServiceStatus.OK &&
+          results
+        ) {
+          setPredictions(results);
+          setHighlightIndex(-1);
+        } else {
+          setPredictions([]);
           setIsOpen(false);
         }
-      } catch (err) {
-        console.error('Autocomplete error:', err);
-        setResults([]);
-        setIsOpen(false);
-      } finally {
-        setIsLoading(false);
       }
-    }, 400),
-    []
+    );
+  }, []);
+
+  const debouncedFetch = useCallback(
+    (input) => {
+      clearTimeout(debounceTimer.current);
+      debounceTimer.current = setTimeout(() => fetchPredictions(input), 300);
+    },
+    [fetchPredictions]
+  );
+
+  const selectPrediction = useCallback(
+    (prediction) => {
+      if (!prediction) return;
+
+      setHasSelected(true);
+      onChange(prediction.description);
+      setIsOpen(false);
+      setPredictions([]);
+
+      // Get place details for lat/lng
+      if (!placesService.current) {
+        placesService.current = new google.maps.places.PlacesService(
+          document.createElement('div')
+        );
+      }
+
+      placesService.current.getDetails(
+        {
+          placeId: prediction.place_id,
+          fields: ['geometry', 'formatted_address', 'name'],
+          sessionToken: getSessionToken(),
+        },
+        (place, status) => {
+          resetSessionToken(); // end session after getDetails
+          if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            place
+          ) {
+            const result = {
+              name: prediction.description,
+              displayName:
+                place.formatted_address || prediction.description,
+              lat: place.geometry.location.lat(),
+              lon: place.geometry.location.lng(),
+              placeId: prediction.place_id,
+            };
+            if (onSelect) onSelect(result);
+          }
+        }
+      );
+    },
+    [onChange, onSelect]
   );
 
   const handleInputChange = (e) => {
     const val = e.target.value;
     setHasSelected(false);
     onChange(val);
-    debouncedSearch(val.trim());
-  };
-
-  const selectResult = (index) => {
-    if (index < 0 || index >= results.length) return;
-    const result = results[index];
-    setHasSelected(true);
-    onChange(result.name);
-    setIsOpen(false);
-    setResults([]);
-    if (onSelect) onSelect(result);
+    debouncedFetch(val.trim());
   };
 
   const handleKeyDown = (e) => {
-    if (isOpen && results.length > 0) {
+    if (isOpen && predictions.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setHighlightIndex((prev) =>
-          Math.min(prev + 1, results.length - 1)
+          Math.min(prev + 1, predictions.length - 1)
         );
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -84,9 +147,9 @@ export default function LocationInput({
       } else if (e.key === 'Enter') {
         e.preventDefault();
         if (highlightIndex >= 0) {
-          selectResult(highlightIndex);
-        } else if (results.length > 0) {
-          selectResult(0);
+          selectPrediction(predictions[highlightIndex]);
+        } else if (predictions.length > 0) {
+          selectPrediction(predictions[0]);
         }
         return;
       } else if (e.key === 'Escape') {
@@ -101,29 +164,26 @@ export default function LocationInput({
   };
 
   const handleBlur = () => {
-    // Delay to allow click on dropdown items
     setTimeout(() => setIsOpen(false), 200);
   };
 
   const handleFocus = () => {
-    if (results.length > 0 && !hasSelected) {
+    if (predictions.length > 0 && !hasSelected) {
       setIsOpen(true);
     }
   };
 
   const handleClear = () => {
     onChange('');
-    setResults([]);
+    setPredictions([]);
     setIsOpen(false);
     setHasSelected(false);
+    resetSessionToken();
     if (onClear) onClear();
     inputRef.current?.focus();
   };
 
-  const iconBg =
-    variant === 'from'
-      ? 'bg-teal-600'
-      : 'bg-orange-500';
+  const iconBg = variant === 'from' ? 'bg-teal-600' : 'bg-orange-500';
   const iconLabel = variant === 'from' ? 'A' : 'B';
 
   return (
@@ -146,7 +206,9 @@ export default function LocationInput({
         onFocus={handleFocus}
         placeholder={placeholder}
         autoComplete="off"
-        aria-label={variant === 'from' ? 'Starting location' : 'Destination'}
+        aria-label={
+          variant === 'from' ? 'Starting location' : 'Destination'
+        }
         className="w-full h-12 border-2 border-gray-200 rounded-[10px] pl-[46px] pr-9 text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:shadow-[0_0_0_3px_rgba(13,148,136,0.1)] placeholder:text-gray-400"
       />
 
@@ -163,22 +225,19 @@ export default function LocationInput({
 
       {/* Dropdown */}
       {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white border border-gray-200 rounded-[10px] shadow-lg z-[500] overflow-hidden max-h-[260px] overflow-y-auto"
-        >
-          {isLoading && results.length === 0 ? (
+        <div className="absolute top-[calc(100%+4px)] left-0 right-0 bg-white border border-gray-200 rounded-[10px] shadow-lg z-[500] overflow-hidden max-h-[260px] overflow-y-auto">
+          {isLoading && predictions.length === 0 ? (
             <div className="flex items-center gap-2 px-3.5 py-3 text-[13px] text-gray-400">
               <span className="inline-block w-[18px] h-[18px] border-[2.5px] border-gray-200 border-t-teal-500 rounded-full animate-spin" />
               Searching...
             </div>
           ) : (
-            results.map((result, i) => (
+            predictions.map((prediction, i) => (
               <div
-                key={`${result.lat}-${result.lon}-${i}`}
+                key={prediction.place_id}
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  selectResult(i);
+                  selectPrediction(prediction);
                 }}
                 className={`flex items-start gap-2.5 px-3.5 py-2.5 cursor-pointer text-sm text-gray-700 border-b border-gray-100 last:border-b-0 transition-colors duration-200 ${
                   i === highlightIndex
@@ -191,11 +250,12 @@ export default function LocationInput({
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-gray-800 truncate">
-                    {result.name}
+                    {prediction.structured_formatting?.main_text ||
+                      prediction.description}
                   </div>
-                  {result.detail && (
+                  {prediction.structured_formatting?.secondary_text && (
                     <div className="text-xs text-gray-400 truncate">
-                      {result.detail}
+                      {prediction.structured_formatting.secondary_text}
                     </div>
                   )}
                 </div>

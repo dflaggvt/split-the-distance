@@ -1,145 +1,63 @@
 'use client';
 
-import { useEffect, useRef, useMemo } from 'react';
+import { useRef, useMemo, useState, useCallback, useEffect } from 'react';
 import {
-  MapContainer,
-  TileLayer,
-  Polyline,
-  Marker,
-  Popup,
-  useMap,
-} from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+  GoogleMap,
+  DirectionsRenderer,
+  MarkerF,
+  InfoWindowF,
+} from '@react-google-maps/api';
 import { formatDuration } from '@/lib/utils';
 
-// Fix Leaflet default icon issue in Next.js
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-});
-
-const DEFAULT_CENTER = [39.8283, -98.5795];
+const DEFAULT_CENTER = { lat: 39.8283, lng: -98.5795 };
 const DEFAULT_ZOOM = 4;
 
-/**
- * Create a custom div icon for A/B/midpoint markers
- */
-function createMarkerIcon(type, label) {
-  const colors = {
-    start: '#0d9488',
-    end: '#f97316',
-    mid: '#ef4444',
-  };
-  const bg = colors[type] || colors.start;
-  const size = type === 'mid' ? 34 : 28;
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%',
+};
 
-  return L.divIcon({
-    html: `
-      <div style="
-        width: ${size}px; height: ${size}px;
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        display: flex; align-items: center; justify-content: center;
-        background: ${bg};
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      ">
-        <span style="
-          transform: rotate(45deg);
-          font-size: ${type === 'mid' ? '16px' : '12px'};
-          font-weight: 700;
-          color: white;
-          font-family: Inter, sans-serif;
-        ">${label}</span>
-      </div>
-    `,
-    className: 'custom-marker-icon',
-    iconSize: [size, size + 10],
-    iconAnchor: [size / 2, size + 10],
-    popupAnchor: [0, -(size + 10)],
-  });
+const mapOptions = {
+  zoomControl: true,
+  streetViewControl: false,
+  mapTypeControl: false,
+  fullscreenControl: false,
+  styles: [
+    {
+      featureType: 'poi',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'transit',
+      elementType: 'labels',
+      stylers: [{ visibility: 'off' }],
+    },
+  ],
+};
+
+// Custom polyline options for the route
+const routePolylineOptions = {
+  strokeColor: '#0d9488',
+  strokeOpacity: 0.85,
+  strokeWeight: 5,
+};
+
+// SVG data-URI helpers (no google dependency — safe at module scope)
+function pinSvg(color, label, w = 30, h = 42) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <path d="M${w / 2} 0C${w * 0.224} 0 0 ${w * 0.224} 0 ${w / 2}c0 ${h * 0.536} ${w / 2} ${h * 0.595} ${w / 2} ${h * 0.595}s${w / 2}-${h * 0.059} ${w / 2}-${h * 0.595}C${w} ${w * 0.224} ${w * 0.776} 0 ${w / 2} 0z"
+      fill="${color}" stroke="white" stroke-width="1.5"/>
+    <text x="${w / 2}" y="${w / 2 + 4}" text-anchor="middle"
+      fill="white" font-family="Arial,sans-serif"
+      font-size="${label === '★' ? '16' : '13'}" font-weight="bold">${label}</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-/**
- * Create a POI marker icon
- */
-function createPoiIcon(emoji) {
-  return L.divIcon({
-    html: `
-      <div style="
-        width: 32px; height: 32px;
-        background: white;
-        border: 2px solid #e5e7eb;
-        border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 16px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-        transition: transform 0.15s ease, border-color 0.15s ease;
-      ">${emoji}</div>
-    `,
-    className: 'custom-marker-icon poi-marker',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -18],
-  });
-}
-
-// Memoize icons to prevent recreating on every render
-const startIcon = createMarkerIcon('start', 'A');
-const endIcon = createMarkerIcon('end', 'B');
-const midIcon = createMarkerIcon('mid', '★');
-
-/**
- * Component that manages map bounds and view fitting
- */
-function MapBoundsManager({ route, from, to }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (route && from && to) {
-      const coords = route.geometry.coordinates.map((c) => [c[1], c[0]]);
-      const bounds = L.latLngBounds(coords);
-      bounds.extend([from.lat, from.lon]);
-      bounds.extend([to.lat, to.lon]);
-      map.fitBounds(bounds.pad(0.1), {
-        paddingTopLeft: [window.innerWidth > 768 ? 40 : 20, 20],
-        paddingBottomRight: [20, 20],
-        maxZoom: 14,
-      });
-    }
-  }, [route, from, to, map]);
-
-  // Handle resize
-  useEffect(() => {
-    const handleResize = () => map.invalidateSize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [map]);
-
-  return null;
-}
-
-/**
- * Component to highlight and pan to a specific POI
- */
-function PoiHighlighter({ activePlaceId, places }) {
-  const map = useMap();
-  const prevId = useRef(null);
-
-  useEffect(() => {
-    if (activePlaceId && activePlaceId !== prevId.current) {
-      const place = places.find((p) => p.id === activePlaceId);
-      if (place) {
-        map.panTo([place.lat, place.lon], { animate: true, duration: 0.5 });
-      }
-      prevId.current = activePlaceId;
-    }
-  }, [activePlaceId, places, map]);
-
-  return null;
-}
+const START_PIN_URL = pinSvg('#0d9488', 'A');
+const END_PIN_URL = pinSvg('#f97316', 'B');
+const MID_PIN_URL = pinSvg('#ef4444', '★', 34, 46);
 
 export default function MapView({
   from,
@@ -150,157 +68,244 @@ export default function MapView({
   activePlaceId,
   onPlaceClick,
 }) {
-  // Memoize POI icons
+  const mapRef = useRef(null);
+  const [activeInfoWindow, setActiveInfoWindow] = useState(null);
+
+  const onLoad = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  // Build marker icons (needs google.maps available)
+  const startIcon = useMemo(
+    () => ({
+      url: START_PIN_URL,
+      scaledSize: new google.maps.Size(30, 42),
+      anchor: new google.maps.Point(15, 42),
+    }),
+    []
+  );
+
+  const endIcon = useMemo(
+    () => ({
+      url: END_PIN_URL,
+      scaledSize: new google.maps.Size(30, 42),
+      anchor: new google.maps.Point(15, 42),
+    }),
+    []
+  );
+
+  const midIcon = useMemo(
+    () => ({
+      url: MID_PIN_URL,
+      scaledSize: new google.maps.Size(34, 46),
+      anchor: new google.maps.Point(17, 46),
+    }),
+    []
+  );
+
+  // POI icons keyed by emoji
   const poiIcons = useMemo(() => {
     const icons = {};
-    places.forEach((place) => {
-      if (!icons[place.emoji]) {
-        icons[place.emoji] = createPoiIcon(place.emoji);
+    places.forEach((p) => {
+      if (!icons[p.emoji]) {
+        icons[p.emoji] = {
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: '#ffffff',
+          fillOpacity: 1,
+          strokeColor: '#d1d5db',
+          strokeWeight: 2,
+          scale: 18,
+        };
       }
     });
     return icons;
   }, [places]);
 
-  // Route coordinates for polyline
-  const routeCoords = useMemo(() => {
-    if (!route) return [];
-    return route.geometry.coordinates.map((c) => [c[1], c[0]]);
-  }, [route]);
+  // Fit bounds when route changes
+  useEffect(() => {
+    if (!mapRef.current || !route?.directionsResult) return;
+
+    const bounds = new google.maps.LatLngBounds();
+    const leg = route.directionsResult.routes[0].legs[0];
+
+    bounds.extend(leg.start_location);
+    bounds.extend(leg.end_location);
+
+    if (midpoint) {
+      bounds.extend(new google.maps.LatLng(midpoint.lat, midpoint.lon));
+    }
+
+    mapRef.current.fitBounds(bounds, {
+      top: 50,
+      right: 50,
+      bottom: 50,
+      left: window.innerWidth > 768 ? 60 : 20,
+    });
+  }, [route, midpoint]);
+
+  // Pan to active place
+  useEffect(() => {
+    if (!mapRef.current || !activePlaceId) return;
+    const place = places.find((p) => p.id === activePlaceId);
+    if (place) {
+      mapRef.current.panTo({ lat: place.lat, lng: place.lon });
+      setActiveInfoWindow(activePlaceId);
+    }
+  }, [activePlaceId, places]);
+
+  // Directions renderer options
+  const directionsOptions = useMemo(
+    () => ({
+      suppressMarkers: true,
+      polylineOptions: routePolylineOptions,
+      preserveViewport: true,
+    }),
+    []
+  );
+
+  // Active info window data
+  const activePlace = activeInfoWindow
+    ? places.find((p) => p.id === activeInfoWindow)
+    : null;
 
   return (
-    <MapContainer
+    <GoogleMap
+      mapContainerStyle={mapContainerStyle}
       center={DEFAULT_CENTER}
       zoom={DEFAULT_ZOOM}
-      className="w-full h-full"
-      zoomControl={true}
-      attributionControl={true}
+      onLoad={onLoad}
+      options={mapOptions}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxZoom={19}
-      />
-
-      <MapBoundsManager route={route} from={from} to={to} />
-      <PoiHighlighter activePlaceId={activePlaceId} places={places} />
-
-      {/* Route shadow line */}
-      {routeCoords.length > 0 && (
-        <Polyline
-          positions={routeCoords}
-          pathOptions={{
-            color: '#0f766e',
-            weight: 8,
-            opacity: 0.15,
-            lineCap: 'round',
-          }}
-        />
-      )}
-
-      {/* Route main line */}
-      {routeCoords.length > 0 && (
-        <Polyline
-          positions={routeCoords}
-          pathOptions={{
-            color: '#0d9488',
-            weight: 5,
-            opacity: 0.85,
-            lineCap: 'round',
-            lineJoin: 'round',
-          }}
+      {/* Route */}
+      {route?.directionsResult && (
+        <DirectionsRenderer
+          directions={route.directionsResult}
+          options={directionsOptions}
         />
       )}
 
       {/* Start marker */}
       {from && (
-        <Marker
-          position={[from.lat, from.lon]}
+        <MarkerF
+          position={{ lat: from.lat, lng: from.lon }}
           icon={startIcon}
-          zIndexOffset={100}
-        >
-          <Popup>
-            <strong>Start:</strong> {from.name || 'Starting Point'}
-          </Popup>
-        </Marker>
+          zIndex={100}
+          title={`Start: ${from.name || 'Starting Point'}`}
+        />
       )}
 
       {/* End marker */}
       {to && (
-        <Marker
-          position={[to.lat, to.lon]}
+        <MarkerF
+          position={{ lat: to.lat, lng: to.lon }}
           icon={endIcon}
-          zIndexOffset={100}
-        >
-          <Popup>
-            <strong>End:</strong> {to.name || 'Destination'}
-          </Popup>
-        </Marker>
+          zIndex={100}
+          title={`End: ${to.name || 'Destination'}`}
+        />
       )}
 
       {/* Midpoint marker */}
       {midpoint && route && (
-        <Marker
-          position={[midpoint.lat, midpoint.lon]}
+        <MarkerF
+          position={{ lat: midpoint.lat, lng: midpoint.lon }}
           icon={midIcon}
-          zIndexOffset={200}
-        >
-          <Popup>
-            <div className="text-center font-sans">
-              <strong className="text-sm">📍 Midpoint</strong>
-              <br />
-              <span className="text-gray-500 text-[13px]">
-                {formatDuration(route.totalDuration / 2)} from each location
-              </span>
-            </div>
-          </Popup>
-        </Marker>
+          zIndex={200}
+          title={`Midpoint — ${formatDuration(route.totalDuration / 2)} from each`}
+        />
       )}
 
       {/* POI markers */}
       {places.map((place) => (
-        <Marker
+        <MarkerF
           key={place.id}
-          position={[place.lat, place.lon]}
-          icon={poiIcons[place.emoji] || createPoiIcon(place.emoji)}
-          eventHandlers={{
-            click: () => {
-              if (onPlaceClick) onPlaceClick(place.id);
-            },
+          position={{ lat: place.lat, lng: place.lon }}
+          icon={poiIcons[place.emoji]}
+          label={{
+            text: place.emoji,
+            fontSize: '16px',
           }}
-        >
-          <Popup>
-            <div className="font-sans min-w-[150px]">
-              <strong className="text-sm">
-                {place.emoji} {place.name}
-              </strong>
-              <br />
-              <span className="text-gray-500 text-xs">
-                {place.categoryLabel}
-              </span>
-              <br />
-              <span className="text-teal-600 text-xs font-medium">
-                {place.distanceFormatted} from midpoint
-              </span>
-              {place.address && (
-                <>
-                  <br />
-                  <span className="text-gray-400 text-[11px]">
-                    {place.address}
-                  </span>
-                </>
-              )}
-              {place.cuisine && (
-                <>
-                  <br />
-                  <span className="text-gray-400 text-[11px]">
-                    Cuisine: {place.cuisine}
-                  </span>
-                </>
-              )}
-            </div>
-          </Popup>
-        </Marker>
+          onClick={() => {
+            onPlaceClick?.(place.id);
+            setActiveInfoWindow(place.id);
+          }}
+          zIndex={50}
+        />
       ))}
-    </MapContainer>
+
+      {/* POI info window */}
+      {activePlace && (
+        <InfoWindowF
+          position={{ lat: activePlace.lat, lng: activePlace.lon }}
+          onCloseClick={() => setActiveInfoWindow(null)}
+          options={{ pixelOffset: new google.maps.Size(0, -22) }}
+        >
+          <div
+            style={{
+              fontFamily: 'Inter, sans-serif',
+              minWidth: 180,
+              maxWidth: 260,
+              lineHeight: 1.5,
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 600,
+                fontSize: 14,
+                marginBottom: 4,
+              }}
+            >
+              {activePlace.emoji} {activePlace.name}
+            </div>
+            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>
+              {activePlace.categoryLabel}
+            </div>
+            {activePlace.rating && (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: '#f59e0b',
+                  marginBottom: 2,
+                }}
+              >
+                {'★'.repeat(Math.round(activePlace.rating))}{' '}
+                {activePlace.rating.toFixed(1)}
+                <span style={{ color: '#9ca3af', marginLeft: 4 }}>
+                  ({activePlace.userRatingsTotal})
+                </span>
+              </div>
+            )}
+            {activePlace.priceLevel != null && (
+              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>
+                {'$'.repeat(activePlace.priceLevel || 1)}
+              </div>
+            )}
+            <div
+              style={{ fontSize: 12, color: '#0d9488', fontWeight: 500 }}
+            >
+              {activePlace.distanceFormatted} from midpoint
+            </div>
+            {activePlace.openNow != null && (
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: activePlace.openNow ? '#16a34a' : '#ef4444',
+                  marginTop: 2,
+                }}
+              >
+                {activePlace.openNow ? 'Open now' : 'Closed'}
+              </div>
+            )}
+            {activePlace.address && (
+              <div
+                style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}
+              >
+                {activePlace.address}
+              </div>
+            )}
+          </div>
+        </InfoWindowF>
+      )}
+    </GoogleMap>
   );
 }
