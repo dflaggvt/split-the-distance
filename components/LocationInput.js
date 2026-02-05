@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -9,6 +9,7 @@ export default function LocationInput({
   onChange,
   onSelect,
   onClear,
+  onError,
   placeholder,
   variant = 'from',
   onEnter,
@@ -19,10 +20,86 @@ export default function LocationInput({
   const [isLoading, setIsLoading] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [hasSelected, setHasSelected] = useState(false);
+  const [isGeoLoading, setIsGeoLoading] = useState(false);
+  const [geolocationSupported, setGeolocationSupported] = useState(false);
 
   const internalRef = useRef(null);
   const inputRef = externalRef || internalRef;
   const debounceTimer = useRef(null);
+
+  // Check if geolocation is available (requires secure context)
+  useEffect(() => {
+    const isSecure =
+      typeof window !== 'undefined' &&
+      (window.location.protocol === 'https:' ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1');
+    setGeolocationSupported(isSecure && !!navigator?.geolocation);
+  }, []);
+
+  /**
+   * Use the device GPS to get current location, then reverse geocode
+   */
+  const handleUseMyLocation = useCallback(async () => {
+    if (isGeoLoading) return;
+    setIsGeoLoading(true);
+
+    try {
+      // 1. Get coordinates
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000,
+        });
+      });
+
+      const { latitude: lat, longitude: lng } = position.coords;
+
+      // 2. Reverse geocode via Google Geocoding API
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${API_KEY}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Geocoding request failed');
+      }
+
+      const data = await response.json();
+
+      let formattedAddress = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      if (data.results && data.results.length > 0) {
+        formattedAddress = data.results[0].formatted_address;
+      }
+
+      // 3. Update input and call onSelect
+      setHasSelected(true);
+      onChange(formattedAddress);
+      setPredictions([]);
+      setIsOpen(false);
+
+      if (onSelect) {
+        onSelect({
+          name: formattedAddress,
+          lat,
+          lon: lng,
+        });
+      }
+    } catch (err) {
+      // Handle geolocation errors
+      if (err?.code === 1) {
+        onError?.('Location access denied. Please enable location in your browser settings.');
+      } else if (err?.code === 2) {
+        onError?.("Couldn't determine your location.");
+      } else if (err?.code === 3) {
+        onError?.('Location request timed out.');
+      } else {
+        onError?.("Couldn't determine your location.");
+      }
+    } finally {
+      setIsGeoLoading(false);
+    }
+  }, [isGeoLoading, onChange, onSelect, onError]);
 
   /**
    * Fetch autocomplete predictions via Places API (New) REST endpoint
@@ -226,8 +303,51 @@ export default function LocationInput({
         aria-label={
           variant === 'from' ? 'Starting location' : 'Destination'
         }
-        className="w-full h-12 border-2 border-gray-200 rounded-[10px] pl-[46px] pr-9 text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:shadow-[0_0_0_3px_rgba(13,148,136,0.1)] placeholder:text-gray-400"
+        className={`w-full h-12 border-2 border-gray-200 rounded-[10px] pl-[46px] text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:shadow-[0_0_0_3px_rgba(13,148,136,0.1)] placeholder:text-gray-400 ${
+          value
+            ? geolocationSupported
+              ? 'pr-[4.25rem]'
+              : 'pr-9'
+            : geolocationSupported
+              ? 'pr-10'
+              : 'pr-9'
+        }`}
       />
+
+      {/* GPS / Use My Location button */}
+      {geolocationSupported && (
+        <button
+          onClick={handleUseMyLocation}
+          disabled={isGeoLoading}
+          className={`absolute top-1/2 -translate-y-1/2 w-8 h-8 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-all duration-200 ${
+            value ? 'right-8' : 'right-1.5'
+          } ${
+            isGeoLoading
+              ? 'text-teal-500 cursor-wait'
+              : 'text-gray-400 cursor-pointer hover:bg-teal-50 hover:text-teal-600'
+          }`}
+          aria-label="Use my location"
+          title="Use my location"
+        >
+          {isGeoLoading ? (
+            <span className="inline-block w-[18px] h-[18px] border-[2.5px] border-gray-200 border-t-teal-500 rounded-full animate-spin" />
+          ) : (
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+            </svg>
+          )}
+        </button>
+      )}
 
       {/* Clear button */}
       {value && (

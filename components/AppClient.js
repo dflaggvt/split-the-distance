@@ -431,6 +431,7 @@ export default function AppClient() {
           onPlaceClick={handlePlaceClick}
           hasResults={hasResults}
           mobileCollapsed={mobileCollapsed}
+          onError={showToast}
         />
 
         {/* Map Container */}

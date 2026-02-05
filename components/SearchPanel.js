@@ -28,6 +28,7 @@ export default function SearchPanel({
   onPlaceClick,
   hasResults,
   mobileCollapsed,
+  onError,
 }) {
   const toInputRef = useRef(null);
 
@@ -56,6 +57,7 @@ export default function SearchPanel({
               onChange={onFromChange}
               onSelect={onFromSelect}
               onClear={onFromClear}
+              onError={onError}
               placeholder="Starting location..."
               variant="from"
               onEnter={() => toInputRef.current?.focus()}
@@ -87,6 +89,7 @@ export default function SearchPanel({
               onChange={onToChange}
               onSelect={onToSelect}
               onClear={onToClear}
+              onError={onError}
               placeholder="Destination..."
               variant="to"
               inputRef={toInputRef}
