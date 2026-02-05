@@ -1,0 +1,388 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
+import SearchPanel from './SearchPanel';
+import HowItWorks from './HowItWorks';
+import { searchLocations } from '@/lib/geocoding';
+import { getRoute } from '@/lib/routing';
+import { searchNearby } from '@/lib/places';
+
+// Dynamic import for MapView — Leaflet doesn't work with SSR
+const MapView = dynamic(() => import('./MapView'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+      <div className="text-gray-400 text-sm">Loading map...</div>
+    </div>
+  ),
+});
+
+export default function AppClient() {
+  const searchParams = useSearchParams();
+
+  // ---- State ----
+  const [fromValue, setFromValue] = useState('');
+  const [toValue, setToValue] = useState('');
+  const [fromLocation, setFromLocation] = useState(null);
+  const [toLocation, setToLocation] = useState(null);
+  const [route, setRoute] = useState(null);
+  const [midpoint, setMidpoint] = useState(null);
+  const [places, setPlaces] = useState([]);
+  const [activeFilters, setActiveFilters] = useState(['restaurant', 'cafe']);
+  const [loading, setLoading] = useState(false);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [activePlaceId, setActivePlaceId] = useState(null);
+  const [hasResults, setHasResults] = useState(false);
+  const [mobileCollapsed, setMobileCollapsed] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const toastTimer = useRef(null);
+  const initialLoadDone = useRef(false);
+
+  // ---- Toast ----
+  const showToast = useCallback((message) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 5000);
+  }, []);
+
+  const hideToast = useCallback(() => {
+    setToast(null);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
+
+  // ---- Fetch places ----
+  const fetchPlaces = useCallback(
+    async (mp, filters) => {
+      if (!mp) return;
+      const cats = filters || activeFilters;
+
+      if (cats.length === 0) {
+        setPlaces([]);
+        return;
+      }
+
+      setPlacesLoading(true);
+      try {
+        const results = await searchNearby(mp, cats);
+        setPlaces(results);
+      } catch (err) {
+        console.error('POI search error:', err);
+        setPlaces([]);
+      } finally {
+        setPlacesLoading(false);
+      }
+    },
+    [activeFilters]
+  );
+
+  // ---- Handle split ----
+  const handleSplit = useCallback(async () => {
+    if (loading) return;
+
+    const fromVal = fromValue.trim();
+    const toVal = toValue.trim();
+
+    if (!fromVal || !toVal) {
+      showToast('Please enter both a starting location and destination.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Geocode if needed
+      let from = fromLocation;
+      let to = toLocation;
+
+      if (!from) {
+        const results = await searchLocations(fromVal);
+        if (results.length === 0) {
+          throw new Error(
+            `Could not find location: "${fromVal}". Try being more specific.`
+          );
+        }
+        from = results[0];
+        setFromLocation(from);
+        setFromValue(from.name);
+      }
+
+      if (!to) {
+        const results = await searchLocations(toVal);
+        if (results.length === 0) {
+          throw new Error(
+            `Could not find location: "${toVal}". Try being more specific.`
+          );
+        }
+        to = results[0];
+        setToLocation(to);
+        setToValue(to.name);
+      }
+
+      // Get route
+      const routeData = await getRoute(from, to);
+      setRoute(routeData);
+      setMidpoint(routeData.midpoint);
+      setHasResults(true);
+
+      // Update URL
+      const params = new URLSearchParams({
+        from: fromValue.trim() || from.name,
+        to: toValue.trim() || to.name,
+      });
+      window.history.replaceState(
+        {},
+        '',
+        `${window.location.pathname}?${params}`
+      );
+
+      // Fetch places
+      await fetchPlaces(routeData.midpoint, activeFilters);
+    } catch (err) {
+      console.error('Split error:', err);
+      showToast(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    fromValue,
+    toValue,
+    fromLocation,
+    toLocation,
+    loading,
+    showToast,
+    fetchPlaces,
+    activeFilters,
+  ]);
+
+  // ---- Handle swap ----
+  const handleSwap = useCallback(() => {
+    setFromValue(toValue);
+    setToValue(fromValue);
+    setFromLocation(toLocation);
+    setToLocation(fromLocation);
+  }, [fromValue, toValue, fromLocation, toLocation]);
+
+  // ---- Handle filter toggle ----
+  const handleFilterToggle = useCallback(
+    (key) => {
+      setActiveFilters((prev) => {
+        const next = prev.includes(key)
+          ? prev.filter((k) => k !== key)
+          : [...prev, key];
+
+        // Re-fetch places with new filters
+        if (midpoint) {
+          fetchPlaces(midpoint, next);
+        }
+
+        return next;
+      });
+    },
+    [midpoint, fetchPlaces]
+  );
+
+  // ---- Handle place click (from map or list) ----
+  const handlePlaceClick = useCallback((placeId) => {
+    setActivePlaceId(placeId);
+  }, []);
+
+  // ---- Auto-run from URL params on mount ----
+  useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
+
+    const fromParam = searchParams.get('from');
+    const toParam = searchParams.get('to');
+
+    if (fromParam && toParam) {
+      setFromValue(fromParam);
+      setToValue(toParam);
+
+      // Small delay for UX, then auto-trigger
+      const timer = setTimeout(() => {
+        // We need to trigger the split with the params directly
+        // since state updates are async
+        autoSplit(fromParam, toParam);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- Auto split from URL params ----
+  const autoSplit = useCallback(
+    async (fromVal, toVal) => {
+      setLoading(true);
+      try {
+        const fromResults = await searchLocations(fromVal);
+        if (fromResults.length === 0) throw new Error(`Could not find: "${fromVal}"`);
+        const from = fromResults[0];
+        setFromLocation(from);
+        setFromValue(from.name);
+
+        const toResults = await searchLocations(toVal);
+        if (toResults.length === 0) throw new Error(`Could not find: "${toVal}"`);
+        const to = toResults[0];
+        setToLocation(to);
+        setToValue(to.name);
+
+        const routeData = await getRoute(from, to);
+        setRoute(routeData);
+        setMidpoint(routeData.midpoint);
+        setHasResults(true);
+
+        await fetchPlaces(routeData.midpoint, activeFilters);
+      } catch (err) {
+        console.error('Auto-split error:', err);
+        showToast(err.message || 'Failed to load shared route.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchPlaces, activeFilters, showToast]
+  );
+
+  return (
+    <>
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
+        <div className="w-full max-w-[1440px] mx-auto px-5 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2.5 no-underline text-gray-900">
+            <svg
+              className="shrink-0"
+              viewBox="0 0 32 32"
+              width="32"
+              height="32"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M16 2C10.477 2 6 6.477 6 12c0 7.5 10 18 10 18s10-10.5 10-18c0-5.523-4.477-10-10-10z"
+                fill="#0d9488"
+                stroke="#0f766e"
+                strokeWidth="1.5"
+              />
+              <circle cx="16" cy="12" r="4" fill="white" />
+              <path
+                d="M4 16h6M22 16h6"
+                stroke="#0d9488"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className="text-lg font-bold tracking-tight">
+              Split The Distance
+            </span>
+          </a>
+          <nav className="hidden md:flex items-center gap-4">
+            <a
+              href="#how-it-works"
+              className="text-sm font-medium text-gray-500 no-underline hover:text-teal-600 transition-colors duration-200"
+            >
+              How It Works
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      {/* Main App */}
+      <main className="flex h-[calc(100vh-56px)] mt-14 max-md:flex-col-reverse max-md:h-auto max-md:min-h-[calc(100vh-52px)] max-md:mt-13">
+        <SearchPanel
+          fromValue={fromValue}
+          toValue={toValue}
+          onFromChange={(val) => {
+            setFromValue(val);
+            if (!val.trim()) setFromLocation(null);
+          }}
+          onToChange={(val) => {
+            setToValue(val);
+            if (!val.trim()) setToLocation(null);
+          }}
+          onFromSelect={(loc) => setFromLocation(loc)}
+          onToSelect={(loc) => setToLocation(loc)}
+          onFromClear={() => setFromLocation(null)}
+          onToClear={() => setToLocation(null)}
+          onSwap={handleSwap}
+          onSplit={handleSplit}
+          loading={loading}
+          route={route}
+          midpoint={midpoint}
+          places={places}
+          placesLoading={placesLoading}
+          activeFilters={activeFilters}
+          onFilterToggle={handleFilterToggle}
+          activePlaceId={activePlaceId}
+          onPlaceClick={handlePlaceClick}
+          hasResults={hasResults}
+          mobileCollapsed={mobileCollapsed}
+        />
+
+        {/* Map Container */}
+        <div className="flex-1 relative max-md:h-[45vh] max-md:min-h-[280px]">
+          <MapView
+            from={fromLocation}
+            to={toLocation}
+            route={route}
+            midpoint={midpoint}
+            places={places}
+            activePlaceId={activePlaceId}
+            onPlaceClick={handlePlaceClick}
+          />
+
+          {/* Mobile panel toggle */}
+          <button
+            onClick={() => {
+              setMobileCollapsed((prev) => !prev);
+            }}
+            className="hidden max-md:flex absolute top-3 left-3 z-[800] w-11 h-11 border-none rounded-md bg-white shadow-md text-gray-700 cursor-pointer items-center justify-center"
+            aria-label="Toggle results panel"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </main>
+
+      {/* How It Works */}
+      <HowItWorks />
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-400 py-5 px-6 text-[13px]">
+        <div className="max-w-[800px] mx-auto text-center flex items-center justify-center gap-2 flex-wrap">
+          <span>Split The Distance © {new Date().getFullYear()}</span>
+          <span className="text-gray-600">·</span>
+          <span>Powered by OpenStreetMap, OSRM &amp; Overpass</span>
+        </div>
+      </footer>
+
+      {/* Toast */}
+      {toast && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-[10px] shadow-xl flex items-center gap-2.5 text-sm font-medium z-[9999] max-w-[calc(100vw-32px)] animate-slideUp"
+        >
+          <span>⚠️</span>
+          <span>{toast}</span>
+          <button
+            onClick={hideToast}
+            className="bg-transparent border-none text-gray-400 text-lg cursor-pointer pl-1 leading-none hover:text-white"
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
