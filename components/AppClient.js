@@ -9,7 +9,7 @@ import HowItWorks from './HowItWorks';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
-import { logSearch, logPlaceClick } from '@/lib/analytics';
+import { logSearch, logPlaceClick, checkInternalUser } from '@/lib/analytics';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -49,9 +49,15 @@ export default function AppClient() {
   const [hasResults, setHasResults] = useState(false);
   const [mobileCollapsed, setMobileCollapsed] = useState(false);
   const [toast, setToast] = useState(null);
+  const [isInternal, setIsInternal] = useState(false);
 
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
+
+  // Check internal user status on mount
+  useEffect(() => {
+    setIsInternal(checkInternalUser());
+  }, []);
 
   // ---- Toast ----
   const showToast = useCallback((message) => {
@@ -389,6 +395,11 @@ export default function AppClient() {
             <span className="text-lg font-bold tracking-tight">
               Split The Distance
             </span>
+            {isInternal && (
+              <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">
+                INTERNAL
+              </span>
+            )}
           </a>
           <nav className="hidden md:flex items-center gap-4">
             <a
