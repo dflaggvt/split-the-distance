@@ -71,10 +71,35 @@ export default function MapView({
 }) {
   const mapRef = useRef(null);
   const [activeInfoWindow, setActiveInfoWindow] = useState(null);
+  const [mapType, setMapType] = useState('roadmap'); // 'roadmap' | 'satellite' | 'hybrid'
+  const [showTraffic, setShowTraffic] = useState(false);
 
   const onLoad = useCallback((map) => {
     mapRef.current = map;
   }, []);
+
+  // Toggle traffic layer
+  useEffect(() => {
+    if (!mapRef.current) return;
+    
+    if (showTraffic) {
+      if (!mapRef.current.trafficLayer) {
+        mapRef.current.trafficLayer = new google.maps.TrafficLayer();
+      }
+      mapRef.current.trafficLayer.setMap(mapRef.current);
+    } else {
+      if (mapRef.current.trafficLayer) {
+        mapRef.current.trafficLayer.setMap(null);
+      }
+    }
+  }, [showTraffic]);
+
+  // Update map type
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.setMapTypeId(mapType);
+    }
+  }, [mapType]);
 
   // Build marker icons (needs google.maps available)
   const startIcon = useMemo(
@@ -170,13 +195,14 @@ export default function MapView({
     : null;
 
   return (
-    <GoogleMap
-      mapContainerStyle={mapContainerStyle}
-      center={DEFAULT_CENTER}
-      zoom={DEFAULT_ZOOM}
-      onLoad={onLoad}
-      options={mapOptions}
-    >
+    <div className="relative w-full h-full">
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={DEFAULT_CENTER}
+        zoom={DEFAULT_ZOOM}
+        onLoad={onLoad}
+        options={{ ...mapOptions, mapTypeId: mapType }}
+      >
       {/* Route */}
       {route?.directionsResult && (
         <DirectionsRenderer
@@ -313,5 +339,45 @@ export default function MapView({
         </InfoWindowF>
       )}
     </GoogleMap>
+
+      {/* Map Controls */}
+      <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+        {/* Map Type Toggle */}
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <button
+            onClick={() => setMapType('roadmap')}
+            className={`px-3 py-2 text-xs font-medium transition-colors ${
+              mapType === 'roadmap'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Map
+          </button>
+          <button
+            onClick={() => setMapType('satellite')}
+            className={`px-3 py-2 text-xs font-medium transition-colors ${
+              mapType === 'satellite' || mapType === 'hybrid'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Satellite
+          </button>
+        </div>
+
+        {/* Traffic Toggle */}
+        <button
+          onClick={() => setShowTraffic(!showTraffic)}
+          className={`px-3 py-2 text-xs font-medium rounded-lg shadow-md transition-colors ${
+            showTraffic
+              ? 'bg-teal-600 text-white'
+              : 'bg-white text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          🚗 Traffic
+        </button>
+      </div>
+    </div>
   );
 }
