@@ -280,11 +280,20 @@ export default function AppClient() {
   }, []);
 
   const handleAddLocation = useCallback(() => {
-    if (locations.length < 6) {
+    if (locations.length >= 6) return;
+    
+    // If switching from 2-location mode, copy over existing values
+    if (!isMultiMode && fromValue) {
+      setLocations([
+        { value: fromValue, location: fromLocation },
+        { value: toValue, location: toLocation },
+        { value: '', location: null },
+      ]);
+    } else {
       setLocations((prev) => [...prev, { value: '', location: null }]);
-      setIsMultiMode(true);
     }
-  }, [locations.length]);
+    setIsMultiMode(true);
+  }, [locations.length, isMultiMode, fromValue, toValue, fromLocation, toLocation]);
 
   const handleRemoveLocation = useCallback((index) => {
     if (locations.length > 2) {
