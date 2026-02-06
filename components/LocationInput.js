@@ -170,29 +170,60 @@ export default function LocationInput({
   );
 
   /**
-   * Get place details (lat/lng) via Places API (New) REST endpoint
+   * Coordinate cache - stores placeId → {lat, lng} to avoid repeat API calls
+   * Uses a simple in-memory cache (persists for session)
    */
-  const getPlaceDetails = useCallback(async (placeId) => {
+  const coordCacheRef = useRef(
+    typeof window !== 'undefined' 
+      ? (window.__coordCache = window.__coordCache || new Map())
+      : new Map()
+  );
+
+  /**
+   * Get coordinates via Geocoding API (cheaper than Place Details: $5/1000 vs $17/1000)
+   * With caching to avoid repeat calls
+   */
+  const getCoordinates = useCallback(async (placeId, address) => {
+    // Check cache first
+    const cached = coordCacheRef.current.get(placeId);
+    if (cached) {
+      console.log('[STD] Coord cache hit:', placeId);
+      return cached;
+    }
+
     try {
+      // Use Geocoding API with place_id (most accurate) or fallback to address
       const response = await fetch(
-        `https://places.googleapis.com/v1/places/${placeId}`,
-        {
-          method: 'GET',
-          headers: {
-            'X-Goog-Api-Key': API_KEY,
-            'X-Goog-FieldMask': 'location,displayName,formattedAddress',
-          },
-        }
+        `https://maps.googleapis.com/maps/api/geocode/json?place_id=${placeId}&key=${API_KEY}`
       );
 
       if (!response.ok) {
-        console.error('Place details API error:', response.status);
+        console.error('Geocoding API error:', response.status);
         return null;
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const location = data.results[0].geometry.location;
+        const formattedAddress = data.results[0].formatted_address;
+        
+        const result = {
+          lat: location.lat,
+          lng: location.lng,
+          formattedAddress,
+        };
+        
+        // Cache the result
+        coordCacheRef.current.set(placeId, result);
+        console.log('[STD] Coord cached:', placeId);
+        
+        return result;
+      }
+      
+      return null;
     } catch (err) {
-      console.error('Place details fetch error:', err);
+      console.error('Geocoding fetch error:', err);
       return null;
     }
   }, []);
@@ -206,20 +237,20 @@ export default function LocationInput({
       setIsOpen(false);
       setPredictions([]);
 
-      // Get place details for lat/lng
-      const details = await getPlaceDetails(prediction.placeId);
-      if (details?.location) {
+      // Get coordinates via Geocoding API (with cache)
+      const coords = await getCoordinates(prediction.placeId, prediction.description);
+      if (coords) {
         const result = {
           name: prediction.description,
-          displayName: details.formattedAddress || prediction.description,
-          lat: details.location.latitude,
-          lon: details.location.longitude,
+          displayName: coords.formattedAddress || prediction.description,
+          lat: coords.lat,
+          lon: coords.lng,
           placeId: prediction.placeId,
         };
         if (onSelect) onSelect(result);
       }
     },
-    [onChange, onSelect, getPlaceDetails]
+    [onChange, onSelect, getCoordinates]
   );
 
   const handleInputChange = (e) => {
