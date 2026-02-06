@@ -19,6 +19,8 @@
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "imapflow": "^1.2.9",
+    "mailparser": "^3.9.3",
     "playwright": "^1.58.1",
     "tailwindcss": "^4"
   }
