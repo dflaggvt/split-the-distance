@@ -121,7 +121,7 @@ export default function SearchPanel({
         {/* Results */}
         {hasResults && route ? (
           <div className="animate-fadeInUp">
-            <RouteInfo route={route} fromName={fromValue} toName={toValue} />
+            <RouteInfo route={route} fromName={fromValue} toName={toValue} midpoint={midpoint} />
             <FilterChips
               activeFilters={activeFilters}
               onToggle={onFilterToggle}

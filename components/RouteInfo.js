@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { formatDistance, formatDuration, buildShareUrl, copyToClipboard } from '@/lib/utils';
+import { trackEvent } from '@/lib/analytics';
 
-export default function RouteInfo({ route, fromName, toName }) {
+export default function RouteInfo({ route, fromName, toName, midpoint }) {
   const [showCopied, setShowCopied] = useState(false);
 
   if (!route) return null;
@@ -16,13 +17,42 @@ export default function RouteInfo({ route, fromName, toName }) {
     if (success) {
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2500);
+      trackEvent('share_click', { method: 'copy_link' });
     }
+  };
+
+  const handleMidpointClick = () => {
+    if (!midpoint) return;
+    trackEvent('midpoint_click', {
+      midpoint_lat: midpoint.lat,
+      midpoint_lng: midpoint.lon,
+    });
+    const url = `https://www.google.com/maps/@${midpoint.lat},${midpoint.lon},14z`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   return (
     <div className="animate-fadeInUp">
+      {/* Midpoint Location */}
+      {midpoint && (
+        <button
+          onClick={handleMidpointClick}
+          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-[10px] px-4 py-3 mt-5 mb-3 cursor-pointer hover:from-orange-100 hover:to-amber-100 transition-colors group"
+        >
+          <span className="text-xl">📍</span>
+          <div className="flex flex-col items-start">
+            <span className="text-[11px] font-semibold text-orange-700 uppercase tracking-wide">
+              Halfway Point
+            </span>
+            <span className="text-sm font-bold text-orange-900 group-hover:underline">
+              Open in Google Maps →
+            </span>
+          </div>
+        </button>
+      )}
+
       {/* Route Summary Card */}
-      <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-[10px] px-4 py-3.5 mt-5 mb-3">
+      <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-[10px] px-4 py-3.5 mb-3">
         <div className="flex flex-col items-center flex-1">
           <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wide">
             Total Distance
