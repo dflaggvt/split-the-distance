@@ -90,16 +90,20 @@ export default function SearchPanel({
               {/* Center: Input fields */}
               <div className="flex-1 flex flex-col gap-2">
                 {isMultiMode ? (
-                  /* Multi-location inputs */
+                  /* Multi-location inputs with autocomplete */
                   locations.map((loc, index) => (
                     <div key={index} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={loc.value}
-                        onChange={(e) => onLocationChange(index, e.target.value)}
-                        placeholder={index === 0 ? "Starting point" : index === 1 ? "Destination" : `Stop ${index}`}
-                        className="flex-1 h-11 px-3 border border-gray-200 rounded-lg text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 placeholder:text-gray-400"
-                      />
+                      <div className="flex-1">
+                        <LocationInput
+                          value={loc.value}
+                          onChange={(val) => onLocationChange(index, val)}
+                          onSelect={(selected) => onLocationSelect(index, selected)}
+                          onClear={() => onLocationClear(index)}
+                          onError={onError}
+                          placeholder={index === 0 ? "Starting point" : index === 1 ? "Destination" : `Stop ${index + 1}`}
+                          variant="minimal"
+                        />
+                      </div>
                       {locations.length > 2 && (
                         <button
                           onClick={() => onRemoveLocation(index)}
