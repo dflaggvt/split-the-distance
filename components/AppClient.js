@@ -42,6 +42,7 @@ export default function AppClient() {
   const [route, setRoute] = useState(null);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [midpoint, setMidpoint] = useState(null);
+  const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING | BICYCLING | WALKING
   const [places, setPlaces] = useState([]);
   const [activeFilters, setActiveFilters] = useState(['restaurant', 'cafe']);
   const [loading, setLoading] = useState(false);
@@ -149,7 +150,7 @@ export default function AppClient() {
       }
 
       // Get route
-      const routeData = await getRoute(from, to);
+      const routeData = await getRoute(from, to, travelMode);
       setRoute(routeData);
       setMidpoint(routeData.midpoint);
       setHasResults(true);
@@ -198,6 +199,7 @@ export default function AppClient() {
     showToast,
     fetchPlaces,
     activeFilters,
+    travelMode,
   ]);
 
   // ---- Handle swap ----
@@ -481,6 +483,8 @@ export default function AppClient() {
           onError={showToast}
           selectedRouteIndex={selectedRouteIndex}
           onRouteSelect={handleRouteSelect}
+          travelMode={travelMode}
+          onTravelModeChange={setTravelMode}
         />
 
         {/* Map Container */}

@@ -31,7 +31,12 @@ export default function SearchPanel({
   onError,
   selectedRouteIndex,
   onRouteSelect,
+  travelMode,
+  onTravelModeChange,
 }) {
+  // Check if we're in dev/preview (not production)
+  const isDev = typeof window !== 'undefined' && 
+    !window.location.hostname.includes('splitthedistance.com');
   const toInputRef = useRef(null);
 
   const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
@@ -51,6 +56,35 @@ export default function SearchPanel({
           <p className="text-sm text-gray-500 mb-5">
             Find the perfect halfway point based on actual drive time
           </p>
+
+          {/* Travel Mode Selector (Dev Only) */}
+          {isDev && (
+            <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-2">
+                🧪 Dev Only: Travel Mode
+              </div>
+              <div className="flex gap-1">
+                {[
+                  { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
+                  { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
+                  { mode: 'WALKING', icon: '🚶', label: 'Walk' },
+                ].map(({ mode, icon, label }) => (
+                  <button
+                    key={mode}
+                    onClick={() => onTravelModeChange?.(mode)}
+                    className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${
+                      travelMode === mode
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                    }`}
+                  >
+                    <span>{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Input Group - Google Maps Style */}
           <div className="mb-4">
