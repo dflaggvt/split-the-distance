@@ -7,7 +7,7 @@ import { useJsApiLoader } from '@react-google-maps/api';
 import SearchPanel from './SearchPanel';
 import HowItWorks from './HowItWorks';
 import { searchLocations } from '@/lib/geocoding';
-import { getRoute } from '@/lib/routing';
+import { getRoute, getMultiLocationMidpoint } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
 import { logSearch, logPlaceClick, checkInternalUser, trackEvent } from '@/lib/analytics';
 
@@ -50,6 +50,14 @@ export default function AppClient() {
   const [mobileCollapsed, setMobileCollapsed] = useState(false);
   const [toast, setToast] = useState(null);
   const [isInternal, setIsInternal] = useState(false);
+
+  // Multi-location state
+  const [isMultiMode, setIsMultiMode] = useState(false);
+  const [locations, setLocations] = useState([
+    { value: '', location: null },
+    { value: '', location: null },
+  ]);
+  const [driveTimes, setDriveTimes] = useState(null);
 
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
@@ -246,6 +254,132 @@ export default function AppClient() {
     }
   }, [places, fromValue, toValue, midpoint]);
 
+  // ---- Multi-location handlers ----
+  const handleLocationChange = useCallback((index, value) => {
+    setLocations((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], value, location: value ? next[index].location : null };
+      return next;
+    });
+  }, []);
+
+  const handleLocationSelect = useCallback((index, location) => {
+    setLocations((prev) => {
+      const next = [...prev];
+      next[index] = { value: location.name, location };
+      return next;
+    });
+  }, []);
+
+  const handleLocationClear = useCallback((index) => {
+    setLocations((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], location: null };
+      return next;
+    });
+  }, []);
+
+  const handleAddLocation = useCallback(() => {
+    if (locations.length >= 6) return;
+    
+    // If switching from 2-location mode, copy over existing values
+    if (!isMultiMode && fromValue) {
+      setLocations([
+        { value: fromValue, location: fromLocation },
+        { value: toValue, location: toLocation },
+        { value: '', location: null },
+      ]);
+    } else {
+      setLocations((prev) => [...prev, { value: '', location: null }]);
+    }
+    setIsMultiMode(true);
+  }, [locations.length, isMultiMode, fromValue, toValue, fromLocation, toLocation]);
+
+  const handleRemoveLocation = useCallback((index) => {
+    if (locations.length > 2) {
+      setLocations((prev) => prev.filter((_, i) => i !== index));
+      if (locations.length <= 3) {
+        setIsMultiMode(false);
+      }
+    }
+  }, [locations.length]);
+
+  // ---- Handle multi-location split ----
+  const handleMultiSplit = useCallback(async () => {
+    if (loading) return;
+
+    const validLocations = locations.filter((l) => l.location);
+    if (validLocations.length < 2) {
+      showToast('Please enter at least 2 locations.');
+      return;
+    }
+
+    // Check all locations are filled
+    const emptyCount = locations.filter((l) => l.value.trim() && !l.location).length;
+    if (emptyCount > 0) {
+      showToast('Please select all locations from the dropdown suggestions.');
+      return;
+    }
+
+    trackEvent('search_clicked', {
+      location_count: validLocations.length,
+      locations: validLocations.map((l) => l.value).join(' | '),
+    });
+
+    setLoading(true);
+
+    try {
+      // Geocode any unresolved locations
+      const resolvedLocations = await Promise.all(
+        locations.map(async (loc) => {
+          if (loc.location) return loc.location;
+          if (!loc.value.trim()) return null;
+          const results = await searchLocations(loc.value);
+          if (results.length === 0) throw new Error(`Could not find: "${loc.value}"`);
+          return results[0];
+        })
+      );
+
+      const validResolved = resolvedLocations.filter(Boolean);
+      if (validResolved.length < 2) {
+        throw new Error('Need at least 2 valid locations');
+      }
+
+      // Find the fair midpoint
+      const result = await getMultiLocationMidpoint(validResolved);
+      
+      setMidpoint(result.midpoint);
+      setDriveTimes(result.driveTimes);
+      setRoute(result.directionsResult ? { directionsResult: result.directionsResult, totalDuration: result.maxDrive * 2, totalDistance: 0 } : null);
+      setHasResults(true);
+
+      // Fetch places
+      const fetchedPlaces = await fetchPlaces(result.midpoint, activeFilters);
+
+      // Analytics
+      logSearch({
+        fromName: validResolved.map((l) => l.name).join(' | '),
+        fromLat: validResolved[0].lat,
+        fromLng: validResolved[0].lon,
+        toName: `Multi: ${validResolved.length} locations`,
+        toLat: validResolved[validResolved.length - 1].lat,
+        toLng: validResolved[validResolved.length - 1].lon,
+        midpointLat: result.midpoint.lat,
+        midpointLng: result.midpoint.lon,
+        distanceMiles: 0,
+        durationSeconds: result.maxDrive,
+        activeFilters,
+        placesFound: fetchedPlaces.length,
+        locationCount: validResolved.length,
+      });
+    } catch (err) {
+      console.error('Multi-split error:', err);
+      showToast(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [locations, loading, showToast, fetchPlaces, activeFilters]);
+
   // ---- Auto-run from URL params on mount ----
   useEffect(() => {
     if (!isLoaded || initialLoadDone.current) return;
@@ -436,7 +570,7 @@ export default function AppClient() {
           onFromClear={() => setFromLocation(null)}
           onToClear={() => setToLocation(null)}
           onSwap={handleSwap}
-          onSplit={handleSplit}
+          onSplit={isMultiMode ? handleMultiSplit : handleSplit}
           loading={loading}
           route={route}
           midpoint={midpoint}
@@ -449,6 +583,15 @@ export default function AppClient() {
           hasResults={hasResults}
           mobileCollapsed={mobileCollapsed}
           onError={showToast}
+          // Multi-location props
+          isMultiMode={isMultiMode}
+          locations={locations}
+          onLocationChange={handleLocationChange}
+          onLocationSelect={handleLocationSelect}
+          onLocationClear={handleLocationClear}
+          onAddLocation={handleAddLocation}
+          onRemoveLocation={handleRemoveLocation}
+          driveTimes={driveTimes}
         />
 
         {/* Map Container */}

@@ -2,6 +2,7 @@
 
 import { useRef } from 'react';
 import LocationInput from './LocationInput';
+import MultiLocationInput from './MultiLocationInput';
 import RouteInfo from './RouteInfo';
 import FilterChips from './FilterChips';
 import PlacesList from './PlacesList';
@@ -29,10 +30,26 @@ export default function SearchPanel({
   hasResults,
   mobileCollapsed,
   onError,
+  // Multi-location props
+  isMultiMode,
+  locations,
+  onLocationChange,
+  onLocationSelect,
+  onLocationClear,
+  onAddLocation,
+  onRemoveLocation,
+  driveTimes,
 }) {
   const toInputRef = useRef(null);
 
-  const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
+  // For 2-location mode
+  const canSplitTwo = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
+  
+  // For multi-location mode
+  const filledLocations = locations?.filter((l) => l.value.trim().length > 0) || [];
+  const canSplitMulti = filledLocations.length >= 2 && !loading;
+  
+  const canSplit = isMultiMode ? canSplitMulti : canSplitTwo;
 
   return (
     <div
@@ -51,51 +68,84 @@ export default function SearchPanel({
           </p>
 
           {/* Input Group */}
-          <div className="flex flex-col items-center gap-2 mb-4">
-            <LocationInput
-              value={fromValue}
-              onChange={onFromChange}
-              onSelect={onFromSelect}
-              onClear={onFromClear}
-              onError={onError}
-              placeholder="Starting location..."
-              variant="from"
-              onEnter={() => toInputRef.current?.focus()}
-            />
+          {isMultiMode ? (
+            <div className="mb-4">
+              <MultiLocationInput
+                locations={locations}
+                onLocationChange={onLocationChange}
+                onLocationSelect={onLocationSelect}
+                onLocationClear={onLocationClear}
+                onAddLocation={onAddLocation}
+                onRemoveLocation={onRemoveLocation}
+                onError={onError}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 mb-4">
+              <LocationInput
+                value={fromValue}
+                onChange={onFromChange}
+                onSelect={onFromSelect}
+                onClear={onFromClear}
+                onError={onError}
+                placeholder="Starting location..."
+                variant={0}
+                onEnter={() => toInputRef.current?.focus()}
+              />
 
-            {/* Swap Button */}
-            <button
-              onClick={onSwap}
-              title="Swap locations"
-              aria-label="Swap locations"
-              className="w-9 h-9 border-2 border-gray-200 rounded-full bg-white text-gray-500 cursor-pointer flex items-center justify-center shrink-0 -my-1 transition-all duration-200 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 active:scale-95"
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              {/* Swap Button */}
+              <button
+                onClick={onSwap}
+                title="Swap locations"
+                aria-label="Swap locations"
+                className="w-9 h-9 border-2 border-gray-200 rounded-full bg-white text-gray-500 cursor-pointer flex items-center justify-center shrink-0 -my-1 transition-all duration-200 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 active:scale-95"
               >
-                <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
-              </svg>
-            </button>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                </svg>
+              </button>
 
-            <LocationInput
-              value={toValue}
-              onChange={onToChange}
-              onSelect={onToSelect}
-              onClear={onToClear}
-              onError={onError}
-              placeholder="Destination..."
-              variant="to"
-              inputRef={toInputRef}
-              onEnter={canSplit ? onSplit : undefined}
-            />
-          </div>
+              <LocationInput
+                value={toValue}
+                onChange={onToChange}
+                onSelect={onToSelect}
+                onClear={onToClear}
+                onError={onError}
+                placeholder="Destination..."
+                variant={1}
+                inputRef={toInputRef}
+                onEnter={canSplit ? onSplit : undefined}
+              />
+
+              {/* Add more people button (switches to multi-mode) */}
+              <button
+                onClick={onAddLocation}
+                className="flex items-center justify-center gap-1.5 mt-1 py-2 px-3 text-xs font-medium text-gray-500 hover:text-teal-600 transition-colors"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Add more people
+              </button>
+            </div>
+          )}
 
           {/* Split Button */}
           <button
@@ -119,9 +169,17 @@ export default function SearchPanel({
         </div>
 
         {/* Results */}
-        {hasResults && route ? (
+        {hasResults && (route || driveTimes) ? (
           <div className="animate-fadeInUp">
-            <RouteInfo route={route} fromName={fromValue} toName={toValue} midpoint={midpoint} />
+            <RouteInfo 
+              route={route} 
+              fromName={fromValue} 
+              toName={toValue} 
+              midpoint={midpoint}
+              isMultiMode={isMultiMode}
+              driveTimes={driveTimes}
+              locations={locations}
+            />
             <FilterChips
               activeFilters={activeFilters}
               onToggle={onFilterToggle}

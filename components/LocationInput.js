@@ -277,8 +277,18 @@ export default function LocationInput({
     inputRef.current?.focus();
   };
 
-  const iconBg = variant === 'from' ? 'bg-teal-600' : 'bg-orange-500';
-  const iconLabel = variant === 'from' ? 'A' : 'B';
+  // Support multiple variants: from (A), to (B), mid (C, D, E, F)
+  const getIconStyle = () => {
+    if (variant === 'from') return { bg: 'bg-teal-600', label: 'A' };
+    if (variant === 'to') return { bg: 'bg-orange-500', label: 'B' };
+    // For 'mid' or numbered variants
+    if (typeof variant === 'number') {
+      const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+      return { bg: 'bg-purple-500', label: labels[variant] || String(variant + 1) };
+    }
+    return { bg: 'bg-purple-500', label: '•' };
+  };
+  const { bg: iconBg, label: iconLabel } = getIconStyle();
 
   return (
     <div className="relative w-full">
