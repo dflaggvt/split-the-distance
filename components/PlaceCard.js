@@ -1,6 +1,6 @@
 'use client';
 
-import { trackEvent } from '@/lib/analytics';
+import { trackEvent, logOutboundClick } from '@/lib/analytics';
 
 export default function PlaceCard({ place, isActive, onClick }) {
   const photoUrl = place.photoUrl || null;
@@ -8,15 +8,17 @@ export default function PlaceCard({ place, isActive, onClick }) {
   const handleDirectionsClick = (e) => {
     e.stopPropagation(); // Don't trigger card click
     
-    // Track directions click
-    trackEvent('directions_click', {
-      place_name: place.name,
-      place_category: place.category,
-      place_rating: place.rating,
-    });
-    
     // Open Google Maps directions
     const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.address || place.name)}&destination_place_id=${place.googlePlaceId || ''}`;
+    
+    // Log outbound click to Supabase
+    logOutboundClick({
+      clickType: 'place_directions',
+      placeName: place.name,
+      placeCategory: place.category,
+      destinationUrl: url,
+    });
+    
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 

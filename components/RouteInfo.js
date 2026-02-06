@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { formatDistance, formatDuration, buildShareUrl, copyToClipboard } from '@/lib/utils';
-import { trackEvent } from '@/lib/analytics';
+import { trackEvent, logShare, logOutboundClick } from '@/lib/analytics';
 
 export default function RouteInfo({ 
   route, 
@@ -26,17 +26,26 @@ export default function RouteInfo({
     if (success) {
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 2500);
-      trackEvent('share_click', { method: 'copy_link' });
+      // Log to both GA4 and Supabase
+      logShare({
+        shareType: 'copy_link',
+        fromName,
+        toName,
+        shareUrl: url,
+      });
     }
   };
 
   const handleMidpointClick = () => {
     if (!midpoint) return;
-    trackEvent('midpoint_click', {
-      midpoint_lat: midpoint.lat,
-      midpoint_lng: midpoint.lon,
-    });
     const url = `https://www.google.com/maps/@${midpoint.lat},${midpoint.lon},14z`;
+    // Log outbound click to Supabase
+    logOutboundClick({
+      clickType: 'midpoint_directions',
+      placeName: 'Midpoint',
+      destinationUrl: url,
+      fromSearchRoute: `${fromName} → ${toName}`,
+    });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
