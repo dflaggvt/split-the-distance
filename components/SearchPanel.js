@@ -34,9 +34,6 @@ export default function SearchPanel({
   travelMode,
   onTravelModeChange,
 }) {
-  // Check if we're in dev/preview (not production)
-  const isDev = typeof window !== 'undefined' && 
-    !window.location.hostname.includes('splitthedistance.com');
   const toInputRef = useRef(null);
 
   const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
@@ -57,29 +54,27 @@ export default function SearchPanel({
             Find the perfect halfway point based on actual drive time
           </p>
 
-          {/* Travel Mode Selector (Dev/Preview only) */}
-          {isDev && (
-            <div className="flex gap-1 mb-4">
-              {[
-                { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
-                { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
-                { mode: 'WALKING', icon: '🚶', label: 'Walk' },
-              ].map(({ mode, icon, label }) => (
-                <button
-                  key={mode}
-                  onClick={() => onTravelModeChange?.(mode)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-                    travelMode === mode
-                      ? 'bg-teal-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <span>{icon}</span>
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Travel Mode Selector */}
+          <div className="flex gap-1 mb-4">
+            {[
+              { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
+              { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
+              { mode: 'WALKING', icon: '🚶', label: 'Walk' },
+            ].map(({ mode, icon, label }) => (
+              <button
+                key={mode}
+                onClick={() => onTravelModeChange?.(mode)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+                  travelMode === mode
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <span>{icon}</span>
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
 
           {/* Input Group - Google Maps Style */}
           <div className="mb-4">
