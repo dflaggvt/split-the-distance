@@ -4,10 +4,19 @@ import { useState } from 'react';
 import { formatDistance, formatDuration, buildShareUrl, copyToClipboard } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
 
-export default function RouteInfo({ route, fromName, toName, midpoint }) {
+export default function RouteInfo({ 
+  route, 
+  fromName, 
+  toName, 
+  midpoint,
+  selectedRouteIndex = 0,
+  onRouteSelect,
+}) {
   const [showCopied, setShowCopied] = useState(false);
 
   if (!route) return null;
+
+  const hasAlternatives = route.allRoutes && route.allRoutes.length > 1;
 
   const handleShare = async () => {
     const url = buildShareUrl(fromName, toName);
@@ -33,11 +42,63 @@ export default function RouteInfo({ route, fromName, toName, midpoint }) {
 
   return (
     <div className="animate-fadeInUp">
+      {/* Route Options (if alternatives available) */}
+      {hasAlternatives && (
+        <div className="mt-5 mb-3">
+          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            Route Options
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {route.allRoutes.map((r, idx) => {
+              const isSelected = idx === selectedRouteIndex;
+              const timeDiff = r.totalDuration - route.allRoutes[0].totalDuration;
+              
+              return (
+                <button
+                  key={idx}
+                  onClick={() => onRouteSelect?.(idx)}
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-all ${
+                    isSelected
+                      ? 'border-teal-400 bg-teal-50 shadow-sm'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        isSelected ? 'border-teal-600' : 'border-gray-300'
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="w-2 h-2 rounded-full bg-teal-600" />
+                      )}
+                    </div>
+                    <span className={`text-sm ${isSelected ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                      {r.summary}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-medium ${isSelected ? 'text-teal-700' : 'text-gray-600'}`}>
+                      {formatDuration(r.totalDuration)}
+                    </span>
+                    {idx > 0 && timeDiff > 0 && (
+                      <span className="text-xs text-gray-400">
+                        +{formatDuration(timeDiff)}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Midpoint Location */}
       {midpoint && (
         <button
           onClick={handleMidpointClick}
-          className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-[10px] px-4 py-3 mt-5 mb-3 cursor-pointer hover:from-orange-100 hover:to-amber-100 transition-colors group"
+          className={`w-full flex items-center justify-center gap-2 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-[10px] px-4 py-3 ${hasAlternatives ? 'mb-3' : 'mt-5 mb-3'} cursor-pointer hover:from-orange-100 hover:to-amber-100 transition-colors group`}
         >
           <span className="text-xl">📍</span>
           <div className="flex flex-col items-start">

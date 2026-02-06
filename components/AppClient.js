@@ -40,6 +40,7 @@ export default function AppClient() {
   const [fromLocation, setFromLocation] = useState(null);
   const [toLocation, setToLocation] = useState(null);
   const [route, setRoute] = useState(null);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [midpoint, setMidpoint] = useState(null);
   const [places, setPlaces] = useState([]);
   const [activeFilters, setActiveFilters] = useState(['restaurant', 'cafe']);
@@ -246,6 +247,35 @@ export default function AppClient() {
     }
   }, [places, fromValue, toValue, midpoint]);
 
+  // ---- Handle route selection ----
+  const handleRouteSelect = useCallback(
+    async (index) => {
+      if (!route?.allRoutes?.[index]) return;
+      
+      const selectedRoute = route.allRoutes[index];
+      setSelectedRouteIndex(index);
+      setMidpoint(selectedRoute.midpoint);
+      
+      // Update route state with new selection
+      setRoute((prev) => ({
+        ...prev,
+        totalDuration: selectedRoute.totalDuration,
+        totalDistance: selectedRoute.totalDistance,
+        midpoint: selectedRoute.midpoint,
+        selectedRouteIndex: index,
+      }));
+      
+      // Re-fetch places for the new midpoint
+      await fetchPlaces(selectedRoute.midpoint, activeFilters);
+      
+      trackEvent('route_selected', {
+        route_index: index,
+        route_summary: selectedRoute.summary,
+      });
+    },
+    [route, fetchPlaces, activeFilters]
+  );
+
   // ---- Auto-run from URL params on mount ----
   useEffect(() => {
     if (!isLoaded || initialLoadDone.current) return;
@@ -449,6 +479,8 @@ export default function AppClient() {
           hasResults={hasResults}
           mobileCollapsed={mobileCollapsed}
           onError={showToast}
+          selectedRouteIndex={selectedRouteIndex}
+          onRouteSelect={handleRouteSelect}
         />
 
         {/* Map Container */}
@@ -461,6 +493,7 @@ export default function AppClient() {
             places={places}
             activePlaceId={activePlaceId}
             onPlaceClick={handlePlaceClick}
+            selectedRouteIndex={selectedRouteIndex}
           />
 
           {/* Mobile panel toggle */}

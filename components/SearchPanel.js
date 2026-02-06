@@ -29,6 +29,8 @@ export default function SearchPanel({
   hasResults,
   mobileCollapsed,
   onError,
+  selectedRouteIndex,
+  onRouteSelect,
 }) {
   const toInputRef = useRef(null);
 
@@ -142,6 +144,8 @@ export default function SearchPanel({
               fromName={fromValue} 
               toName={toValue} 
               midpoint={midpoint}
+              selectedRouteIndex={selectedRouteIndex}
+              onRouteSelect={onRouteSelect}
             />
             <FilterChips
               activeFilters={activeFilters}

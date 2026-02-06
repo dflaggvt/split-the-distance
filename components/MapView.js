@@ -68,6 +68,7 @@ export default function MapView({
   places = [],
   activePlaceId,
   onPlaceClick,
+  selectedRouteIndex = 0,
 }) {
   const mapRef = useRef(null);
   const [activeInfoWindow, setActiveInfoWindow] = useState(null);
@@ -207,7 +208,10 @@ export default function MapView({
       {route?.directionsResult && (
         <DirectionsRenderer
           directions={route.directionsResult}
-          options={directionsOptions}
+          options={{
+            ...directionsOptions,
+            routeIndex: selectedRouteIndex,
+          }}
         />
       )}
 
