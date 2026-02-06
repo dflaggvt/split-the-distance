@@ -8,6 +8,7 @@ import {
   InfoWindowF,
 } from '@react-google-maps/api';
 import { formatDuration } from '@/lib/utils';
+import { trackEvent } from '@/lib/analytics';
 
 const DEFAULT_CENTER = { lat: 39.8283, lng: -98.5795 };
 const DEFAULT_ZOOM = 4;
@@ -225,6 +226,11 @@ export default function MapView({
             fontSize: '16px',
           }}
           onClick={() => {
+            // Track map marker click
+            trackEvent('map_marker_click', {
+              place_name: place.name,
+              place_category: place.category,
+            });
             onPlaceClick?.(place.id);
             setActiveInfoWindow(place.id);
           }}

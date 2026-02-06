@@ -9,7 +9,7 @@ import HowItWorks from './HowItWorks';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
-import { logSearch, logPlaceClick, checkInternalUser } from '@/lib/analytics';
+import { logSearch, logPlaceClick, checkInternalUser, trackEvent } from '@/lib/analytics';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -109,6 +109,12 @@ export default function AppClient() {
       showToast('Please enter both a starting location and destination.');
       return;
     }
+
+    // Track search button click
+    trackEvent('search_clicked', {
+      from_input: fromVal,
+      to_input: toVal,
+    });
 
     setLoading(true);
 
