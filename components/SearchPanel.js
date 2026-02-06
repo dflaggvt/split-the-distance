@@ -67,85 +67,116 @@ export default function SearchPanel({
             Find the perfect halfway point based on actual drive time
           </p>
 
-          {/* Input Group */}
-          {isMultiMode ? (
-            <div className="mb-4">
-              <MultiLocationInput
-                locations={locations}
-                onLocationChange={onLocationChange}
-                onLocationSelect={onLocationSelect}
-                onLocationClear={onLocationClear}
-                onAddLocation={onAddLocation}
-                onRemoveLocation={onRemoveLocation}
-                onError={onError}
-              />
+          {/* Input Group - Google Maps Style */}
+          <div className="mb-4">
+            <div className="flex">
+              {/* Left side: Timeline markers */}
+              <div className="flex flex-col items-center mr-3 py-3">
+                {/* Origin marker (hollow circle) */}
+                <div className="w-3 h-3 rounded-full border-2 border-gray-400 bg-white" />
+                {/* Dotted line */}
+                <div className="flex-1 w-0.5 my-1 border-l-2 border-dotted border-gray-300 min-h-[20px]" />
+                {/* Destination marker (red pin) */}
+                <div className="w-3 h-3 rounded-full bg-red-500" />
+                {/* More dotted lines for multi-mode */}
+                {isMultiMode && locations.slice(2).map((_, i) => (
+                  <div key={i} className="flex flex-col items-center">
+                    <div className="flex-1 w-0.5 my-1 border-l-2 border-dotted border-gray-300 min-h-[20px]" />
+                    <div className="w-3 h-3 rounded-full bg-purple-500" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Center: Input fields */}
+              <div className="flex-1 flex flex-col gap-2">
+                {isMultiMode ? (
+                  /* Multi-location inputs */
+                  locations.map((loc, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={loc.value}
+                        onChange={(e) => onLocationChange(index, e.target.value)}
+                        placeholder={index === 0 ? "Starting point" : index === 1 ? "Destination" : `Stop ${index}`}
+                        className="flex-1 h-11 px-3 border border-gray-200 rounded-lg text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 placeholder:text-gray-400"
+                      />
+                      {locations.length > 2 && (
+                        <button
+                          onClick={() => onRemoveLocation(index)}
+                          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  /* Two-location inputs */
+                  <>
+                    <LocationInput
+                      value={fromValue}
+                      onChange={onFromChange}
+                      onSelect={onFromSelect}
+                      onClear={onFromClear}
+                      onError={onError}
+                      placeholder="Starting point"
+                      variant="minimal"
+                      onEnter={() => toInputRef.current?.focus()}
+                    />
+                    <LocationInput
+                      value={toValue}
+                      onChange={onToChange}
+                      onSelect={onToSelect}
+                      onClear={onToClear}
+                      onError={onError}
+                      placeholder="Destination"
+                      variant="minimal"
+                      inputRef={toInputRef}
+                      onEnter={canSplit ? onSplit : undefined}
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Right side: Swap button */}
+              <div className="flex items-center ml-2">
+                <button
+                  onClick={onSwap}
+                  title="Swap locations"
+                  aria-label="Swap locations"
+                  className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-teal-600 hover:bg-gray-50 rounded-full transition-all duration-200"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="flex flex-col items-center gap-2 mb-4">
-              <LocationInput
-                value={fromValue}
-                onChange={onFromChange}
-                onSelect={onFromSelect}
-                onClear={onFromClear}
-                onError={onError}
-                placeholder="Starting location..."
-                variant={0}
-                onEnter={() => toInputRef.current?.focus()}
-              />
 
-              {/* Swap Button */}
-              <button
-                onClick={onSwap}
-                title="Swap locations"
-                aria-label="Swap locations"
-                className="w-9 h-9 border-2 border-gray-200 rounded-full bg-white text-gray-500 cursor-pointer flex items-center justify-center shrink-0 -my-1 transition-all duration-200 hover:border-teal-400 hover:text-teal-600 hover:bg-teal-50 active:scale-95"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
-                </svg>
-              </button>
-
-              <LocationInput
-                value={toValue}
-                onChange={onToChange}
-                onSelect={onToSelect}
-                onClear={onToClear}
-                onError={onError}
-                placeholder="Destination..."
-                variant={1}
-                inputRef={toInputRef}
-                onEnter={canSplit ? onSplit : undefined}
-              />
-
-              {/* Add more people button (switches to multi-mode) */}
-              <button
-                onClick={onAddLocation}
-                className="flex items-center justify-center gap-1.5 mt-1 py-2 px-3 text-xs font-medium text-gray-500 hover:text-teal-600 transition-colors"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                >
+            {/* Add destination button */}
+            <button
+              onClick={onAddLocation}
+              className="flex items-center gap-2 mt-2 ml-6 py-2 text-sm text-gray-500 hover:text-teal-600 transition-colors"
+            >
+              <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                   <path d="M12 5v14M5 12h14" />
                 </svg>
-                Add more people
-              </button>
-            </div>
-          )}
+              </div>
+              <span>Add destination</span>
+            </button>
+          </div>
 
           {/* Split Button */}
           <button
