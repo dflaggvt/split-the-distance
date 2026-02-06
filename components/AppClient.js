@@ -9,7 +9,7 @@ import HowItWorks from './HowItWorks';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
-import { logSearch, logPlaceClick, checkInternalUser } from '@/lib/analytics';
+import { logSearch, logPlaceClick, checkInternalUser, trackEvent } from '@/lib/analytics';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -40,7 +40,9 @@ export default function AppClient() {
   const [fromLocation, setFromLocation] = useState(null);
   const [toLocation, setToLocation] = useState(null);
   const [route, setRoute] = useState(null);
+  const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [midpoint, setMidpoint] = useState(null);
+  const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING | BICYCLING | WALKING
   const [places, setPlaces] = useState([]);
   const [activeFilters, setActiveFilters] = useState(['restaurant', 'cafe']);
   const [loading, setLoading] = useState(false);
@@ -110,6 +112,12 @@ export default function AppClient() {
       return;
     }
 
+    // Track search button click
+    trackEvent('search_clicked', {
+      from_input: fromVal,
+      to_input: toVal,
+    });
+
     setLoading(true);
 
     try {
@@ -142,7 +150,7 @@ export default function AppClient() {
       }
 
       // Get route
-      const routeData = await getRoute(from, to);
+      const routeData = await getRoute(from, to, travelMode);
       setRoute(routeData);
       setMidpoint(routeData.midpoint);
       setHasResults(true);
@@ -191,6 +199,7 @@ export default function AppClient() {
     showToast,
     fetchPlaces,
     activeFilters,
+    travelMode,
   ]);
 
   // ---- Handle swap ----
@@ -239,6 +248,35 @@ export default function AppClient() {
       });
     }
   }, [places, fromValue, toValue, midpoint]);
+
+  // ---- Handle route selection ----
+  const handleRouteSelect = useCallback(
+    async (index) => {
+      if (!route?.allRoutes?.[index]) return;
+      
+      const selectedRoute = route.allRoutes[index];
+      setSelectedRouteIndex(index);
+      setMidpoint(selectedRoute.midpoint);
+      
+      // Update route state with new selection
+      setRoute((prev) => ({
+        ...prev,
+        totalDuration: selectedRoute.totalDuration,
+        totalDistance: selectedRoute.totalDistance,
+        midpoint: selectedRoute.midpoint,
+        selectedRouteIndex: index,
+      }));
+      
+      // Re-fetch places for the new midpoint
+      await fetchPlaces(selectedRoute.midpoint, activeFilters);
+      
+      trackEvent('route_selected', {
+        route_index: index,
+        route_summary: selectedRoute.summary,
+      });
+    },
+    [route, fetchPlaces, activeFilters]
+  );
 
   // ---- Auto-run from URL params on mount ----
   useEffect(() => {
@@ -443,6 +481,10 @@ export default function AppClient() {
           hasResults={hasResults}
           mobileCollapsed={mobileCollapsed}
           onError={showToast}
+          selectedRouteIndex={selectedRouteIndex}
+          onRouteSelect={handleRouteSelect}
+          travelMode={travelMode}
+          onTravelModeChange={setTravelMode}
         />
 
         {/* Map Container */}
@@ -455,6 +497,7 @@ export default function AppClient() {
             places={places}
             activePlaceId={activePlaceId}
             onPlaceClick={handlePlaceClick}
+            selectedRouteIndex={selectedRouteIndex}
           />
 
           {/* Mobile panel toggle */}

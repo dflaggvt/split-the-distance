@@ -42,25 +42,41 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
       <head>
-        {/* Google Tag Manager */}
+        {/* Google Tag Manager - only on production */}
         <Script id="gtm-script" strategy="afterInteractive">
-          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-          new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-          j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-          'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','${GTM_ID}');`}
+          {`(function(){
+            var h = window.location.hostname;
+            if (h !== 'splitthedistance.com' && h !== 'www.splitthedistance.com') {
+              console.log('[STD] Preview site - GTM disabled');
+              return;
+            }
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+            })(window,document,'script','dataLayer','${GTM_ID}');
+          })();`}
         </Script>
         
-        {/* Google Analytics 4 (direct, in case GTM isn't configured yet) */}
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA4_ID}`}
-          strategy="afterInteractive"
-        />
+        {/* Google Analytics 4 - only on production */}
         <Script id="ga4-script" strategy="afterInteractive">
-          {`window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GA4_ID}');`}
+          {`(function(){
+            var h = window.location.hostname;
+            if (h !== 'splitthedistance.com' && h !== 'www.splitthedistance.com') {
+              console.log('[STD] Preview site - GA4 disabled');
+              window.gtag = function() { console.log('[STD] gtag stub:', arguments); };
+              return;
+            }
+            var s = document.createElement('script');
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=${GA4_ID}';
+            s.async = true;
+            document.head.appendChild(s);
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            window.gtag = gtag;
+            gtag('js', new Date());
+            gtag('config', '${GA4_ID}');
+          })();`}
         </Script>
       </head>
       <body className="font-sans text-gray-800 bg-gray-50 antialiased">

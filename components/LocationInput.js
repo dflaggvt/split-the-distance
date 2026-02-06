@@ -277,17 +277,31 @@ export default function LocationInput({
     inputRef.current?.focus();
   };
 
-  const iconBg = variant === 'from' ? 'bg-teal-600' : 'bg-orange-500';
-  const iconLabel = variant === 'from' ? 'A' : 'B';
+  // Support multiple variants: from (A), to (B), mid (C, D, E, F), minimal (no icon)
+  const isMinimal = variant === 'minimal';
+  const getIconStyle = () => {
+    if (isMinimal) return null;
+    if (variant === 'from') return { bg: 'bg-teal-600', label: 'A' };
+    if (variant === 'to') return { bg: 'bg-orange-500', label: 'B' };
+    // For 'mid' or numbered variants
+    if (typeof variant === 'number') {
+      const labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+      return { bg: 'bg-purple-500', label: labels[variant] || String(variant + 1) };
+    }
+    return { bg: 'bg-purple-500', label: '•' };
+  };
+  const iconStyle = getIconStyle();
 
   return (
     <div className="relative w-full">
-      {/* Icon */}
-      <div
-        className={`absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white z-[2] pointer-events-none ${iconBg}`}
-      >
-        {iconLabel}
-      </div>
+      {/* Icon - only show for non-minimal variants */}
+      {iconStyle && (
+        <div
+          className={`absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white z-[2] pointer-events-none ${iconStyle.bg}`}
+        >
+          {iconStyle.label}
+        </div>
+      )}
 
       {/* Input */}
       <input
@@ -300,17 +314,17 @@ export default function LocationInput({
         onFocus={handleFocus}
         placeholder={placeholder}
         autoComplete="off"
-        aria-label={
-          variant === 'from' ? 'Starting location' : 'Destination'
-        }
-        className={`w-full h-12 border-2 border-gray-200 rounded-[10px] pl-[46px] text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:shadow-[0_0_0_3px_rgba(13,148,136,0.1)] placeholder:text-gray-400 ${
+        aria-label={placeholder || 'Location'}
+        className={`w-full h-11 border border-gray-200 rounded-lg text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 placeholder:text-gray-400 ${
+          isMinimal ? 'pl-3' : 'pl-[46px]'
+        } ${
           value
             ? geolocationSupported
               ? 'pr-[4.25rem]'
               : 'pr-9'
             : geolocationSupported
               ? 'pr-10'
-              : 'pr-9'
+              : 'pr-3'
         }`}
       />
 

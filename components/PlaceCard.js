@@ -1,7 +1,24 @@
 'use client';
 
+import { trackEvent } from '@/lib/analytics';
+
 export default function PlaceCard({ place, isActive, onClick }) {
   const photoUrl = place.photoUrl || null;
+
+  const handleDirectionsClick = (e) => {
+    e.stopPropagation(); // Don't trigger card click
+    
+    // Track directions click
+    trackEvent('directions_click', {
+      place_name: place.name,
+      place_category: place.category,
+      place_rating: place.rating,
+    });
+    
+    // Open Google Maps directions
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.address || place.name)}&destination_place_id=${place.googlePlaceId || ''}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
 
   return (
     <div
@@ -28,8 +45,29 @@ export default function PlaceCard({ place, isActive, onClick }) {
       )}
 
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-gray-800 truncate">
-          {place.name}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold text-gray-800 truncate">
+            {place.name}
+          </div>
+          {/* Directions button */}
+          <button
+            onClick={handleDirectionsClick}
+            title="Get directions"
+            className="shrink-0 w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-100 transition-colors"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2L12 22M12 2L6 8M12 2L18 8" />
+            </svg>
+          </button>
         </div>
 
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
