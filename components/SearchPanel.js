@@ -2,7 +2,6 @@
 
 import { useRef } from 'react';
 import LocationInput from './LocationInput';
-import MultiLocationInput from './MultiLocationInput';
 import RouteInfo from './RouteInfo';
 import FilterChips from './FilterChips';
 import PlacesList from './PlacesList';
@@ -30,26 +29,10 @@ export default function SearchPanel({
   hasResults,
   mobileCollapsed,
   onError,
-  // Multi-location props
-  isMultiMode,
-  locations,
-  onLocationChange,
-  onLocationSelect,
-  onLocationClear,
-  onAddLocation,
-  onRemoveLocation,
-  driveTimes,
 }) {
   const toInputRef = useRef(null);
 
-  // For 2-location mode
-  const canSplitTwo = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
-  
-  // For multi-location mode
-  const filledLocations = locations?.filter((l) => l.value.trim().length > 0) || [];
-  const canSplitMulti = filledLocations.length >= 2 && !loading;
-  
-  const canSplit = isMultiMode ? canSplitMulti : canSplitTwo;
+  const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
 
   return (
     <div
@@ -78,70 +61,31 @@ export default function SearchPanel({
                 <div className="flex-1 w-0.5 my-1 border-l-2 border-dotted border-gray-300 min-h-[20px]" />
                 {/* Destination marker (red pin) */}
                 <div className="w-3 h-3 rounded-full bg-red-500" />
-                {/* More dotted lines for multi-mode */}
-                {isMultiMode && locations.slice(2).map((_, i) => (
-                  <div key={i} className="flex flex-col items-center">
-                    <div className="flex-1 w-0.5 my-1 border-l-2 border-dotted border-gray-300 min-h-[20px]" />
-                    <div className="w-3 h-3 rounded-full bg-purple-500" />
-                  </div>
-                ))}
               </div>
 
               {/* Center: Input fields */}
               <div className="flex-1 flex flex-col gap-2">
-                {isMultiMode ? (
-                  /* Multi-location inputs with autocomplete */
-                  locations.map((loc, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <LocationInput
-                          value={loc.value}
-                          onChange={(val) => onLocationChange(index, val)}
-                          onSelect={(selected) => onLocationSelect(index, selected)}
-                          onClear={() => onLocationClear(index)}
-                          onError={onError}
-                          placeholder={index === 0 ? "Starting point" : index === 1 ? "Destination" : `Stop ${index + 1}`}
-                          variant="minimal"
-                        />
-                      </div>
-                      {locations.length > 2 && (
-                        <button
-                          onClick={() => onRemoveLocation(index)}
-                          className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M18 6L6 18M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  /* Two-location inputs */
-                  <>
-                    <LocationInput
-                      value={fromValue}
-                      onChange={onFromChange}
-                      onSelect={onFromSelect}
-                      onClear={onFromClear}
-                      onError={onError}
-                      placeholder="Starting point"
-                      variant="minimal"
-                      onEnter={() => toInputRef.current?.focus()}
-                    />
-                    <LocationInput
-                      value={toValue}
-                      onChange={onToChange}
-                      onSelect={onToSelect}
-                      onClear={onToClear}
-                      onError={onError}
-                      placeholder="Destination"
-                      variant="minimal"
-                      inputRef={toInputRef}
-                      onEnter={canSplit ? onSplit : undefined}
-                    />
-                  </>
-                )}
+                <LocationInput
+                  value={fromValue}
+                  onChange={onFromChange}
+                  onSelect={onFromSelect}
+                  onClear={onFromClear}
+                  onError={onError}
+                  placeholder="Starting point"
+                  variant="minimal"
+                  onEnter={() => toInputRef.current?.focus()}
+                />
+                <LocationInput
+                  value={toValue}
+                  onChange={onToChange}
+                  onSelect={onToSelect}
+                  onClear={onToClear}
+                  onError={onError}
+                  placeholder="Destination"
+                  variant="minimal"
+                  inputRef={toInputRef}
+                  onEnter={canSplit ? onSplit : undefined}
+                />
               </div>
 
               {/* Right side: Swap button */}
@@ -167,19 +111,6 @@ export default function SearchPanel({
                 </button>
               </div>
             </div>
-
-            {/* Add destination button */}
-            <button
-              onClick={onAddLocation}
-              className="flex items-center gap-2 mt-2 ml-6 py-2 text-sm text-gray-500 hover:text-teal-600 transition-colors"
-            >
-              <div className="w-5 h-5 rounded-full border-2 border-current flex items-center justify-center">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              </div>
-              <span>Add destination</span>
-            </button>
           </div>
 
           {/* Split Button */}
@@ -204,16 +135,13 @@ export default function SearchPanel({
         </div>
 
         {/* Results */}
-        {hasResults && (route || driveTimes) ? (
+        {hasResults && route ? (
           <div className="animate-fadeInUp">
             <RouteInfo 
               route={route} 
               fromName={fromValue} 
               toName={toValue} 
               midpoint={midpoint}
-              isMultiMode={isMultiMode}
-              driveTimes={driveTimes}
-              locations={locations}
             />
             <FilterChips
               activeFilters={activeFilters}
