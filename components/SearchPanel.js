@@ -57,32 +57,27 @@ export default function SearchPanel({
             Find the perfect halfway point based on actual drive time
           </p>
 
-          {/* Travel Mode Selector (Dev Only) */}
+          {/* Travel Mode Selector (Dev/Preview only) */}
           {isDev && (
-            <div className="mb-4 p-2 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-2">
-                🧪 Dev Only: Travel Mode
-              </div>
-              <div className="flex gap-1">
-                {[
-                  { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
-                  { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
-                  { mode: 'WALKING', icon: '🚶', label: 'Walk' },
-                ].map(({ mode, icon, label }) => (
-                  <button
-                    key={mode}
-                    onClick={() => onTravelModeChange?.(mode)}
-                    className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-md text-xs font-medium transition-all ${
-                      travelMode === mode
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                    }`}
-                  >
-                    <span>{icon}</span>
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
+            <div className="flex gap-1 mb-4">
+              {[
+                { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
+                { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
+                { mode: 'WALKING', icon: '🚶', label: 'Walk' },
+              ].map(({ mode, icon, label }) => (
+                <button
+                  key={mode}
+                  onClick={() => onTravelModeChange?.(mode)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
+                    travelMode === mode
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span>{icon}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
             </div>
           )}
 
