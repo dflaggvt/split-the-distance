@@ -1,0 +1,6 @@
+# robots.txt for splitthedistance.com
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://www.splitthedistance.com/sitemap.xml
