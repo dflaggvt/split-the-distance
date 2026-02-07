@@ -20,6 +20,8 @@ export default function SearchPanel({
   loading,
   route,
   midpoint,
+  fromLocation,
+  toLocation,
   places,
   placesLoading,
   activeFilters,
@@ -167,6 +169,8 @@ export default function SearchPanel({
               route={route} 
               fromName={fromValue} 
               toName={toValue} 
+              fromLocation={fromLocation}
+              toLocation={toLocation}
               midpoint={midpoint}
               selectedRouteIndex={selectedRouteIndex}
               onRouteSelect={onRouteSelect}

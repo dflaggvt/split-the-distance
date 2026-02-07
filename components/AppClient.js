@@ -9,7 +9,7 @@ import HowItWorks from './HowItWorks';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
-import { logSearch, logPlaceClick, checkInternalUser, trackEvent } from '@/lib/analytics';
+import { logSearch, logPlaceClick, checkInternalUser, trackEvent, getSharedRouteData } from '@/lib/analytics';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -340,10 +340,30 @@ export default function AppClient() {
     if (!isLoaded || initialLoadDone.current) return;
     initialLoadDone.current = true;
 
+    // Check for shared route data (from ?s= share links)
+    const sharedRoute = getSharedRouteData();
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
 
-    if (fromParam && toParam) {
+    // Helper: detect if param looks like coords "lat,lng"
+    const isCoords = (str) => str && /^-?\d+\.?\d*,-?\d+\.?\d*$/.test(str.trim());
+
+    if (sharedRoute && sharedRoute.fromLat && sharedRoute.toLat) {
+      // Share link — shared route data available (from DB lookup or URL coords)
+      const timer = setTimeout(() => {
+        autoSplitFromCoords(sharedRoute);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else if (fromParam && toParam && isCoords(fromParam) && isCoords(toParam)) {
+      // URL has coordinate params (share link fallback) — use coords directly
+      const [fromLat, fromLng] = fromParam.split(',').map(Number);
+      const [toLat, toLng] = toParam.split(',').map(Number);
+      const timer = setTimeout(() => {
+        autoSplitFromCoords({ fromLat, fromLng, toLat, toLng, fromName: null, toName: null });
+      }, 500);
+      return () => clearTimeout(timer);
+    } else if (fromParam && toParam) {
+      // Regular link with place names
       setFromValue(fromParam);
       setToValue(toParam);
 
@@ -400,6 +420,57 @@ export default function AppClient() {
         });
       } catch (err) {
         console.error('Auto-split error:', err);
+        showToast(err.message || 'Failed to load shared route.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [showToast]
+  );
+
+  // ---- Auto split from shared route coordinates ----
+  const autoSplitFromCoords = useCallback(
+    async (sharedRoute) => {
+      setLoading(true);
+      try {
+        const from = {
+          lat: sharedRoute.fromLat,
+          lon: sharedRoute.fromLng,
+          name: sharedRoute.fromName || `${sharedRoute.fromLat.toFixed(4)}, ${sharedRoute.fromLng.toFixed(4)}`,
+        };
+        const to = {
+          lat: sharedRoute.toLat,
+          lon: sharedRoute.toLng,
+          name: sharedRoute.toName || `${sharedRoute.toLat.toFixed(4)}, ${sharedRoute.toLng.toFixed(4)}`,
+        };
+
+        setFromValue(sharedRoute.fromName || from.name);
+        setToValue(sharedRoute.toName || to.name);
+        setFromLocation(from);
+        setToLocation(to);
+
+        const routeData = await getRoute(from, to);
+        setRoute(routeData);
+        setMidpoint(routeData.midpoint);
+        setHasResults(true);
+        setPlaces([]);
+
+        logSearch({
+          fromName: from.name,
+          fromLat: from.lat,
+          fromLng: from.lon,
+          toName: to.name,
+          toLat: to.lat,
+          toLng: to.lon,
+          midpointLat: routeData.midpoint.lat,
+          midpointLng: routeData.midpoint.lon,
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+          activeFilters: [],
+          placesFound: 0,
+        });
+      } catch (err) {
+        console.error('Shared route error:', err);
         showToast(err.message || 'Failed to load shared route.');
       } finally {
         setLoading(false);
@@ -530,6 +601,8 @@ export default function AppClient() {
           loading={loading}
           route={route}
           midpoint={midpoint}
+          fromLocation={fromLocation}
+          toLocation={toLocation}
           places={places}
           placesLoading={placesLoading}
           activeFilters={activeFilters}

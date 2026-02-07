@@ -1,45 +1,140 @@
 'use client';
 
-import { useState } from 'react';
-import { formatDistance, formatDuration, buildShareUrl, copyToClipboard } from '@/lib/utils';
-import { trackEvent, logShare, logOutboundClick } from '@/lib/analytics';
+import { useState, useRef, useEffect } from 'react';
+import { formatDistance, formatDuration, copyToClipboard } from '@/lib/utils';
+import { logShare, logOutboundClick } from '@/lib/analytics';
+
+const SHARE_METHODS = [
+  { id: 'copy', label: 'Copy Link', icon: '📋', color: 'text-gray-600' },
+  { id: 'whatsapp', label: 'WhatsApp', icon: '💬', color: 'text-green-600' },
+  { id: 'twitter', label: 'Twitter / X', icon: '🐦', color: 'text-blue-500' },
+  { id: 'facebook', label: 'Facebook', icon: '📘', color: 'text-blue-700' },
+  { id: 'email', label: 'Email', icon: '✉️', color: 'text-gray-700' },
+  { id: 'sms', label: 'Text Message', icon: '💬', color: 'text-blue-600' },
+];
 
 export default function RouteInfo({ 
   route, 
   fromName, 
   toName, 
+  fromLocation,
+  toLocation,
   midpoint,
   selectedRouteIndex = 0,
   onRouteSelect,
 }) {
   const [showCopied, setShowCopied] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const shareMenuRef = useRef(null);
 
   if (!route) return null;
 
   const hasAlternatives = route.allRoutes && route.allRoutes.length > 1;
 
-  const handleShare = async () => {
-    const url = buildShareUrl(fromName, toName);
-    if (!url) return;
+  // Close share menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(e.target)) {
+        setShowShareMenu(false);
+      }
+    }
+    if (showShareMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showShareMenu]);
 
-    const success = await copyToClipboard(url);
-    if (success) {
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2500);
-      // Log to both GA4 and Supabase
-      logShare({
-        shareType: 'copy_link',
-        fromName,
-        toName,
-        shareUrl: url,
-      });
+  const executeShare = async (method) => {
+    setShowShareMenu(false);
+
+    const fromShort = fromName?.split(',')[0] || fromName;
+    const toShort = toName?.split(',')[0] || toName;
+    const shareText = `Let's meet in the middle! 📍 Halfway between ${fromShort} and ${toShort}`;
+
+    // Log share and get trackable URL
+    const shareUrl = await logShare({
+      shareType: method,
+      shareMethod: method,
+      fromName,
+      toName,
+      fromLat: fromLocation?.lat || null,
+      fromLng: fromLocation?.lon || null,
+      toLat: toLocation?.lat || null,
+      toLng: toLocation?.lon || null,
+    });
+
+    const encodedUrl = encodeURIComponent(shareUrl);
+    const encodedText = encodeURIComponent(shareText);
+
+    switch (method) {
+      case 'copy':
+        const success = await copyToClipboard(shareUrl);
+        if (success) {
+          setShowCopied(true);
+          setTimeout(() => setShowCopied(false), 2500);
+        }
+        break;
+
+      case 'whatsapp':
+        window.open(
+          `https://wa.me/?text=${encodedText}%0A${encodedUrl}`,
+          '_blank', 'noopener,noreferrer'
+        );
+        break;
+
+      case 'twitter':
+        window.open(
+          `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+          '_blank', 'noopener,noreferrer'
+        );
+        break;
+
+      case 'facebook':
+        window.open(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+          '_blank', 'noopener,noreferrer'
+        );
+        break;
+
+      case 'email':
+        window.location.href = `mailto:?subject=${encodeURIComponent('Meet in the Middle!')}&body=${encodedText}%0A%0A${encodedUrl}`;
+        break;
+
+      case 'sms':
+        // Works on both iOS and Android
+        const separator = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? '&' : '?';
+        window.location.href = `sms:${separator}body=${encodedText}%0A${encodedUrl}`;
+        break;
+
+      case 'native':
+        try {
+          await navigator.share({
+            title: 'Split The Distance',
+            text: shareText,
+            url: shareUrl,
+          });
+        } catch (err) {
+          // User cancelled — not an error
+          if (err.name !== 'AbortError') {
+            console.error('Native share failed:', err);
+          }
+        }
+        break;
+    }
+  };
+
+  const handleShareClick = () => {
+    // On mobile with native share support, use it directly
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      executeShare('native');
+    } else {
+      setShowShareMenu(!showShareMenu);
     }
   };
 
   const handleMidpointClick = () => {
     if (!midpoint) return;
     const url = `https://www.google.com/maps/@${midpoint.lat},${midpoint.lon},14z`;
-    // Log outbound click to Supabase
     logOutboundClick({
       clickType: 'midpoint_directions',
       placeName: 'Midpoint',
@@ -156,9 +251,9 @@ export default function RouteInfo({
       </div>
 
       {/* Share Bar */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="relative flex items-center gap-2 mb-4" ref={shareMenuRef}>
         <button
-          onClick={handleShare}
+          onClick={handleShareClick}
           className="flex items-center gap-1.5 px-3.5 py-2 bg-white border border-gray-200 rounded-md text-[13px] font-medium text-gray-600 cursor-pointer transition-all duration-200 hover:border-teal-400 hover:text-teal-700 hover:bg-teal-50"
         >
           <svg
@@ -186,6 +281,22 @@ export default function RouteInfo({
         >
           Link copied!
         </span>
+
+        {/* Share Method Dropdown */}
+        {showShareMenu && (
+          <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-[180px] py-1 animate-fadeInUp">
+            {SHARE_METHODS.map((method) => (
+              <button
+                key={method.id}
+                onClick={() => executeShare(method.id)}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <span className="text-base">{method.icon}</span>
+                <span>{method.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
