@@ -17,21 +17,21 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: 'Split The Distance — Meet in the Middle',
+  title: 'Split The Distance — Find Your Halfway Point',
   description:
     'Find the perfect meeting point between two locations based on actual drive time. Discover restaurants, cafes, parks, and more at the midpoint.',
   openGraph: {
-    title: 'Split The Distance — Meet in the Middle',
+    title: 'Split The Distance',
     description:
-      'Find the perfect meeting point between two locations based on actual drive time. Discover restaurants, cafes, parks, and more at the midpoint.',
+      'Find the perfect halfway point between two locations. Discover restaurants, cafes, and more at the midpoint.',
     type: 'website',
     siteName: 'Split The Distance',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Split The Distance — Meet in the Middle',
+    title: 'Split The Distance',
     description:
-      'Find the perfect meeting point between two locations based on actual drive time.',
+      'Find the perfect halfway point between two locations based on drive time.',
   },
   icons: {
     icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>",

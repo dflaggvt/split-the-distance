@@ -48,10 +48,10 @@ export default function SearchPanel({
         {/* Search Section */}
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 mb-1">
-            Meet in the Middle
+            Split The Distance
           </h1>
           <p className="text-sm text-gray-500 mb-5">
-            Find the perfect halfway point based on actual drive time
+            Find your halfway point based on drive time
           </p>
 
           {/* Travel Mode Selector */}
