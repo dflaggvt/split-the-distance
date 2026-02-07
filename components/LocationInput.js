@@ -164,6 +164,12 @@ export default function LocationInput({
   const debouncedFetch = useCallback(
     (input) => {
       clearTimeout(debounceTimer.current);
+      // Require 3+ characters before fetching (saves ~40% API calls)
+      if (input.length < 3) {
+        setPredictions([]);
+        setIsOpen(false);
+        return;
+      }
       debounceTimer.current = setTimeout(() => fetchPredictions(input), 300);
     },
     [fetchPredictions]
