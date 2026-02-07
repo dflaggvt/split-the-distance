@@ -277,68 +277,189 @@ export default function MapView({
         >
           <div
             style={{
-              fontFamily: 'Inter, sans-serif',
-              minWidth: 180,
-              maxWidth: 260,
-              lineHeight: 1.5,
+              fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+              minWidth: 220,
+              maxWidth: 280,
+              padding: '4px',
             }}
           >
-            <div
-              style={{
-                fontWeight: 600,
-                fontSize: 14,
-                marginBottom: 4,
-              }}
-            >
-              {activePlace.emoji} {activePlace.name}
-            </div>
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>
-              {activePlace.categoryLabel}
-            </div>
-            {activePlace.rating && (
+            {/* Header */}
+            <div style={{ marginBottom: 12 }}>
               <div
                 style={{
-                  fontSize: 12,
-                  color: '#f59e0b',
-                  marginBottom: 2,
+                  fontSize: 16,
+                  fontWeight: 700,
+                  color: '#111827',
+                  lineHeight: 1.3,
+                  marginBottom: 4,
                 }}
               >
-                {'★'.repeat(Math.round(activePlace.rating))}{' '}
-                {activePlace.rating.toFixed(1)}
-                <span style={{ color: '#9ca3af', marginLeft: 4 }}>
-                  ({activePlace.userRatingsTotal})
-                </span>
+                {activePlace.name}
               </div>
-            )}
-            {activePlace.priceLevel != null && (
-              <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>
-                {'$'.repeat(activePlace.priceLevel || 1)}
-              </div>
-            )}
-            <div
-              style={{ fontSize: 12, color: '#0d9488', fontWeight: 500 }}
-            >
-              {activePlace.distanceFormatted} from midpoint
-            </div>
-            {activePlace.openNow != null && (
-              <div
-                style={{
+              <div style={{ 
+                fontSize: 12, 
+                color: '#6b7280',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}>
+                <span style={{
+                  background: '#f3f4f6',
+                  padding: '2px 8px',
+                  borderRadius: 12,
                   fontSize: 11,
-                  fontWeight: 500,
-                  color: activePlace.openNow ? '#16a34a' : '#ef4444',
-                  marginTop: 2,
-                }}
-              >
-                {activePlace.openNow ? 'Open now' : 'Closed'}
+                }}>
+                  {activePlace.emoji} {activePlace.categoryLabel}
+                </span>
+                {activePlace.priceLevel != null && (
+                  <span style={{ color: '#059669', fontWeight: 500 }}>
+                    {'$'.repeat(activePlace.priceLevel || 1)}
+                  </span>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Rating & Status Row */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 12,
+              paddingBottom: 12,
+              borderBottom: '1px solid #f3f4f6',
+            }}>
+              {activePlace.rating ? (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}>
+                  <span style={{
+                    background: '#fef3c7',
+                    color: '#d97706',
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}>
+                    ★ {activePlace.rating.toFixed(1)}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#9ca3af' }}>
+                    ({activePlace.userRatingsTotal?.toLocaleString()})
+                  </span>
+                </div>
+              ) : <div />}
+              {activePlace.openNow != null && (
+                <span style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: activePlace.openNow ? '#059669' : '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}>
+                  <span style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: activePlace.openNow ? '#059669' : '#dc2626',
+                  }} />
+                  {activePlace.openNow ? 'Open' : 'Closed'}
+                </span>
+              )}
+            </div>
+
+            {/* Distance */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              marginBottom: 8,
+            }}>
+              <span style={{ fontSize: 14 }}>📍</span>
+              <span style={{
+                fontSize: 13,
+                color: '#0d9488',
+                fontWeight: 600,
+              }}>
+                {activePlace.distanceFormatted} from midpoint
+              </span>
+            </div>
+
+            {/* Address */}
             {activePlace.address && (
-              <div
-                style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}
-              >
+              <div style={{
+                fontSize: 12,
+                color: '#6b7280',
+                lineHeight: 1.4,
+                marginBottom: 12,
+              }}>
                 {activePlace.address}
               </div>
             )}
+
+            {/* Action Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: 8,
+            }}>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activePlace.address || activePlace.name)}&destination_place_id=${activePlace.placeId || ''}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4,
+                  padding: '8px 12px',
+                  background: '#0d9488',
+                  color: 'white',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                }}
+                onClick={() => {
+                  trackEvent('infowindow_directions_click', {
+                    place_name: activePlace.name,
+                    place_category: activePlace.category,
+                  });
+                }}
+              >
+                🧭 Directions
+              </a>
+              {activePlace.website && (
+                <a
+                  href={activePlace.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    padding: '8px 12px',
+                    background: '#f3f4f6',
+                    color: '#374151',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                  onClick={() => {
+                    trackEvent('infowindow_website_click', {
+                      place_name: activePlace.name,
+                      place_category: activePlace.category,
+                    });
+                  }}
+                >
+                  🌐 Website
+                </a>
+              )}
+            </div>
           </div>
         </InfoWindowF>
       )}
