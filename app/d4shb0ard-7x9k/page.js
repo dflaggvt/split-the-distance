@@ -31,7 +31,7 @@ export default function AdminDashboard() {
   const [geoStats, setGeoStats] = useState([]);
   const [returnVisitors, setReturnVisitors] = useState([]);
   const [categoryStats, setCategoryStats] = useState([]);
-  const [cacheStats, setCacheStats] = useState({ uniqueRoutes: 0, repeatSearches: 0, repeatRate: 0 });
+  const [cacheStats, setCacheStats] = useState({ uniqueRoutes: 0, repeatSearches: 0, repeatRate: 0, cacheHits: 0, cacheHitRate: 0 });
   const [repeatRoutes, setRepeatRoutes] = useState([]);
 
   useEffect(() => {
@@ -237,7 +237,7 @@ export default function AdminDashboard() {
 
       setRecentSearches(recentData || []);
 
-      // Cache efficiency stats - analyze repeat routes
+      // Cache efficiency stats - analyze repeat routes and actual cache hits
       if (routesData && routesData.length > 0) {
         const routeMap = {};
         routesData.forEach(r => {
@@ -250,11 +250,25 @@ export default function AdminDashboard() {
         const repeatSearches = totalSearches - uniqueRoutes;
         const repeatRate = totalSearches > 0 ? (repeatSearches / totalSearches * 100) : 0;
         
+        // Fetch actual cache hit stats
+        const { count: cacheHitCount } = await supabase
+          .from('searches')
+          .select('*', { count: 'exact', head: true })
+          .gte('created_at', since)
+          .eq('is_internal', false)
+          .eq('cache_hit', true);
+        
+        const cacheHits = cacheHitCount || 0;
+        const cacheHitRate = totalSearches > 0 ? (cacheHits / totalSearches * 100) : 0;
+        
         setCacheStats({
           uniqueRoutes,
           repeatSearches,
           repeatRate: repeatRate.toFixed(1),
-          potentialSavings: (repeatSearches * 0.20).toFixed(2), // $0.20 per search
+          potentialSavings: (repeatSearches * 0.20).toFixed(2),
+          cacheHits,
+          cacheHitRate: cacheHitRate.toFixed(1),
+          actualSavings: (cacheHits * 0.20).toFixed(2), // Actual savings from cache hits
         });
         
         // Top repeated routes
@@ -437,28 +451,50 @@ export default function AdminDashboard() {
 
             {/* Cache Efficiency - Cost Optimization */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-              <h2 className="font-semibold text-gray-900 mb-4">💰 Cache Efficiency (Cost Savings Potential)</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">{cacheStats.uniqueRoutes.toLocaleString()}</div>
+              <h2 className="font-semibold text-gray-900 mb-4">💰 Route Caching (Cost Savings)</h2>
+              
+              {/* Actual Cache Performance */}
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">📊 Actual Cache Performance</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-blue-600">{cacheStats.cacheHits?.toLocaleString() || 0}</div>
+                    <div className="text-xs text-blue-700">Cache Hits</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-blue-600">{cacheStats.cacheHitRate || 0}%</div>
+                    <div className="text-xs text-blue-700">Hit Rate</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-green-600">${cacheStats.actualSavings || '0.00'}</div>
+                    <div className="text-xs text-green-700">Actual Savings</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Potential Analysis */}
+              <h3 className="text-sm font-medium text-gray-700 mb-2">📈 Repeat Route Analysis</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div className="text-center p-2 bg-gray-50 rounded-lg">
+                  <div className="text-lg font-bold text-gray-900">{cacheStats.uniqueRoutes.toLocaleString()}</div>
                   <div className="text-xs text-gray-500">Unique Routes</div>
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-orange-500">{cacheStats.repeatSearches.toLocaleString()}</div>
+                <div className="text-center p-2 bg-gray-50 rounded-lg">
+                  <div className="text-lg font-bold text-orange-500">{cacheStats.repeatSearches.toLocaleString()}</div>
                   <div className="text-xs text-gray-500">Repeat Searches</div>
                 </div>
-                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                  <div className="text-2xl font-bold text-teal-600">{cacheStats.repeatRate}%</div>
+                <div className="text-center p-2 bg-gray-50 rounded-lg">
+                  <div className="text-lg font-bold text-teal-600">{cacheStats.repeatRate}%</div>
                   <div className="text-xs text-gray-500">Repeat Rate</div>
                 </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">${cacheStats.potentialSavings}</div>
-                  <div className="text-xs text-gray-500">Potential Savings</div>
+                <div className="text-center p-2 bg-amber-50 rounded-lg">
+                  <div className="text-lg font-bold text-amber-600">${cacheStats.potentialSavings}</div>
+                  <div className="text-xs text-amber-700">Max Potential</div>
                 </div>
               </div>
               {repeatRoutes.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Top Repeated Routes</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">🔄 Top Repeated Routes</h3>
                   <div className="space-y-1">
                     {repeatRoutes.map((r, i) => (
                       <div key={i} className="flex justify-between text-sm">
@@ -470,7 +506,7 @@ export default function AdminDashboard() {
                 </div>
               )}
               <div className="mt-3 text-xs text-gray-400">
-                Savings based on $0.20/search. Caching repeated routes eliminates redundant API calls.
+                Savings = $0.20/cached search (Routes API). Cache TTL: 4 hours.
               </div>
             </div>
 
