@@ -20,6 +20,8 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('24h');
+  const [customValue, setCustomValue] = useState(5);
+  const [customUnit, setCustomUnit] = useState('minutes');
   const [topPlaces, setTopPlaces] = useState([]);
   const [topRoutes, setTopRoutes] = useState([]);
   const [recentSearches, setRecentSearches] = useState([]);
@@ -32,16 +34,26 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchStats();
-  }, [timeRange]);
+  }, [timeRange, customValue, customUnit]);
 
   const getTimeFilter = () => {
     const now = new Date();
     switch (timeRange) {
+      case '1m': return new Date(now - 1 * 60 * 1000).toISOString();
+      case '5m': return new Date(now - 5 * 60 * 1000).toISOString();
+      case '15m': return new Date(now - 15 * 60 * 1000).toISOString();
+      case '30m': return new Date(now - 30 * 60 * 1000).toISOString();
       case '1h': return new Date(now - 60 * 60 * 1000).toISOString();
       case '24h': return new Date(now - 24 * 60 * 60 * 1000).toISOString();
       case '7d': return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
       case '30d': return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
       case 'all': return '2020-01-01T00:00:00.000Z';
+      case 'custom': {
+        const multiplier = customUnit === 'minutes' ? 60 * 1000 : 
+                          customUnit === 'hours' ? 60 * 60 * 1000 : 
+                          24 * 60 * 60 * 1000;
+        return new Date(now - customValue * multiplier).toISOString();
+      }
       default: return new Date(now - 24 * 60 * 60 * 1000).toISOString();
     }
   };
@@ -257,18 +269,50 @@ export default function AdminDashboard() {
             <h1 className="text-2xl font-bold text-gray-900">📊 Analytics Dashboard</h1>
             <p className="text-gray-500 text-sm">Split The Distance • Real-time data from Supabase</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
             >
-              <option value="1h">Last hour</option>
-              <option value="24h">Last 24 hours</option>
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="all">All time</option>
+              <optgroup label="Live">
+                <option value="1m">Last 1 min</option>
+                <option value="5m">Last 5 min</option>
+                <option value="15m">Last 15 min</option>
+                <option value="30m">Last 30 min</option>
+              </optgroup>
+              <optgroup label="Standard">
+                <option value="1h">Last hour</option>
+                <option value="24h">Last 24 hours</option>
+                <option value="7d">Last 7 days</option>
+                <option value="30d">Last 30 days</option>
+                <option value="all">All time</option>
+              </optgroup>
+              <optgroup label="Custom">
+                <option value="custom">Custom...</option>
+              </optgroup>
             </select>
+            {timeRange === 'custom' && (
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="1"
+                  max="999"
+                  value={customValue}
+                  onChange={(e) => setCustomValue(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 px-2 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+                />
+                <select
+                  value={customUnit}
+                  onChange={(e) => setCustomUnit(e.target.value)}
+                  className="px-2 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+                >
+                  <option value="minutes">min</option>
+                  <option value="hours">hours</option>
+                  <option value="days">days</option>
+                </select>
+              </div>
+            )}
             <button
               onClick={fetchStats}
               className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700 transition"
