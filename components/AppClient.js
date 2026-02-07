@@ -263,6 +263,13 @@ export default function AppClient() {
           ? prev.filter((k) => k !== key)
           : [...prev, key];
 
+        // If no filters selected, clear places immediately
+        if (next.length === 0) {
+          console.log('[Filter] All filters off - clearing places');
+          setPlaces([]);
+          return next;
+        }
+
         // Fetch places with cache awareness
         if (midpoint) {
           // Pass current cache to avoid redundant API calls
