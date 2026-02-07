@@ -89,6 +89,7 @@ export default function AppClient() {
       // Check if midpoint changed - if so, clear cache
       const mpKey = `${mp.lat.toFixed(4)},${mp.lon.toFixed(4)}`;
       if (cachedMidpointRef.current !== mpKey) {
+        console.log('[Cache CLEAR] New midpoint:', mpKey);
         cachedMidpointRef.current = mpKey;
         currentCache = {};
         setPlacesCache({});
@@ -100,11 +101,19 @@ export default function AppClient() {
 
       // If all categories are cached, just combine and return
       if (uncachedCats.length === 0) {
+        console.log('[Cache HIT] All categories cached:', cats);
         const allPlaces = cats.flatMap(cat => currentCache[cat] || []);
         // Sort by distance
         allPlaces.sort((a, b) => a.distance - b.distance);
         setPlaces(allPlaces);
         return allPlaces;
+      }
+      
+      // Log what we're fetching vs using from cache
+      if (cachedCats.length > 0) {
+        console.log('[Cache PARTIAL] Using cached:', cachedCats, '| Fetching:', uncachedCats);
+      } else {
+        console.log('[Cache MISS] Fetching:', uncachedCats);
       }
 
       // Fetch only uncached categories
