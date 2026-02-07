@@ -345,10 +345,21 @@ export default function AppClient() {
     const fromParam = searchParams.get('from');
     const toParam = searchParams.get('to');
 
+    // Helper: detect if param looks like coords "lat,lng"
+    const isCoords = (str) => str && /^-?\d+\.?\d*,-?\d+\.?\d*$/.test(str.trim());
+
     if (sharedRoute && sharedRoute.fromLat && sharedRoute.toLat) {
-      // Share link with coordinates — use coords directly
+      // Share link — shared route data available (from DB lookup or URL coords)
       const timer = setTimeout(() => {
         autoSplitFromCoords(sharedRoute);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else if (fromParam && toParam && isCoords(fromParam) && isCoords(toParam)) {
+      // URL has coordinate params (share link fallback) — use coords directly
+      const [fromLat, fromLng] = fromParam.split(',').map(Number);
+      const [toLat, toLng] = toParam.split(',').map(Number);
+      const timer = setTimeout(() => {
+        autoSplitFromCoords({ fromLat, fromLng, toLat, toLng, fromName: null, toName: null });
       }, 500);
       return () => clearTimeout(timer);
     } else if (fromParam && toParam) {
