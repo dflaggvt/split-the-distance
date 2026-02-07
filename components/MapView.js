@@ -278,18 +278,16 @@ export default function MapView({
           <div
             style={{
               fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-              width: 250,
-              maxWidth: 250,
-              overflowX: 'hidden',
+              width: 240,
+              margin: -8,
+              padding: 0,
             }}
           >
             {/* Photo */}
             {activePlace.photoUrl && (
               <div style={{
-                marginBottom: 10,
-                height: 90,
+                height: 100,
                 overflow: 'hidden',
-                borderRadius: 8,
               }}>
                 <img 
                   src={activePlace.photoUrl} 
@@ -303,183 +301,116 @@ export default function MapView({
               </div>
             )}
 
-            {/* Header */}
-            <div style={{ marginBottom: 8 }}>
+            {/* Content */}
+            <div style={{ padding: 12 }}>
+              {/* Header */}
               <div
                 style={{
                   fontSize: 15,
                   fontWeight: 700,
                   color: '#111827',
                   lineHeight: 1.2,
-                  marginBottom: 4,
+                  marginBottom: 6,
                 }}
               >
                 {activePlace.name}
               </div>
+              
+              {/* Category & Price */}
               <div style={{ 
-                fontSize: 11, 
-                color: '#6b7280',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
+                gap: 8,
+                marginBottom: 8,
               }}>
                 <span style={{
                   background: '#f3f4f6',
-                  padding: '2px 6px',
-                  borderRadius: 10,
-                  fontSize: 10,
+                  padding: '3px 8px',
+                  borderRadius: 12,
+                  fontSize: 11,
+                  color: '#4b5563',
                 }}>
                   {activePlace.emoji} {activePlace.categoryLabel}
                 </span>
                 {activePlace.priceLevel != null && (
-                  <span style={{ color: '#059669', fontWeight: 600, fontSize: 12 }}>
+                  <span style={{ color: '#059669', fontWeight: 600, fontSize: 13 }}>
                     {'$'.repeat(activePlace.priceLevel || 1)}
                   </span>
                 )}
               </div>
-            </div>
 
-            {/* Rating & Status Row */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 8,
-              paddingBottom: 8,
-              borderBottom: '1px solid #f0f0f0',
-            }}>
-              {activePlace.rating ? (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}>
-                  <span style={{
-                    background: '#fef3c7',
-                    color: '#b45309',
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}>
-                    ★ {activePlace.rating.toFixed(1)}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#9ca3af' }}>
-                    ({activePlace.userRatingsTotal?.toLocaleString()})
-                  </span>
-                </div>
-              ) : <div />}
-              {activePlace.openNow != null && (
-                <span style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: activePlace.openNow ? '#059669' : '#dc2626',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 3,
-                }}>
-                  <span style={{
-                    width: 5,
-                    height: 5,
-                    borderRadius: '50%',
-                    background: activePlace.openNow ? '#059669' : '#dc2626',
-                  }} />
-                  {activePlace.openNow 
-                    ? (activePlace.closingTime ? `Open · Closes ${activePlace.closingTime}` : 'Open')
-                    : 'Closed'}
-                </span>
-              )}
-            </div>
-
-            {/* Distance & Address */}
-            <div style={{ marginBottom: 10 }}>
+              {/* Rating & Status Row */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
+                justifyContent: 'space-between',
+                marginBottom: 10,
+                paddingBottom: 10,
+                borderBottom: '1px solid #e5e7eb',
+              }}>
+                {activePlace.rating ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}>
+                    <span style={{
+                      background: '#fef3c7',
+                      color: '#b45309',
+                      padding: '3px 8px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}>
+                      ★ {activePlace.rating.toFixed(1)}
+                    </span>
+                    <span style={{ fontSize: 12, color: '#9ca3af' }}>
+                      ({activePlace.userRatingsTotal?.toLocaleString()})
+                    </span>
+                  </div>
+                ) : <div />}
+                {activePlace.openNow != null && (
+                  <span style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: activePlace.openNow ? '#059669' : '#dc2626',
+                  }}>
+                    {activePlace.openNow 
+                      ? (activePlace.closingTime ? `Open · ${activePlace.closingTime}` : '● Open')
+                      : '● Closed'}
+                  </span>
+                )}
+              </div>
+
+              {/* Distance */}
+              <div style={{
+                fontSize: 13,
+                color: '#0d9488',
+                fontWeight: 600,
                 marginBottom: 4,
               }}>
-                <span style={{
-                  fontSize: 12,
-                  color: '#0d9488',
-                  fontWeight: 600,
-                }}>
-                  📍 {activePlace.distanceFormatted} from midpoint
-                </span>
+                📍 {activePlace.distanceFormatted} from midpoint
               </div>
+              
+              {/* Address */}
               {activePlace.address && (
                 <div style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   color: '#6b7280',
-                  lineHeight: 1.3,
+                  lineHeight: 1.4,
+                  marginBottom: 12,
                 }}>
                   {activePlace.address}
                 </div>
               )}
-            </div>
 
-            {/* Action Buttons */}
-            <div style={{
-              display: 'flex',
-              gap: 6,
-            }}>
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activePlace.address || activePlace.name)}&destination_place_id=${activePlace.placeId || ''}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 4,
-                  padding: '7px 10px',
-                  background: '#0d9488',
-                  color: 'white',
-                  borderRadius: 6,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                }}
-                onClick={() => {
-                  trackEvent('infowindow_directions_click', {
-                    place_name: activePlace.name,
-                    place_category: activePlace.category,
-                  });
-                }}
-              >
-                🧭 Directions
-              </a>
-              {activePlace.phoneNumber && (
+              {/* Action Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: 8,
+              }}>
                 <a
-                  href={`tel:${activePlace.phoneNumber}`}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 4,
-                    padding: '7px 10px',
-                    background: '#3b82f6',
-                    color: 'white',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                  }}
-                  onClick={() => {
-                    trackEvent('infowindow_call_click', {
-                      place_name: activePlace.name,
-                      place_category: activePlace.category,
-                    });
-                  }}
-                >
-                  📞 Call
-                </a>
-              )}
-              {activePlace.websiteUri && !activePlace.phoneNumber && (
-                <a
-                  href={activePlace.websiteUri}
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activePlace.address || activePlace.name)}&destination_place_id=${activePlace.placeId || ''}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -487,25 +418,81 @@ export default function MapView({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: 4,
-                    padding: '7px 10px',
-                    background: '#f3f4f6',
-                    color: '#374151',
-                    borderRadius: 6,
-                    fontSize: 11,
+                    gap: 6,
+                    padding: '10px 12px',
+                    background: '#0d9488',
+                    color: 'white',
+                    borderRadius: 8,
+                    fontSize: 13,
                     fontWeight: 600,
                     textDecoration: 'none',
                   }}
                   onClick={() => {
-                    trackEvent('infowindow_website_click', {
+                    trackEvent('infowindow_directions_click', {
                       place_name: activePlace.name,
                       place_category: activePlace.category,
                     });
                   }}
                 >
-                  🌐 Website
+                  🧭 Directions
                 </a>
-              )}
+                {activePlace.phoneNumber && (
+                  <a
+                    href={`tel:${activePlace.phoneNumber}`}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '10px 12px',
+                      background: '#2563eb',
+                      color: 'white',
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                    onClick={() => {
+                      trackEvent('infowindow_call_click', {
+                        place_name: activePlace.name,
+                        place_category: activePlace.category,
+                      });
+                    }}
+                  >
+                    📞 Call
+                  </a>
+                )}
+                {activePlace.websiteUri && !activePlace.phoneNumber && (
+                  <a
+                    href={activePlace.websiteUri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: '10px 12px',
+                      background: '#e5e7eb',
+                      color: '#374151',
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                    onClick={() => {
+                      trackEvent('infowindow_website_click', {
+                        place_name: activePlace.name,
+                        place_category: activePlace.category,
+                      });
+                    }}
+                  >
+                    🌐 Website
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         </InfoWindowF>
