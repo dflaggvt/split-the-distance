@@ -193,7 +193,7 @@ export default function LocationInput({
     // Check cache first
     const cached = coordCacheRef.current.get(placeId);
     if (cached) {
-      console.log('[STD] Coord cache hit:', placeId);
+      // console.log('[STD] Coord cache hit:', placeId);
       return cached;
     }
 
@@ -222,7 +222,7 @@ export default function LocationInput({
         
         // Cache the result
         coordCacheRef.current.set(placeId, result);
-        console.log('[STD] Coord cached:', placeId);
+        // console.log('[STD] Coord cached:', placeId);
         
         return result;
       }

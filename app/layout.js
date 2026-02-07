@@ -47,7 +47,6 @@ export default function RootLayout({ children }) {
           {`(function(){
             var h = window.location.hostname;
             if (h !== 'splitthedistance.com' && h !== 'www.splitthedistance.com') {
-              console.log('[STD] Preview site - GTM disabled');
               return;
             }
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -63,8 +62,7 @@ export default function RootLayout({ children }) {
           {`(function(){
             var h = window.location.hostname;
             if (h !== 'splitthedistance.com' && h !== 'www.splitthedistance.com') {
-              console.log('[STD] Preview site - GA4 disabled');
-              window.gtag = function() { console.log('[STD] gtag stub:', arguments); };
+              window.gtag = function() {};
               return;
             }
             var s = document.createElement('script');
