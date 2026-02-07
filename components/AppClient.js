@@ -258,31 +258,33 @@ export default function AppClient() {
   // ---- Handle filter toggle ----
   const handleFilterToggle = useCallback(
     (key) => {
-      // Calculate next filters outside of setState to avoid closure issues
-      const next = activeFilters.includes(key)
-        ? activeFilters.filter((k) => k !== key)
-        : [...activeFilters, key];
-
-      setActiveFilters(next);
-
-      // If no filters selected, clear places immediately
-      if (next.length === 0) {
-        console.log('[Filter] All filters off - clearing places');
-        setPlaces([]);
-        return;
-      }
-
-      // Fetch places with cache awareness
-      if (midpoint) {
-        // Get current cache and fetch
-        setPlacesCache((currentCache) => {
-          fetchPlaces(midpoint, next, currentCache);
-          return currentCache;
-        });
-      }
+      // Use functional update to get CURRENT state, not stale closure
+      setActiveFilters((prev) => {
+        const next = prev.includes(key)
+          ? prev.filter((k) => k !== key)
+          : [...prev, key];
+        return next;
+      });
     },
-    [activeFilters, midpoint, fetchPlaces]
+    []
   );
+
+  // React to filter changes - separate from toggle to avoid closure issues
+  useEffect(() => {
+    if (!midpoint) return;
+
+    if (activeFilters.length === 0) {
+      console.log('[Filter] All filters off - clearing places');
+      setPlaces([]);
+      return;
+    }
+
+    // Fetch places with cache awareness
+    setPlacesCache((currentCache) => {
+      fetchPlaces(midpoint, activeFilters, currentCache);
+      return currentCache;
+    });
+  }, [activeFilters, midpoint, fetchPlaces]);
 
   // ---- Handle place click (from map or list) ----
   const handlePlaceClick = useCallback((placeId) => {
