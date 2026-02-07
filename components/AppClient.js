@@ -183,7 +183,6 @@ export default function AppClient() {
         durationSeconds: routeData.totalDuration,
         activeFilters,
         placesFound: fetchedPlaces.length,
-        cacheHit: routeData.fromCache || false,
       });
     } catch (err) {
       console.error('Split error:', err);
@@ -340,7 +339,6 @@ export default function AppClient() {
           durationSeconds: routeData.totalDuration,
           activeFilters,
           placesFound: fetchedPlaces.length,
-          cacheHit: routeData.fromCache || false,
         });
       } catch (err) {
         console.error('Auto-split error:', err);

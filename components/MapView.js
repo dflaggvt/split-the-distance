@@ -6,7 +6,6 @@ import {
   DirectionsRenderer,
   MarkerF,
   InfoWindowF,
-  Polyline,
 } from '@react-google-maps/api';
 import { formatDuration } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
@@ -151,20 +150,13 @@ export default function MapView({
 
   // Fit bounds when route changes
   useEffect(() => {
-    if (!mapRef.current || (!route?.directionsResult && !route?.usePolyline)) return;
+    if (!mapRef.current || !route?.directionsResult) return;
 
     const bounds = new google.maps.LatLngBounds();
-    
-    if (route.directionsResult) {
-      // Standard DirectionsResult path
-      const leg = route.directionsResult.routes[0].legs[0];
-      bounds.extend(leg.start_location);
-      bounds.extend(leg.end_location);
-    } else if (route.usePolyline && route.from && route.to) {
-      // Cached polyline path - use from/to coordinates
-      bounds.extend(new google.maps.LatLng(route.from.lat, route.from.lon));
-      bounds.extend(new google.maps.LatLng(route.to.lat, route.to.lon));
-    }
+    const leg = route.directionsResult.routes[0].legs[0];
+
+    bounds.extend(leg.start_location);
+    bounds.extend(leg.end_location);
 
     if (midpoint) {
       bounds.extend(new google.maps.LatLng(midpoint.lat, midpoint.lon));
@@ -212,7 +204,7 @@ export default function MapView({
         onLoad={onLoad}
         options={{ ...mapOptions, mapTypeId: mapType }}
       >
-      {/* Route - either from DirectionsResult or cached Polyline */}
+      {/* Route */}
       {route?.directionsResult && (
         <DirectionsRenderer
           directions={route.directionsResult}
@@ -220,12 +212,6 @@ export default function MapView({
             ...directionsOptions,
             routeIndex: selectedRouteIndex,
           }}
-        />
-      )}
-      {route?.usePolyline && route?.polylinePath && (
-        <Polyline
-          path={route.polylinePath}
-          options={routePolylineOptions}
         />
       )}
 
