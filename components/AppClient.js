@@ -45,6 +45,7 @@ export default function AppClient() {
   const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING | BICYCLING | WALKING
   const [places, setPlaces] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]); // Start empty - fetch on category click only
+  const [placesCache, setPlacesCache] = useState({}); // Cache: { category: [places] }
   const [loading, setLoading] = useState(false);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [activePlaceId, setActivePlaceId] = useState(null);
@@ -55,6 +56,7 @@ export default function AppClient() {
 
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
+  const cachedMidpointRef = useRef(null); // Track which midpoint the cache is for
 
   // Check internal user status on mount
   useEffect(() => {
@@ -73,9 +75,9 @@ export default function AppClient() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
 
-  // ---- Fetch places ----
+  // ---- Fetch places with client-side caching ----
   const fetchPlaces = useCallback(
-    async (mp, filters) => {
+    async (mp, filters, currentCache = {}) => {
       if (!mp) return [];
       const cats = filters || activeFilters;
 
@@ -84,11 +86,44 @@ export default function AppClient() {
         return [];
       }
 
+      // Check if midpoint changed - if so, clear cache
+      const mpKey = `${mp.lat.toFixed(4)},${mp.lon.toFixed(4)}`;
+      if (cachedMidpointRef.current !== mpKey) {
+        cachedMidpointRef.current = mpKey;
+        currentCache = {};
+        setPlacesCache({});
+      }
+
+      // Separate categories into cached and uncached
+      const cachedCats = cats.filter(cat => currentCache[cat]);
+      const uncachedCats = cats.filter(cat => !currentCache[cat]);
+
+      // If all categories are cached, just combine and return
+      if (uncachedCats.length === 0) {
+        const allPlaces = cats.flatMap(cat => currentCache[cat] || []);
+        // Sort by distance
+        allPlaces.sort((a, b) => a.distance - b.distance);
+        setPlaces(allPlaces);
+        return allPlaces;
+      }
+
+      // Fetch only uncached categories
       setPlacesLoading(true);
       try {
-        const results = await searchNearby(mp, cats);
-        setPlaces(results);
-        return results;
+        const newResults = await searchNearby(mp, uncachedCats);
+        
+        // Group results by category and update cache
+        const newCache = { ...currentCache };
+        uncachedCats.forEach(cat => {
+          newCache[cat] = newResults.filter(p => p.category === cat);
+        });
+        setPlacesCache(newCache);
+
+        // Combine cached + new results
+        const allPlaces = cats.flatMap(cat => newCache[cat] || []);
+        allPlaces.sort((a, b) => a.distance - b.distance);
+        setPlaces(allPlaces);
+        return allPlaces;
       } catch (err) {
         console.error('POI search error:', err);
         setPlaces([]);
@@ -219,9 +254,13 @@ export default function AppClient() {
           ? prev.filter((k) => k !== key)
           : [...prev, key];
 
-        // Re-fetch places with new filters
+        // Fetch places with cache awareness
         if (midpoint) {
-          fetchPlaces(midpoint, next);
+          // Pass current cache to avoid redundant API calls
+          setPlacesCache((currentCache) => {
+            fetchPlaces(midpoint, next, currentCache);
+            return currentCache; // Don't modify cache here, fetchPlaces will do it
+          });
         }
 
         return next;
