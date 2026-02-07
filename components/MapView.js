@@ -344,10 +344,10 @@ export default function MapView({
       )}
     </GoogleMap>
 
-      {/* Map Controls */}
-      <div className="absolute bottom-4 right-4 flex flex-col gap-2 z-10">
+      {/* Map Controls - bottom left to avoid Google's native controls */}
+      <div className="absolute bottom-6 left-3 flex flex-col gap-2 z-10">
         {/* Map Type Toggle */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-white rounded-lg shadow-md overflow-hidden flex">
           <button
             onClick={() => setMapType('roadmap')}
             className={`px-3 py-2 text-xs font-medium transition-colors ${
