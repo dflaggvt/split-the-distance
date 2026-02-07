@@ -416,6 +416,7 @@ export default function MapView({
                   style={{
                     flex: 1,
                     display: 'flex',
+                    flexDirection: 'row',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 6,
@@ -426,6 +427,7 @@ export default function MapView({
                     fontSize: 13,
                     fontWeight: 600,
                     textDecoration: 'none',
+                    whiteSpace: 'nowrap',
                   }}
                   onClick={() => {
                     trackEvent('infowindow_directions_click', {
@@ -434,7 +436,7 @@ export default function MapView({
                     });
                   }}
                 >
-                  🧭 Directions
+                  <span>🧭</span><span>Directions</span>
                 </a>
                 {activePlace.phoneNumber && (
                   <a
@@ -442,6 +444,7 @@ export default function MapView({
                     style={{
                       flex: 1,
                       display: 'flex',
+                      flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 6,
@@ -452,6 +455,7 @@ export default function MapView({
                       fontSize: 13,
                       fontWeight: 600,
                       textDecoration: 'none',
+                      whiteSpace: 'nowrap',
                     }}
                     onClick={() => {
                       trackEvent('infowindow_call_click', {
@@ -460,7 +464,7 @@ export default function MapView({
                       });
                     }}
                   >
-                    📞 Call
+                    <span>📞</span><span>Call</span>
                   </a>
                 )}
                 {activePlace.websiteUri && !activePlace.phoneNumber && (
@@ -471,6 +475,7 @@ export default function MapView({
                     style={{
                       flex: 1,
                       display: 'flex',
+                      flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: 6,
@@ -481,6 +486,7 @@ export default function MapView({
                       fontSize: 13,
                       fontWeight: 600,
                       textDecoration: 'none',
+                      whiteSpace: 'nowrap',
                     }}
                     onClick={() => {
                       trackEvent('infowindow_website_click', {
@@ -489,7 +495,7 @@ export default function MapView({
                       });
                     }}
                   >
-                    🌐 Website
+                    <span>🌐</span><span>Website</span>
                   </a>
                 )}
               </div>
