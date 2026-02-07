@@ -100,26 +100,29 @@ export default function AdminDashboard() {
         sessions: sessions || 0,
       });
 
-      // Fetch place clicks with categories
+      // Fetch place clicks with categories (count unique sessions per place)
       const { data: placesData } = await supabase
         .from('place_clicks')
-        .select('place_name, place_category')
+        .select('place_name, place_category, session_id')
         .gte('created_at', since)
         .eq('is_internal', false);
 
       if (placesData) {
-        // Top places
-        const placeCounts = {};
+        // Top places - count unique sessions, not raw clicks
+        const placeSessionSets = {};
         const catCounts = {};
         placesData.forEach(p => {
-          placeCounts[p.place_name] = (placeCounts[p.place_name] || 0) + 1;
+          if (!placeSessionSets[p.place_name]) {
+            placeSessionSets[p.place_name] = new Set();
+          }
+          placeSessionSets[p.place_name].add(p.session_id || 'unknown');
           const cat = p.place_category || 'Other';
           catCounts[cat] = (catCounts[cat] || 0) + 1;
         });
-        setTopPlaces(Object.entries(placeCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .map(([name, value]) => ({ name: name.substring(0, 25), value })));
+        setTopPlaces(Object.entries(placeSessionSets)
+          .map(([name, sessions]) => ({ name: name.substring(0, 25), value: sessions.size }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 10));
         
         setCategoryStats(Object.entries(catCounts)
           .sort((a, b) => b[1] - a[1])
@@ -129,23 +132,26 @@ export default function AdminDashboard() {
       // Fetch searches for routes, geo, and time stats
       const { data: routesData } = await supabase
         .from('searches')
-        .select('from_name, to_name, created_at')
+        .select('from_name, to_name, created_at, session_id')
         .gte('created_at', since)
         .eq('is_internal', false);
 
       if (routesData) {
-        // Top routes
-        const routeCounts = {};
+        // Top routes - count unique sessions, not raw searches
+        const routeSessionSets = {};
         routesData.forEach(r => {
           const fromShort = r.from_name?.split(',')[0] || 'Unknown';
           const toShort = r.to_name?.split(',')[0] || 'Unknown';
           const route = `${fromShort} → ${toShort}`;
-          routeCounts[route] = (routeCounts[route] || 0) + 1;
+          if (!routeSessionSets[route]) {
+            routeSessionSets[route] = new Set();
+          }
+          routeSessionSets[route].add(r.session_id || 'unknown');
         });
-        setTopRoutes(Object.entries(routeCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 8)
-          .map(([name, value]) => ({ name: name.substring(0, 35), value })));
+        setTopRoutes(Object.entries(routeSessionSets)
+          .map(([name, sessions]) => ({ name: name.substring(0, 35), value: sessions.size }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 8));
 
         // Geographic breakdown
         const geoCounts = {};
