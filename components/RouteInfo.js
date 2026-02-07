@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { formatDistance, formatDuration, copyToClipboard } from '@/lib/utils';
-import { trackEvent, logShare, logOutboundClick } from '@/lib/analytics';
+import { logShare, logOutboundClick } from '@/lib/analytics';
 
 const SHARE_METHODS = [
   { id: 'copy', label: 'Copy Link', icon: '📋', color: 'text-gray-600' },

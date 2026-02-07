@@ -260,19 +260,12 @@ export default function AdminDashboard() {
         setUtmCampaigns(Object.entries(campMap).sort((a, b) => b[1] - a[1])
           .map(([name, value]) => ({ name, value })));
 
-        // Source quality: searches per session by source
-        const srcSearches = {};
+        // Source quality: sessions by source
         const srcSessionCounts = {};
         sessionsData.forEach(s => {
           const src = s.source || 'unknown';
           srcSessionCounts[src] = (srcSessionCounts[src] || 0) + 1;
         });
-        if (routesData) {
-          // Build session→source lookup
-          const sessionSourceMap = {};
-          sessionsData.forEach(s => { if (s.session_id) sessionSourceMap[s.session_id] = s.source || 'unknown'; });
-          // Note: we don't have session_id in sessionsData from this query, so use aggregate
-        }
         setSourceQuality(Object.entries(srcSessionCounts).sort((a, b) => b[1] - a[1])
           .map(([name, sessions]) => ({ name, sessions })));
       }
