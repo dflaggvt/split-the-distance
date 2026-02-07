@@ -286,7 +286,8 @@ export default function AdminDashboard() {
         .gte('created_at', since).eq('is_internal', false).limit(10000);
       const { count: totalShareClicks } = await supabase
         .from('share_clicks').select('*', { count: 'exact', head: true })
-        .gte('created_at', since);
+        .gte('created_at', since)
+        .eq('is_internal', false);
       
       // Sessions from shares
       const shareSessionCount = sessionsData ? sessionsData.filter(s => s.source === 'share').length : 0;
