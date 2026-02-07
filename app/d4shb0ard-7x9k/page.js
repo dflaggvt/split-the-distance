@@ -242,14 +242,23 @@ export default function AdminDashboard() {
     setLoading(false);
   };
 
-  const StatCard = ({ label, value, subtext, icon }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+  const StatCard = ({ label, value, subtext, icon, tooltip }) => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 group relative">
       <div className="flex items-center gap-2">
         {icon && <span className="text-lg">{icon}</span>}
         <span className="text-sm text-gray-500 font-medium">{label}</span>
+        {tooltip && (
+          <span className="text-gray-300 cursor-help text-xs">ⓘ</span>
+        )}
       </div>
       <div className="text-3xl font-bold text-gray-900 mt-1">{value?.toLocaleString?.() ?? value ?? '—'}</div>
       {subtext && <div className="text-xs text-gray-400 mt-1">{subtext}</div>}
+      {tooltip && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 max-w-xs text-center">
+          {tooltip}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+        </div>
+      )}
     </div>
   );
 
@@ -328,16 +337,42 @@ export default function AdminDashboard() {
           <>
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-              <StatCard icon="👥" label="Sessions" value={stats?.sessions} />
-              <StatCard icon="🔍" label="Searches" value={stats?.externalSearches} />
-              <StatCard icon="📍" label="Place Clicks" value={stats?.placeClicks} />
-              <StatCard icon="🔗" label="Shares" value={stats?.shares} />
-              <StatCard icon="🚀" label="Outbound" value={stats?.outboundClicks} />
+              <StatCard 
+                icon="👥" 
+                label="Sessions" 
+                value={stats?.sessions} 
+                tooltip="Unique visits to the site. A session starts when someone opens the page."
+              />
+              <StatCard 
+                icon="🔍" 
+                label="Searches" 
+                value={stats?.externalSearches} 
+                tooltip="Midpoint searches performed. Each 'Find Midpoint' click = 1 search."
+              />
+              <StatCard 
+                icon="📍" 
+                label="Place Clicks" 
+                value={stats?.placeClicks} 
+                tooltip="Clicks on place cards in the results list (restaurants, cafes, etc)."
+              />
+              <StatCard 
+                icon="🔗" 
+                label="Shares" 
+                value={stats?.shares} 
+                tooltip="Times users clicked 'Share' or 'Copy Link' to share results."
+              />
+              <StatCard 
+                icon="🚀" 
+                label="Outbound" 
+                value={stats?.outboundClicks} 
+                tooltip="Clicks to external sites — Google Maps directions, place websites, etc."
+              />
               <StatCard 
                 icon="📈"
                 label="Click Rate" 
                 value={stats?.externalSearches > 0 ? `${((stats?.placeClicks / stats?.externalSearches) * 100).toFixed(1)}%` : '—'} 
                 subtext="Clicks / Searches"
+                tooltip="% of searches that resulted in at least one place click."
               />
             </div>
 
