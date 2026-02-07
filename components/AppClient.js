@@ -258,31 +258,30 @@ export default function AppClient() {
   // ---- Handle filter toggle ----
   const handleFilterToggle = useCallback(
     (key) => {
-      setActiveFilters((prev) => {
-        const next = prev.includes(key)
-          ? prev.filter((k) => k !== key)
-          : [...prev, key];
+      // Calculate next filters outside of setState to avoid closure issues
+      const next = activeFilters.includes(key)
+        ? activeFilters.filter((k) => k !== key)
+        : [...activeFilters, key];
 
-        // If no filters selected, clear places immediately
-        if (next.length === 0) {
-          console.log('[Filter] All filters off - clearing places');
-          setPlaces([]);
-          return next;
-        }
+      setActiveFilters(next);
 
-        // Fetch places with cache awareness
-        if (midpoint) {
-          // Pass current cache to avoid redundant API calls
-          setPlacesCache((currentCache) => {
-            fetchPlaces(midpoint, next, currentCache);
-            return currentCache; // Don't modify cache here, fetchPlaces will do it
-          });
-        }
+      // If no filters selected, clear places immediately
+      if (next.length === 0) {
+        console.log('[Filter] All filters off - clearing places');
+        setPlaces([]);
+        return;
+      }
 
-        return next;
-      });
+      // Fetch places with cache awareness
+      if (midpoint) {
+        // Get current cache and fetch
+        setPlacesCache((currentCache) => {
+          fetchPlaces(midpoint, next, currentCache);
+          return currentCache;
+        });
+      }
     },
-    [midpoint, fetchPlaces]
+    [activeFilters, midpoint, fetchPlaces]
   );
 
   // ---- Handle place click (from map or list) ----
