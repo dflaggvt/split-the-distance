@@ -278,26 +278,47 @@ export default function MapView({
           <div
             style={{
               fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-              minWidth: 220,
-              maxWidth: 280,
-              padding: '4px',
+              width: 260,
             }}
           >
+            {/* Photo */}
+            {activePlace.photoUrl && (
+              <div style={{
+                marginBottom: 10,
+                marginTop: -12,
+                marginLeft: -12,
+                marginRight: -12,
+                height: 100,
+                overflow: 'hidden',
+                borderRadius: '8px 8px 0 0',
+              }}>
+                <img 
+                  src={activePlace.photoUrl} 
+                  alt={activePlace.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                  }}
+                />
+              </div>
+            )}
+
             {/* Header */}
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 8 }}>
               <div
                 style={{
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: 700,
                   color: '#111827',
-                  lineHeight: 1.3,
+                  lineHeight: 1.2,
                   marginBottom: 4,
                 }}
               >
                 {activePlace.name}
               </div>
               <div style={{ 
-                fontSize: 12, 
+                fontSize: 11, 
                 color: '#6b7280',
                 display: 'flex',
                 alignItems: 'center',
@@ -305,14 +326,14 @@ export default function MapView({
               }}>
                 <span style={{
                   background: '#f3f4f6',
-                  padding: '2px 8px',
-                  borderRadius: 12,
-                  fontSize: 11,
+                  padding: '2px 6px',
+                  borderRadius: 10,
+                  fontSize: 10,
                 }}>
                   {activePlace.emoji} {activePlace.categoryLabel}
                 </span>
                 {activePlace.priceLevel != null && (
-                  <span style={{ color: '#059669', fontWeight: 500 }}>
+                  <span style={{ color: '#059669', fontWeight: 600, fontSize: 12 }}>
                     {'$'.repeat(activePlace.priceLevel || 1)}
                   </span>
                 )}
@@ -324,84 +345,84 @@ export default function MapView({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              marginBottom: 12,
-              paddingBottom: 12,
-              borderBottom: '1px solid #f3f4f6',
+              marginBottom: 8,
+              paddingBottom: 8,
+              borderBottom: '1px solid #f0f0f0',
             }}>
               {activePlace.rating ? (
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 6,
+                  gap: 4,
                 }}>
                   <span style={{
                     background: '#fef3c7',
-                    color: '#d97706',
-                    padding: '3px 8px',
-                    borderRadius: 6,
-                    fontSize: 13,
-                    fontWeight: 600,
+                    color: '#b45309',
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    fontSize: 12,
+                    fontWeight: 700,
                   }}>
                     ★ {activePlace.rating.toFixed(1)}
                   </span>
-                  <span style={{ fontSize: 12, color: '#9ca3af' }}>
+                  <span style={{ fontSize: 11, color: '#9ca3af' }}>
                     ({activePlace.userRatingsTotal?.toLocaleString()})
                   </span>
                 </div>
               ) : <div />}
               {activePlace.openNow != null && (
                 <span style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 600,
                   color: activePlace.openNow ? '#059669' : '#dc2626',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
+                  gap: 3,
                 }}>
                   <span style={{
-                    width: 6,
-                    height: 6,
+                    width: 5,
+                    height: 5,
                     borderRadius: '50%',
                     background: activePlace.openNow ? '#059669' : '#dc2626',
                   }} />
-                  {activePlace.openNow ? 'Open' : 'Closed'}
+                  {activePlace.openNow 
+                    ? (activePlace.closingTime ? `Open · Closes ${activePlace.closingTime}` : 'Open')
+                    : 'Closed'}
                 </span>
               )}
             </div>
 
-            {/* Distance */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              marginBottom: 8,
-            }}>
-              <span style={{ fontSize: 14 }}>📍</span>
-              <span style={{
-                fontSize: 13,
-                color: '#0d9488',
-                fontWeight: 600,
-              }}>
-                {activePlace.distanceFormatted} from midpoint
-              </span>
-            </div>
-
-            {/* Address */}
-            {activePlace.address && (
+            {/* Distance & Address */}
+            <div style={{ marginBottom: 10 }}>
               <div style={{
-                fontSize: 12,
-                color: '#6b7280',
-                lineHeight: 1.4,
-                marginBottom: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                marginBottom: 4,
               }}>
-                {activePlace.address}
+                <span style={{
+                  fontSize: 12,
+                  color: '#0d9488',
+                  fontWeight: 600,
+                }}>
+                  📍 {activePlace.distanceFormatted} from midpoint
+                </span>
               </div>
-            )}
+              {activePlace.address && (
+                <div style={{
+                  fontSize: 11,
+                  color: '#6b7280',
+                  lineHeight: 1.3,
+                }}>
+                  {activePlace.address}
+                </div>
+              )}
+            </div>
 
             {/* Action Buttons */}
             <div style={{
               display: 'flex',
-              gap: 8,
+              gap: 6,
             }}>
               <a
                 href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activePlace.address || activePlace.name)}&destination_place_id=${activePlace.placeId || ''}`}
@@ -413,11 +434,11 @@ export default function MapView({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 4,
-                  padding: '8px 12px',
+                  padding: '7px 10px',
                   background: '#0d9488',
                   color: 'white',
-                  borderRadius: 8,
-                  fontSize: 12,
+                  borderRadius: 6,
+                  fontSize: 11,
                   fontWeight: 600,
                   textDecoration: 'none',
                 }}
@@ -430,9 +451,36 @@ export default function MapView({
               >
                 🧭 Directions
               </a>
-              {activePlace.website && (
+              {activePlace.phoneNumber && (
                 <a
-                  href={activePlace.website}
+                  href={`tel:${activePlace.phoneNumber}`}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 4,
+                    padding: '7px 10px',
+                    background: '#3b82f6',
+                    color: 'white',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                  }}
+                  onClick={() => {
+                    trackEvent('infowindow_call_click', {
+                      place_name: activePlace.name,
+                      place_category: activePlace.category,
+                    });
+                  }}
+                >
+                  📞 Call
+                </a>
+              )}
+              {activePlace.websiteUri && !activePlace.phoneNumber && (
+                <a
+                  href={activePlace.websiteUri}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -441,11 +489,11 @@ export default function MapView({
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 4,
-                    padding: '8px 12px',
+                    padding: '7px 10px',
                     background: '#f3f4f6',
                     color: '#374151',
-                    borderRadius: 8,
-                    fontSize: 12,
+                    borderRadius: 6,
+                    fontSize: 11,
                     fontWeight: 600,
                     textDecoration: 'none',
                   }}
