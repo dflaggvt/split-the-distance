@@ -127,7 +127,7 @@ export default function AdminDashboard() {
         .from('place_clicks')
         .select('place_name, place_category, session_id')
         .gte('created_at', since)
-        .eq('is_internal', false);
+        .eq('is_internal', false).limit(10000);
 
       if (placesData) {
         const placeSessionSets = {};
@@ -152,7 +152,7 @@ export default function AdminDashboard() {
         .from('searches')
         .select('from_name, to_name, created_at, session_id')
         .gte('created_at', since)
-        .eq('is_internal', false);
+        .eq('is_internal', false).limit(10000);
 
       if (routesData) {
         const routeSessionSets = {};
@@ -207,7 +207,7 @@ export default function AdminDashboard() {
         .from('sessions')
         .select('device_type, visitor_id, source, source_detail, referrer_domain, utm_source, utm_medium, utm_campaign, created_at')
         .gte('created_at', since)
-        .eq('is_internal', false);
+        .eq('is_internal', false).limit(10000);
 
       if (sessionsData) {
         const deviceCounts = { Mobile: 0, Desktop: 0, Tablet: 0 };
@@ -283,7 +283,7 @@ export default function AdminDashboard() {
       // Share funnel
       const { count: totalShares } = await supabase
         .from('shares').select('*', { count: 'exact', head: true })
-        .gte('created_at', since).eq('is_internal', false);
+        .gte('created_at', since).eq('is_internal', false).limit(10000);
       const { count: totalShareClicks } = await supabase
         .from('share_clicks').select('*', { count: 'exact', head: true })
         .gte('created_at', since);
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
         .from('shares')
         .select('share_method, route_from_name, route_to_name, click_count, created_at, share_id')
         .gte('created_at', since)
-        .eq('is_internal', false);
+        .eq('is_internal', false).limit(10000);
 
       if (sharesData) {
         // Method breakdown
