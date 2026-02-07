@@ -278,19 +278,18 @@ export default function MapView({
           <div
             style={{
               fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
-              width: 260,
+              width: 250,
+              maxWidth: 250,
+              overflowX: 'hidden',
             }}
           >
             {/* Photo */}
             {activePlace.photoUrl && (
               <div style={{
                 marginBottom: 10,
-                marginTop: -12,
-                marginLeft: -12,
-                marginRight: -12,
-                height: 100,
+                height: 90,
                 overflow: 'hidden',
-                borderRadius: '8px 8px 0 0',
+                borderRadius: 8,
               }}>
                 <img 
                   src={activePlace.photoUrl} 
