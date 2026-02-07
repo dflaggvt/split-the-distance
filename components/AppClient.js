@@ -488,7 +488,7 @@ export default function AppClient() {
         />
 
         {/* Map Container */}
-        <div className="flex-1 relative max-md:flex-none max-md:h-[45vh] max-md:min-h-[280px]">
+        <div className={`flex-1 relative max-md:flex-none ${mobileCollapsed ? 'max-md:h-[calc(100vh-56px)]' : 'max-md:h-[45vh] max-md:min-h-[280px]'}`}>
           <MapView
             from={fromLocation}
             to={toLocation}
