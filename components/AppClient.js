@@ -44,7 +44,7 @@ export default function AppClient() {
   const [midpoint, setMidpoint] = useState(null);
   const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING | BICYCLING | WALKING
   const [places, setPlaces] = useState([]);
-  const [activeFilters, setActiveFilters] = useState(['restaurant', 'cafe']);
+  const [activeFilters, setActiveFilters] = useState([]); // Start empty - fetch on category click only
   const [loading, setLoading] = useState(false);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [activePlaceId, setActivePlaceId] = useState(null);
@@ -166,8 +166,9 @@ export default function AppClient() {
         `${window.location.pathname}?${params}`
       );
 
-      // Fetch places
-      const fetchedPlaces = await fetchPlaces(routeData.midpoint, activeFilters);
+      // Don't fetch places automatically - wait for user to click a category
+      // This saves 6 API calls (~$0.19) per search
+      setPlaces([]);
 
       // Fire-and-forget analytics
       logSearch({
@@ -181,8 +182,8 @@ export default function AppClient() {
         midpointLng: routeData.midpoint.lon,
         distanceMiles: routeData.totalDistance / 1609.344,
         durationSeconds: routeData.totalDuration,
-        activeFilters,
-        placesFound: fetchedPlaces.length,
+        activeFilters: [],
+        placesFound: 0,
       });
     } catch (err) {
       console.error('Split error:', err);
@@ -323,7 +324,8 @@ export default function AppClient() {
         setMidpoint(routeData.midpoint);
         setHasResults(true);
 
-        const fetchedPlaces = await fetchPlaces(routeData.midpoint, activeFilters);
+        // Don't fetch places automatically - wait for user to click a category
+        setPlaces([]);
 
         // Fire-and-forget analytics
         logSearch({
@@ -337,8 +339,8 @@ export default function AppClient() {
           midpointLng: routeData.midpoint.lon,
           distanceMiles: routeData.totalDistance / 1609.344,
           durationSeconds: routeData.totalDuration,
-          activeFilters,
-          placesFound: fetchedPlaces.length,
+          activeFilters: [],
+          placesFound: 0,
         });
       } catch (err) {
         console.error('Auto-split error:', err);
@@ -347,7 +349,7 @@ export default function AppClient() {
         setLoading(false);
       }
     },
-    [fetchPlaces, activeFilters, showToast]
+    [showToast]
   );
 
   // ---- Loading state while Google Maps loads ----

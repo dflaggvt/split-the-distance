@@ -180,6 +180,7 @@ export default function SearchPanel({
               loading={placesLoading}
               activePlaceId={activePlaceId}
               onPlaceClick={onPlaceClick}
+              activeFilters={activeFilters}
             />
           </div>
         ) : (

@@ -8,6 +8,7 @@ export default function PlacesList({
   loading,
   activePlaceId,
   onPlaceClick,
+  activeFilters = [],
 }) {
   const listRef = useRef(null);
 
@@ -33,9 +34,23 @@ export default function PlacesList({
   }
 
   if (places.length === 0) {
+    // Different message based on whether user has selected any categories
+    if (activeFilters.length === 0) {
+      return (
+        <div className="py-8 px-4 text-center">
+          <div className="text-3xl mb-2">👆</div>
+          <div className="text-sm font-medium text-gray-600 mb-1">
+            Select a category above
+          </div>
+          <div className="text-xs text-gray-400">
+            Click on Food, Coffee, or other chips to see places near the midpoint
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="py-6 px-4 text-center text-sm text-gray-400">
-        No places found for the selected filters. Try enabling more categories.
+        No places found for the selected filters. Try a different category.
       </div>
     );
   }
