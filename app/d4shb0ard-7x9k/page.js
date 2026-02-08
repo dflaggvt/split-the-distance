@@ -600,19 +600,34 @@ export default function AdminDashboard() {
     <>
       {/* Source KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {sourceStats.slice(0, 4).map(s => (
-          <StatCard key={s.name} icon={
-            s.name === 'direct' ? '🔗' : s.name === 'organic' ? '🌿' : s.name === 'social' ? '📱' : 
-            s.name === 'share' ? '📤' : s.name === 'referral' ? '🔀' : '📊'
-          } label={s.name.charAt(0).toUpperCase() + s.name.slice(1)} value={s.value} 
-          subtext={stats?.sessions > 0 ? `${((s.value / stats.sessions) * 100).toFixed(1)}% of traffic` : ''} />
-        ))}
+        {sourceStats.slice(0, 4).map(s => {
+          const tooltips = {
+            direct: 'Visitors who typed the URL directly or used a bookmark.',
+            organic: 'Visitors from search engines (Google, Bing, etc.).',
+            social: 'Visitors from social media platforms (Twitter, Facebook, etc.).',
+            share: 'Visitors who clicked a shared link from another user.',
+            referral: 'Visitors from other websites linking to us.',
+            email: 'Visitors from email campaigns or newsletters.',
+            paid: 'Visitors from paid ads (CPC, display, etc.).',
+            unknown: 'Sessions created before attribution tracking was added.',
+          };
+          return (
+            <StatCard key={s.name} icon={
+              s.name === 'direct' ? '🔗' : s.name === 'organic' ? '🌿' : s.name === 'social' ? '📱' : 
+              s.name === 'share' ? '📤' : s.name === 'referral' ? '🔀' : s.name === 'email' ? '✉️' : s.name === 'paid' ? '💰' : '📊'
+            } label={s.name.charAt(0).toUpperCase() + s.name.slice(1)} value={s.value} 
+            subtext={stats?.sessions > 0 ? `${((s.value / stats.sessions) * 100).toFixed(1)}% of traffic` : ''}
+            tooltip={tooltips[s.name] || `Sessions attributed to ${s.name}.`} />
+          );
+        })}
       </div>
 
       {/* Traffic by Source */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">🔗 Traffic by Source</h2>
+          <h2 className="font-semibold text-gray-900 mb-4 group relative inline-flex items-center gap-1.5">🔗 Traffic by Source <span className="text-gray-300 cursor-help text-xs">ⓘ</span>
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">Breakdown of where your visitors come from.</span>
+          </h2>
           {sourceStats.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
@@ -626,7 +641,9 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">🌐 Top Referrer Domains</h2>
+          <h2 className="font-semibold text-gray-900 mb-4 group relative inline-flex items-center gap-1.5">🌐 Top Referrer Domains <span className="text-gray-300 cursor-help text-xs">ⓘ</span>
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">External websites that sent traffic to us.</span>
+          </h2>
           {topReferrers.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={topReferrers} layout="vertical" margin={{ left: 10, right: 20 }}>
@@ -643,7 +660,9 @@ export default function AdminDashboard() {
       {/* Source Trend Over Time */}
       {sourceTrend.length > 1 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4">📈 Source Trend (Daily)</h2>
+          <h2 className="font-semibold text-gray-900 mb-4 group relative inline-flex items-center gap-1.5">📈 Source Trend (Daily) <span className="text-gray-300 cursor-help text-xs">ⓘ</span>
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">Daily sessions stacked by traffic source over time.</span>
+          </h2>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={sourceTrend} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -661,7 +680,9 @@ export default function AdminDashboard() {
 
       {/* UTM Campaigns */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-        <h2 className="font-semibold text-gray-900 mb-4">🎯 UTM Campaign Performance</h2>
+        <h2 className="font-semibold text-gray-900 mb-4 group relative inline-flex items-center gap-1.5">🎯 UTM Campaign Performance <span className="text-gray-300 cursor-help text-xs">ⓘ</span>
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 max-w-xs">Sessions from links with UTM tracking params (?utm_source, utm_medium, utm_campaign).</span>
+        </h2>
         {utmCampaigns.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -693,7 +714,9 @@ export default function AdminDashboard() {
 
       {/* Source Quality */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h2 className="font-semibold text-gray-900 mb-4">⭐ Sessions by Source</h2>
+        <h2 className="font-semibold text-gray-900 mb-4 group relative inline-flex items-center gap-1.5">⭐ Sessions by Source <span className="text-gray-300 cursor-help text-xs">ⓘ</span>
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">Horizontal bars showing relative volume from each source.</span>
+        </h2>
         {sourceQuality.length > 0 ? (
           <div className="space-y-3">
             {sourceQuality.map(sq => {
