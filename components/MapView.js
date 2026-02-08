@@ -23,6 +23,7 @@ const mapOptions = {
   streetViewControl: false,
   mapTypeControl: false,
   fullscreenControl: false,
+  gestureHandling: 'greedy',
   styles: [
     {
       featureType: 'poi',
