@@ -178,7 +178,7 @@ export default function MapView({
     // Zoom in when places go from 0 to some (filter activated)
     if (places.length > 0 && prevPlacesCount.current === 0) {
       mapRef.current.panTo({ lat: midpoint.lat, lng: midpoint.lon });
-      mapRef.current.setZoom(13);
+      mapRef.current.setZoom(11);
     }
     // Zoom back out when all filters deactivated
     if (places.length === 0 && prevPlacesCount.current > 0 && route?.directionsResult) {
