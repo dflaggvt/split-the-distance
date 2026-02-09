@@ -411,7 +411,7 @@ export default function MapView({
                 gap: 8,
               }}>
                 <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(activePlace.address || activePlace.name)}&destination_place_id=${activePlace.placeId || ''}`}
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${activePlace.lat && activePlace.lon ? `${activePlace.lat},${activePlace.lon}` : encodeURIComponent(activePlace.address || activePlace.name)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

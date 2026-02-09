@@ -8,8 +8,11 @@ export default function PlaceCard({ place, isActive, onClick }) {
   const handleDirectionsClick = (e) => {
     e.stopPropagation(); // Don't trigger card click
     
-    // Open Google Maps directions
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.address || place.name)}&destination_place_id=${place.googlePlaceId || ''}`;
+    // Open Google Maps directions — use lat/lng for precise location
+    const destination = place.lat && place.lon
+      ? `${place.lat},${place.lon}`
+      : encodeURIComponent(place.address || place.name);
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
     
     // Log outbound click to Supabase
     logOutboundClick({
