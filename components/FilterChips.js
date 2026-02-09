@@ -10,7 +10,6 @@ const CATEGORY_KEYS = [
   'activity',
   'fuel',
   'hotel',
-  'kids',
 ];
 
 export default function FilterChips({ activeFilters, onToggle }) {
