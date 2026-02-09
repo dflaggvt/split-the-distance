@@ -53,7 +53,7 @@ export default function SearchPanel({
             Split The Distance
           </h1>
           <p className="text-sm text-gray-500 mb-5">
-            Find your halfway point based on drive time
+            Find your halfway point based on {travelMode === 'BICYCLING' ? 'cycling' : travelMode === 'WALKING' ? 'walking' : travelMode === 'TRANSIT' ? 'transit' : 'drive'} time
           </p>
 
           {/* Travel Mode Selector */}
@@ -174,6 +174,7 @@ export default function SearchPanel({
               midpoint={midpoint}
               selectedRouteIndex={selectedRouteIndex}
               onRouteSelect={onRouteSelect}
+              travelMode={travelMode}
             />
             <FilterChips
               activeFilters={activeFilters}
@@ -236,7 +237,7 @@ export default function SearchPanel({
             </p>
             <div className="flex flex-col gap-3 w-full max-w-[280px]">
               {[
-                { icon: '🛣️', text: 'Based on real drive time' },
+                { icon: '🛣️', text: 'Based on real travel time' },
                 { icon: '📍', text: 'Discover places at the midpoint' },
                 { icon: '🔗', text: 'Share results with a link' },
               ].map((feature) => (

@@ -13,6 +13,13 @@ const SHARE_METHODS = [
   { id: 'sms', label: 'Text Message', icon: '💬', color: 'text-blue-600' },
 ];
 
+const TRAVEL_MODE_LABELS = {
+  DRIVING: { time: 'Drive Time', each: 'Each Drives' },
+  BICYCLING: { time: 'Cycling Time', each: 'Each Cycles' },
+  WALKING: { time: 'Walking Time', each: 'Each Walks' },
+  TRANSIT: { time: 'Transit Time', each: 'Each Travels' },
+};
+
 export default function RouteInfo({ 
   route, 
   fromName, 
@@ -22,7 +29,9 @@ export default function RouteInfo({
   midpoint,
   selectedRouteIndex = 0,
   onRouteSelect,
+  travelMode = 'DRIVING',
 }) {
+  const modeLabels = TRAVEL_MODE_LABELS[travelMode] || TRAVEL_MODE_LABELS.DRIVING;
   const [showCopied, setShowCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const shareMenuRef = useRef(null);
@@ -231,7 +240,7 @@ export default function RouteInfo({
 
         <div className="flex flex-col items-center flex-1">
           <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wide">
-            Total Drive Time
+            Total {modeLabels.time}
           </span>
           <span className="text-base font-bold text-teal-900 mt-0.5">
             {formatDuration(route.totalDuration)}
@@ -242,7 +251,7 @@ export default function RouteInfo({
 
         <div className="flex flex-col items-center flex-1">
           <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wide">
-            Each Drives
+            {modeLabels.each}
           </span>
           <span className="text-base font-bold text-teal-900 mt-0.5">
             ~{formatDuration(route.totalDuration / 2)}
