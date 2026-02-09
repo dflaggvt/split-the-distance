@@ -29,6 +29,7 @@ const SOURCE_COLORS = {
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
+  const [prevStats, setPrevStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('24h');
   const [customValue, setCustomValue] = useState(5);
@@ -120,6 +121,35 @@ export default function AdminDashboard() {
         shares: shares || 0,
         outboundClicks: outboundClicks || 0,
         sessions: sessions || 0,
+      });
+
+      // Fetch previous period for comparison (same duration, shifted back)
+      const now = new Date();
+      const sinceDate = new Date(since);
+      const periodMs = now - sinceDate;
+      const prevStart = new Date(sinceDate - periodMs).toISOString();
+      const prevEnd = since;
+
+      const [
+        { count: prevSessions },
+        { count: prevSearches },
+        { count: prevPlaceClicks },
+        { count: prevShares },
+        { count: prevOutbound },
+      ] = await Promise.all([
+        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('searches').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('place_clicks').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('shares').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('outbound_clicks').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+      ]);
+
+      setPrevStats({
+        sessions: prevSessions || 0,
+        externalSearches: prevSearches || 0,
+        placeClicks: prevPlaceClicks || 0,
+        shares: prevShares || 0,
+        outboundClicks: prevOutbound || 0,
       });
 
       // Place clicks with categories (unique sessions)
@@ -347,23 +377,41 @@ export default function AdminDashboard() {
 
   // ==================== COMPONENTS ====================
 
-  const StatCard = ({ label, value, subtext, icon, tooltip }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 group relative">
-      <div className="flex items-center gap-2">
-        {icon && <span className="text-lg">{icon}</span>}
-        <span className="text-sm text-gray-500 font-medium">{label}</span>
-        {tooltip && <span className="text-gray-300 cursor-help text-xs">ⓘ</span>}
-      </div>
-      <div className="text-3xl font-bold text-gray-900 mt-1">{value?.toLocaleString?.() ?? value ?? '—'}</div>
-      {subtext && <div className="text-xs text-gray-400 mt-1">{subtext}</div>}
-      {tooltip && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 max-w-xs text-center">
-          {tooltip}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+  const getChangePercent = (current, previous) => {
+    if (previous == null || previous === 0) return current > 0 ? { pct: '∞', up: true } : null;
+    if (current == null) return null;
+    const pct = ((current - previous) / previous * 100).toFixed(0);
+    return { pct: `${Math.abs(pct)}%`, up: current >= previous, value: Number(pct) };
+  };
+
+  const StatCard = ({ label, value, subtext, icon, tooltip, prevValue }) => {
+    const change = typeof value === 'number' && prevValue != null ? getChangePercent(value, prevValue) : null;
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 group relative">
+        <div className="flex items-center gap-2">
+          {icon && <span className="text-lg">{icon}</span>}
+          <span className="text-sm text-gray-500 font-medium">{label}</span>
+          {tooltip && <span className="text-gray-300 cursor-help text-xs">ⓘ</span>}
         </div>
-      )}
-    </div>
-  );
+        <div className="flex items-end gap-2 mt-1">
+          <div className="text-3xl font-bold text-gray-900">{value?.toLocaleString?.() ?? value ?? '—'}</div>
+          {change && (
+            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded mb-1 ${change.up ? 'text-green-700 bg-green-50' : 'text-red-600 bg-red-50'}`}>
+              {change.up ? '↑' : '↓'} {change.pct}
+            </span>
+          )}
+        </div>
+        {subtext && <div className="text-xs text-gray-400 mt-1">{subtext}</div>}
+        {change && <div className="text-[10px] text-gray-400 mt-0.5">vs previous period{prevValue != null ? ` (${prevValue.toLocaleString()})` : ''}</div>}
+        {tooltip && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 max-w-xs text-center">
+            {tooltip}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const funnelData = stats ? [
     { name: 'Sessions', value: stats.sessions, fill: '#3b82f6' },
@@ -378,11 +426,11 @@ export default function AdminDashboard() {
   const OverviewTab = () => (
     <>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-        <StatCard icon="👥" label="Sessions" value={stats?.sessions} tooltip="Unique visits to the site." />
-        <StatCard icon="🔍" label="Searches" value={stats?.externalSearches} tooltip="Midpoint searches performed." />
-        <StatCard icon="📍" label="Place Clicks" value={stats?.placeClicks} tooltip="Clicks on place cards." />
-        <StatCard icon="🔗" label="Shares" value={stats?.shares} tooltip="Times users shared results." />
-        <StatCard icon="🚀" label="Outbound" value={stats?.outboundClicks} tooltip="Clicks to Google Maps, place sites." />
+        <StatCard icon="👥" label="Sessions" value={stats?.sessions} prevValue={prevStats?.sessions} tooltip="Unique visits to the site." />
+        <StatCard icon="🔍" label="Searches" value={stats?.externalSearches} prevValue={prevStats?.externalSearches} tooltip="Midpoint searches performed." />
+        <StatCard icon="📍" label="Place Clicks" value={stats?.placeClicks} prevValue={prevStats?.placeClicks} tooltip="Clicks on place cards." />
+        <StatCard icon="🔗" label="Shares" value={stats?.shares} prevValue={prevStats?.shares} tooltip="Times users shared results." />
+        <StatCard icon="🚀" label="Outbound" value={stats?.outboundClicks} prevValue={prevStats?.outboundClicks} tooltip="Clicks to Google Maps, place sites." />
         <StatCard icon="📈" label="Click Rate" value={stats?.externalSearches > 0 ? `${((stats?.placeClicks / stats?.externalSearches) * 100).toFixed(1)}%` : '—'} subtext="Clicks / Searches" tooltip="% of searches resulting in place clicks." />
       </div>
 
@@ -462,19 +510,32 @@ export default function AdminDashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Daily Trend */}
+      {/* Daily Trend with Moving Average */}
       {dailyStats.length > 1 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
           <h2 className="font-semibold text-gray-900 mb-4">📅 Daily Searches</h2>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={dailyStats} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={dailyStats.map((d, i, arr) => {
+              // Calculate 7-day moving average
+              const window = arr.slice(Math.max(0, i - 6), i + 1);
+              const avg = window.reduce((sum, w) => sum + w.searches, 0) / window.length;
+              // Day-over-day change
+              const prev = i > 0 ? arr[i - 1].searches : d.searches;
+              const change = prev > 0 ? ((d.searches - prev) / prev * 100).toFixed(0) : 0;
+              return { ...d, avg: Math.round(avg), change: Number(change) };
+            })} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} />
               <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-              <Tooltip />
+              <Tooltip formatter={(value, name) => [value, name === 'avg' ? '7-day avg' : name === 'searches' ? 'Searches' : name]} />
               <Line type="monotone" dataKey="searches" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} />
+              <Line type="monotone" dataKey="avg" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} />
             </LineChart>
           </ResponsiveContainer>
+          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-500 inline-block"></span> Daily</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-orange-500 inline-block border-dashed"></span> 7-day avg</span>
+          </div>
         </div>
       )}
 
