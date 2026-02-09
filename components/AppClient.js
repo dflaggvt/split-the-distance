@@ -633,7 +633,7 @@ export default function AppClient() {
       </header>
 
       {/* Main App */}
-      <main className="flex h-[calc(100vh-56px)] mt-14 max-md:flex-col max-md:h-auto max-md:min-h-[calc(100vh-52px)] max-md:mt-13">
+      <main className="flex h-[calc(100vh-56px)] mt-14 max-md:flex-col-reverse max-md:h-auto max-md:min-h-[calc(100vh-52px)] max-md:mt-13">
         <SearchPanel
           fromValue={fromValue}
           toValue={toValue}
@@ -672,7 +672,7 @@ export default function AppClient() {
         />
 
         {/* Map Container */}
-        <div className={`flex-1 relative max-md:flex-none max-md:order-0 ${mobileCollapsed ? 'max-md:h-[calc(100vh-56px)]' : 'max-md:h-[45vh] max-md:min-h-[280px]'}`}>
+        <div className={`flex-1 relative max-md:flex-none ${mobileCollapsed ? 'max-md:h-[calc(100vh-56px)]' : 'max-md:h-[45vh] max-md:min-h-[280px]'}`}>
           <MapView
             from={fromLocation}
             to={toLocation}
