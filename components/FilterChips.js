@@ -12,7 +12,7 @@ const CATEGORY_KEYS = [
   'hotel',
 ];
 
-export default function FilterChips({ activeFilters, onToggle }) {
+export default function FilterChips({ activeFilters, onToggle, localOnly, onLocalOnlyToggle }) {
   const handleToggle = (key) => {
     const isActive = activeFilters.includes(key);
     const cat = CATEGORIES[key];
@@ -51,6 +51,24 @@ export default function FilterChips({ activeFilters, onToggle }) {
             </button>
           );
         })}
+        {/* Local Only Toggle */}
+        <button
+          onClick={() => {
+            trackEvent('filter_toggle', {
+              filter_name: 'local_only',
+              filter_label: 'Local Only',
+              filter_action: localOnly ? 'off' : 'on',
+            });
+            onLocalOnlyToggle?.();
+          }}
+          className={`px-3 py-1.5 border-[1.5px] rounded-full text-[13px] font-medium cursor-pointer transition-all duration-200 whitespace-nowrap ${
+            localOnly
+              ? 'bg-amber-500 border-amber-500 text-white'
+              : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300 hover:bg-amber-50'
+          }`}
+        >
+          ⭐ Local Only
+        </button>
       </div>
     </div>
   );

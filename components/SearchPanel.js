@@ -35,6 +35,8 @@ export default function SearchPanel({
   onRouteSelect,
   travelMode,
   onTravelModeChange,
+  localOnly,
+  onLocalOnlyToggle,
 }) {
   const toInputRef = useRef(null);
 
@@ -179,9 +181,11 @@ export default function SearchPanel({
             <FilterChips
               activeFilters={activeFilters}
               onToggle={onFilterToggle}
+              localOnly={localOnly}
+              onLocalOnlyToggle={onLocalOnlyToggle}
             />
             <PlacesList
-              places={places}
+              places={localOnly ? places.filter(p => !p.brand) : places}
               loading={placesLoading}
               activePlaceId={activePlaceId}
               onPlaceClick={onPlaceClick}

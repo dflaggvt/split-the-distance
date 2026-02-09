@@ -45,6 +45,7 @@ export default function AppClient() {
   const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING | BICYCLING | WALKING
   const [places, setPlaces] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]); // Start empty - fetch on category click only
+  const [localOnly, setLocalOnly] = useState(false);
   const [placesCache, setPlacesCache] = useState({}); // Cache: { category: [places] }
   const routeCacheRef = useRef({}); // Cache: { "lat,lon|lat,lon|MODE": routeData }
   const [loading, setLoading] = useState(false);
@@ -669,6 +670,8 @@ export default function AppClient() {
           onRouteSelect={handleRouteSelect}
           travelMode={travelMode}
           onTravelModeChange={setTravelMode}
+          localOnly={localOnly}
+          onLocalOnlyToggle={() => setLocalOnly(prev => !prev)}
         />
 
         {/* Map Container */}
@@ -678,7 +681,7 @@ export default function AppClient() {
             to={toLocation}
             route={route}
             midpoint={midpoint}
-            places={places}
+            places={localOnly ? places.filter(p => !p.brand) : places}
             activePlaceId={activePlaceId}
             onPlaceClick={handlePlaceClick}
             selectedRouteIndex={selectedRouteIndex}
