@@ -46,6 +46,7 @@ export default function AppClient() {
   const [places, setPlaces] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]); // Start empty - fetch on category click only
   const [placesCache, setPlacesCache] = useState({}); // Cache: { category: [places] }
+  const routeCacheRef = useRef({}); // Cache: { "lat,lon|lat,lon|MODE": routeData }
   const [loading, setLoading] = useState(false);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [activePlaceId, setActivePlaceId] = useState(null);
@@ -156,6 +157,9 @@ export default function AppClient() {
       return;
     }
 
+    // Clear route cache for new search
+    routeCacheRef.current = {};
+
     // Track search button click
     trackEvent('search_clicked', {
       from_input: fromVal,
@@ -193,8 +197,17 @@ export default function AppClient() {
         setToValue(to.name);
       }
 
-      // Get route
-      const routeData = await getRoute(from, to, travelMode);
+      // Get route (with cache)
+      const cacheKey = `${from.lat},${from.lon}|${to.lat},${to.lon}|${travelMode}`;
+      let routeData;
+      if (routeCacheRef.current[cacheKey]) {
+        console.log('[Route Cache HIT]', cacheKey);
+        routeData = routeCacheRef.current[cacheKey];
+      } else {
+        routeData = await getRoute(from, to, travelMode);
+        routeCacheRef.current[cacheKey] = routeData;
+        console.log('[Route Cache MISS]', cacheKey);
+      }
       setRoute(routeData);
       setMidpoint(routeData.midpoint);
       setHasResults(true);
@@ -274,22 +287,34 @@ export default function AppClient() {
     if (!fromLocation || !toLocation || !hasResults) return;
 
     const recalculate = async () => {
-      setLoading(true);
-      try {
-        const routeData = await getRoute(fromLocation, toLocation, travelMode);
-        setRoute(routeData);
-        setMidpoint(routeData.midpoint);
-        setSelectedRouteIndex(0);
-        // Clear places cache since midpoint may have changed
-        setPlacesCache({});
-        if (activeFilters.length > 0) {
-          fetchPlaces(routeData.midpoint, activeFilters, {});
+      const cacheKey = `${fromLocation.lat},${fromLocation.lon}|${toLocation.lat},${toLocation.lon}|${travelMode}`;
+      let routeData;
+
+      if (routeCacheRef.current[cacheKey]) {
+        console.log('[Route Cache HIT] mode switch:', travelMode);
+        routeData = routeCacheRef.current[cacheKey];
+      } else {
+        setLoading(true);
+        try {
+          routeData = await getRoute(fromLocation, toLocation, travelMode);
+          routeCacheRef.current[cacheKey] = routeData;
+          console.log('[Route Cache MISS] mode switch:', travelMode);
+        } catch (err) {
+          console.error('Route recalc error:', err);
+          showToast('Could not recalculate route for this travel mode.');
+          setLoading(false);
+          return;
         }
-      } catch (err) {
-        console.error('Route recalc error:', err);
-        showToast('Could not recalculate route for this travel mode.');
-      } finally {
         setLoading(false);
+      }
+
+      setRoute(routeData);
+      setMidpoint(routeData.midpoint);
+      setSelectedRouteIndex(0);
+      // Clear places cache since midpoint may have changed
+      setPlacesCache({});
+      if (activeFilters.length > 0) {
+        fetchPlaces(routeData.midpoint, activeFilters, {});
       }
     };
 
