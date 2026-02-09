@@ -269,6 +269,34 @@ export default function AppClient() {
     []
   );
 
+  // Re-calculate route when travel mode changes (if we have locations)
+  useEffect(() => {
+    if (!fromLocation || !toLocation || !hasResults) return;
+
+    const recalculate = async () => {
+      setLoading(true);
+      try {
+        const routeData = await getRoute(fromLocation, toLocation, travelMode);
+        setRoute(routeData);
+        setMidpoint(routeData.midpoint);
+        setSelectedRouteIndex(0);
+        // Clear places cache since midpoint may have changed
+        setPlacesCache({});
+        if (activeFilters.length > 0) {
+          fetchPlaces(routeData.midpoint, activeFilters, {});
+        }
+      } catch (err) {
+        console.error('Route recalc error:', err);
+        showToast('Could not recalculate route for this travel mode.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    recalculate();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [travelMode]);
+
   // React to filter changes - separate from toggle to avoid closure issues
   useEffect(() => {
     if (!midpoint) return;
