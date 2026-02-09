@@ -712,8 +712,6 @@ export default function AppClient() {
       <footer className="bg-gray-900 text-gray-400 py-5 px-6 text-[13px]">
         <div className="max-w-[800px] mx-auto text-center flex items-center justify-center gap-2 flex-wrap">
           <span>Split The Distance © {new Date().getFullYear()}</span>
-          <span className="text-gray-600">·</span>
-          <span>Powered by Google Maps Platform</span>
         </div>
       </footer>
 
