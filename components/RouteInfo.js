@@ -226,34 +226,30 @@ export default function RouteInfo({
       )}
 
       {/* Route Summary Card */}
-      <div className="flex items-center justify-between bg-teal-50 border border-teal-200 rounded-[10px] px-4 py-3.5 mb-3">
-        <div className="flex flex-col items-center flex-1">
-          <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wide">
+      <div className="grid grid-cols-3 gap-2 bg-teal-50 border border-teal-200 rounded-[10px] px-3 py-3.5 mb-3 text-center">
+        <div className="flex flex-col items-center">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-teal-700 uppercase tracking-wide leading-tight">
             Total Distance
           </span>
-          <span className="text-base font-bold text-teal-900 mt-0.5">
+          <span className="text-sm sm:text-base font-bold text-teal-900 mt-1">
             {formatDistance(route.totalDistance)}
           </span>
         </div>
 
-        <div className="w-px h-8 bg-teal-200 shrink-0 hidden sm:block" />
-
-        <div className="flex flex-col items-center flex-1">
-          <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wide">
+        <div className="flex flex-col items-center border-x border-teal-200 px-1">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-teal-700 uppercase tracking-wide leading-tight">
             Total {modeLabels.time}
           </span>
-          <span className="text-base font-bold text-teal-900 mt-0.5">
+          <span className="text-sm sm:text-base font-bold text-teal-900 mt-1">
             {formatDuration(route.totalDuration)}
           </span>
         </div>
 
-        <div className="w-px h-8 bg-teal-200 shrink-0 hidden sm:block" />
-
-        <div className="flex flex-col items-center flex-1">
-          <span className="text-[11px] font-semibold text-teal-700 uppercase tracking-wide">
+        <div className="flex flex-col items-center">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-teal-700 uppercase tracking-wide leading-tight">
             {modeLabels.each}
           </span>
-          <span className="text-base font-bold text-teal-900 mt-0.5">
+          <span className="text-sm sm:text-base font-bold text-teal-900 mt-1">
             ~{formatDuration(route.totalDuration / 2)}
           </span>
         </div>
