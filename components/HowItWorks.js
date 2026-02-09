@@ -13,7 +13,7 @@ export default function HowItWorks() {
     {
       num: 3,
       title: 'Discover Places to Meet',
-      desc: "Restaurants, cafes, parks, and activities near the midpoint. Filter by what you're in the mood for.",
+      desc: "Restaurants, coffee shops, parks, activities, gas stations, hotels, and kid-friendly spots near the midpoint. Filter by what you're in the mood for.",
     },
   ];
 
