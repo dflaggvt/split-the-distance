@@ -171,6 +171,29 @@ export default function MapView({
     });
   }, [route, midpoint]);
 
+  // Zoom to midpoint area when places load
+  const prevPlacesCount = useRef(0);
+  useEffect(() => {
+    if (!mapRef.current || !midpoint) return;
+    // Zoom in when places go from 0 to some (filter activated)
+    if (places.length > 0 && prevPlacesCount.current === 0) {
+      mapRef.current.panTo({ lat: midpoint.lat, lng: midpoint.lon });
+      mapRef.current.setZoom(13);
+    }
+    // Zoom back out when all filters deactivated
+    if (places.length === 0 && prevPlacesCount.current > 0 && route?.directionsResult) {
+      const bounds = new google.maps.LatLngBounds();
+      const leg = route.directionsResult.routes[0].legs[0];
+      bounds.extend(leg.start_location);
+      bounds.extend(leg.end_location);
+      mapRef.current.fitBounds(bounds, {
+        top: 50, right: 50, bottom: 50,
+        left: window.innerWidth > 768 ? 60 : 20,
+      });
+    }
+    prevPlacesCount.current = places.length;
+  }, [places, midpoint, route]);
+
   // Pan to active place
   useEffect(() => {
     if (!mapRef.current || !activePlaceId) return;
