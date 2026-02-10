@@ -1,6 +1,6 @@
 # Split The Distance — Product Backlog
 
-_Last updated: February 9, 2026_
+_Last updated: February 10, 2026_
 
 ---
 
@@ -13,9 +13,73 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ---
 
+## FEATURE TIERS (Free / Account / Premium)
+
+### Free (No Account)
+- Core midpoint by drive time
+- Distance-based midpoint toggle (default: drive time)
+- Place discovery (all 6 categories, 25 results each)
+- Local Only filter (hide chains)
+- Sharing via link
+- Midpoint Roulette ("🎲 Surprise Me")
+- Travel modes: Drive, Bike, Walk
+
+### Free with Account
+- Reservation history (reservations made via our site)
+- Place photos in results
+- Trip history (view-only, last 5 routes)
+
+### Paid Premium ($4.99/mo or $29.99/yr)
+- Unlimited saved routes with pinned stops
+- Drop pins along routes + travel notes ("remember this spot")
+- Drift Radius (fairness zone)
+- Group Gravity (4+ people)
+- Incremental Stops (road trip mode)
+- Plan an Outing (curated multi-stop itineraries)
+- Full trip history (unlimited)
+- Recurring Midpoints (fresh suggestions on a schedule)
+
+---
+
 ## TIER 1 — Build Next (High Impact, Achievable Now)
 
-### 1.1 Fair Swap Zones
+### 1.1 Drift Radius (Fairness Zone) ⭐ _Theresa priority_
+**Tagline:** "Not just a point — a zone where it's fair for both of you."
+**What:** Instead of a single midpoint, show a shaded area on the map where drive times for both people are within a configurable tolerance (e.g., ±5, 10, or 15 minutes).
+**Why:** Genuinely novel — no competitor does this. Solves the real problem: exact midpoints sometimes land in the middle of nowhere. A fairness zone gives users way more options while keeping it equitable.
+**How it works:**
+- After calculating the midpoint, compute drive times from both origins to a grid of nearby points
+- Shade the area on the map where the time difference is within threshold
+- All place results filter to within this zone
+- User adjusts the tolerance slider (±5 / ±10 / ±15 min)
+
+**Effort:** L (drive time calculations at multiple points, map overlay rendering)
+**Revenue:** 💰💰💰 (strong premium differentiator)
+**Tier:** Premium
+**Dependencies:** Multiple Google Routes API calls per search (cost consideration — may need caching strategy)
+**Technical notes:** Could use isochrone mapping (Mapbox has an Isochrone API). Overlay two isochrones and show the intersection.
+
+---
+
+### 1.2 Saved Routes & Pinned Stops (Travel Journal) ⭐ _Theresa priority_
+**Tagline:** "Your personal road trip journal."
+**What:** Save routes you've searched, pin favorite stops along them, and add travel notes. Build a personal guide for routes you drive regularly.
+**Why:** Turns a one-time tool into something people return to. "I stopped at this amazing bakery on I-95 — pin it so I remember next time." Sticky, personal, worth paying for.
+**How it works:**
+- Save any route with one tap
+- Drop pins at places you've visited or want to remember
+- Add notes to pins ("amazing croissants, closed Mondays, park in back")
+- See all your saved routes + pins on a personal map
+- Revisit saved routes and see what's new nearby
+
+**Effort:** M
+**Revenue:** 💰💰💰 (premium feature, high retention)
+**Tier:** Premium
+**Dependencies:** User accounts, Supabase storage for saved data
+
+---
+
+### 1.3 Fair Swap Zones
 **Tagline:** "Meeting a stranger from the internet? Find the safest, fairest spot."
 **What:** Find a safe, convenient meeting point between buyer and seller for marketplace transactions (Facebook Marketplace, Craigslist, OfferUp, etc.)
 **Why:** Massive TAM — millions of marketplace transactions daily. Nobody serves this well. Safety angle is highly marketable.
@@ -34,46 +98,9 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ---
 
-### 1.2 Drift Radius (Fairness Zone)
-**Tagline:** "Not just a point — a zone where it's fair for both of you."
-**What:** Instead of a single midpoint, show a shaded area on the map where drive times for both people are within a configurable tolerance (e.g., ±5, 10, or 15 minutes).
-**Why:** Genuinely novel — no competitor does this. Solves the real problem: exact midpoints sometimes land in the middle of nowhere. A fairness zone gives users way more options while keeping it equitable.
-**How it works:**
-- After calculating the midpoint, compute drive times from both origins to a grid of nearby points
-- Shade the area on the map where the time difference is within threshold
-- All place results filter to within this zone
-- User adjusts the tolerance slider (±5 / ±10 / ±15 min)
-
-**Effort:** L (drive time calculations at multiple points, map overlay rendering)
-**Revenue:** 💰💰💰 (strong premium differentiator — "unlock Drift Radius for $X/mo")
-**Tier:** Premium
-**Dependencies:** Multiple Google Routes API calls per search (cost consideration — may need caching strategy)
-**Technical notes:** Could use isochrone mapping (Mapbox has an Isochrone API). Overlay two isochrones and show the intersection.
-
----
-
-### 1.3 Commute Equalizer
-**Tagline:** "House hunting? Find neighborhoods fair for both commutes."
-**What:** Enter both partners' workplaces → we show neighborhoods/areas where both commutes are balanced (within a tolerance). Overlay on map with housing data or just show the zone.
-**Why:** House hunting is high-stakes and emotional. Couples argue about commute fairness. This solves it with data. Real estate agents would share this tool.
-**How it works:**
-- Enter Workplace A + Workplace B
-- Set max commute tolerance (e.g., "neither of us wants more than 40 min")
-- Set fairness tolerance (e.g., "within 10 min of each other")
-- Display heatmap/zone of neighborhoods that satisfy both constraints
-- Bonus: overlay median home prices (Zillow/Redfin API)
-
-**Effort:** XL
-**Revenue:** 💰💰💰 (real estate affiliate — Zillow/Redfin/Realtor.com partnerships, premium feature)
-**Tier:** Premium
-**Marketing angle:** "The app every house-hunting couple needs" — lifestyle blogs, real estate TikTok, wedding/relationship content
-**Dependencies:** Isochrone calculations, possibly Zillow API for home price overlay
-
----
-
-### 1.4 Group Gravity (3+ People)
+### 1.4 Group Gravity (3+ People) ⭐ _Theresa priority_
 **Tagline:** "5 friends. 3 states. 1 perfect meeting spot."
-**What:** Find the optimal meeting point for 3 or more people, weighted by drive time.
+**What:** Find the optimal meeting point for 3 or more people, weighted by drive time. Perfect for family reunions, college friend weekends, group hangs.
 **Why:** Most-requested feature type for midpoint tools. Competitors either don't support it or charge for it (WhatsHalfway's multi-point is paid). Weekend trips, friend groups, family reunions.
 **How it works:**
 - Enter 3-10 locations
@@ -89,31 +116,67 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ---
 
+### 1.5 Incremental Stops (Road Trip Mode) 🆕
+**Tagline:** "Long drive? Plan stops along the way."
+**What:** For longer trips, plan multiple stops along the route rather than just the halfway point. Stop every 90 minutes, every 100 miles, or at set intervals.
+**Why:** Natural extension of what we do. Long road trips need multiple break points, not just one midpoint. Nobody combines drive-time-based intervals with place discovery well.
+**How it works:**
+- After searching a route, tap "Plan Stops" or "Road Trip Mode"
+- Choose interval: every 60/90/120 min or every 50/100 miles
+- We calculate stop points along the actual route at those intervals
+- Show places near each stop point (same category chips)
+- Full itinerary view: Stop 1 (1.5h in) → Stop 2 (3h in) → Destination
+
+**Effort:** M
+**Revenue:** 💰💰💰 (premium feature, high affiliate potential — gas stations, restaurants, hotels along route)
+**Tier:** Premium
+**Dependencies:** Route geometry parsing to find interval points, multiple Mapbox place queries per stop
+
+---
+
+### 1.6 Distance-Based Midpoint Toggle 🆕
+**Tagline:** "Split by time or distance — your choice."
+**What:** Toggle between drive-time midpoint (default) and simple distance-based midpoint.
+**Why:** Some users just want the geographic middle. Costs us nothing (pure math, no API call). Makes the tool more complete.
+**How it works:**
+- Toggle in search panel: ⏱ Drive Time (default) | 📏 Distance
+- Distance mode calculates geographic midpoint along the route
+- No Routes API call needed for the midpoint calc itself
+
+**Effort:** S
+**Revenue:** 💰 (completeness, broader appeal)
+**Tier:** Free
+**Dependencies:** None — pure client-side math
+
+---
+
 ## TIER 2 — Build After Core Premium (High Value, More Effort)
 
-### 2.1 Midpoint Date Night
-**Tagline:** "Not just a restaurant. A whole evening."
-**What:** Curated multi-stop itineraries at your midpoint — dinner → dessert → activity → walk. Auto-generated based on what's actually there.
-**Why:** Nobody does this. Elevates us from "utility tool" to "experience planner." Perfect for couples, date nights, friend hangouts.
+### 2.1 Plan an Outing (Curated Itineraries)
+**Tagline:** "Not just a restaurant. A whole experience."
+**What:** Curated multi-stop itineraries at your midpoint — dinner → dessert → activity → walk. Auto-generated based on what's actually there. Framed for ANY group: couples, friend weekends, family reunions, college meetups.
+**Why:** Elevates us from "utility tool" to "experience planner." Most people using this aren't in commuter relationships — they're planning group hangs, reunions, friend weekends.
 **How it works:**
-- After finding midpoint, tap "Plan a Date Night" (or "Plan an Outing")
+- After finding midpoint, tap "Plan an Outing"
 - We auto-generate 2-3 itinerary options:
   - 🍽 Dinner at [restaurant] → 🍦 Dessert at [cafe] → 🌳 Walk at [park]
   - 🎯 Activity at [attraction] → 🍕 Late dinner at [restaurant]
+  - 🏨 Hotel + full day itinerary for overnight trips
 - Each itinerary shows total time, distance between stops, and links to each place
-- One-tap share the full plan with your person
+- One-tap share the full plan with your group
 
 **Effort:** L
 **Revenue:** 💰💰💰 (OpenTable reservations, activity booking affiliate, premium feature)
 **Tier:** Premium (1 free itinerary per search, unlimited with subscription)
 **Dependencies:** OpenTable integration (for restaurant quality/booking), enough POI data density
+**Theresa's note:** Frame for groups/reunions/friend weekends, not just couples
 
 ---
 
-### 2.2 Recurring Midpoints
+### 2.2 Recurring Midpoints ⭐ _Theresa priority_
 **Tagline:** "Every other Friday — fresh ideas at your midpoint."
-**What:** For co-parents, long-distance couples, regular meetup groups. Save a midpoint and get periodic suggestions for new places to try there.
-**Why:** Retention loop. Keeps users coming back. Co-parents alone are a huge niche (estimated 15M+ in the US). Long-distance couples another massive segment.
+**What:** For co-parents, long-distance couples, regular meetup groups, or anyone who drives the same route regularly. Save a midpoint and get periodic suggestions for new places to try there.
+**Why:** Retention loop. Keeps users coming back. Co-parents alone are a huge niche (estimated 15M+ in the US). Also great for regular commuters who want to discover what's new along their usual route.
 **How it works:**
 - Save a midpoint pair (e.g., "Me ↔ Sarah")
 - Set a schedule (weekly, biweekly, monthly)
@@ -129,28 +192,63 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ### 2.3 Midpoint Roulette
 **Tagline:** "Feeling adventurous? Just go."
-**What:** Random spot selection at your midpoint. No filters, no choosing. We pick, you go.
-**Why:** Fun, shareable, great for couples in a decision rut. Low effort to build, high marketing value.
+**What:** Random spot selection at your midpoint. No filters, no choosing. We pick a random place — could be a restaurant, a park, an attraction — you just go.
+**Why:** Fun, shareable, great for groups who can't decide or want spontaneity. Low effort to build, high marketing value.
 **How it works:**
 - Calculate midpoint as usual
 - Tap "🎲 Surprise Me"
-- We pick a random place near the midpoint — could be anything
+- We pick a random place near the midpoint
 - Show it with a fun reveal animation
-- Option to "spin again" (limited on free tier)
+- Option to "spin again"
 
 **Effort:** S
 **Revenue:** 💰 (engagement, viral sharing)
 **Tier:** Free (great for marketing/virality)
-**Marketing angle:** TikTok content — "we let an app pick our date spot" trending format
+**Marketing angle:** TikTok content — "we let an app pick our date spot" / "we let an app pick our friend group hangout" trending format
+
+---
+
+### 2.4 Reservation History & Place Photos
+**What:** Show users what reservations they've made through our site. Display place photos in search results.
+**Why:** Photos make place cards significantly more useful. Reservation history builds loyalty and shows platform value.
+**How it works:**
+- Reservation tracking: log when users click through to OpenTable/booking partners, show history in their account
+- Place photos: pull from OpenTable (restaurants) and future partners (hotels, activities)
+
+**Effort:** M
+**Revenue:** 💰💰 (drives more affiliate clicks, builds account stickiness)
+**Tier:** Free with account
+**Dependencies:** OpenTable integration, user accounts
 
 ---
 
 ## TIER 3 — Future Vision (Longer Play)
 
-### 3.1 Midpoint Memories
+### 3.1 Commute Equalizer
+**Tagline:** "House hunting? Find neighborhoods fair for both commutes."
+**What:** Enter both partners' workplaces → show neighborhoods where both commutes are balanced.
+**Why:** High-stakes, emotional decision. Real estate agents would share this.
+**Current concern:** Without public transportation data (buses, trains, subway), this won't work well in major metro areas (NYC, Chicago, Boston, DC) where transit is the primary commute. **Need to integrate transit APIs before launching this.**
+**How it works:**
+- Enter Workplace A + Workplace B
+- Set max commute tolerance and fairness tolerance
+- Display heatmap/zone of neighborhoods satisfying both constraints
+- Overlay median home prices (Zillow/Redfin API)
+- **Must include:** driving, transit, biking, walking commute options
+
+**Effort:** XL
+**Revenue:** 💰💰💰 (real estate affiliate — Zillow/Redfin/Realtor.com partnerships)
+**Tier:** Premium
+**Dependencies:** Google Transit Directions API, isochrone calculations, Zillow API
+**Status:** Deprioritized until transit integration is feasible
+**Theresa's note:** Skeptical without public transit — won't be applicable in major metro areas
+
+---
+
+### 3.2 Midpoint Memories
 **Tagline:** "Every place you've met. On a map. Over time."
 **What:** After meeting up, snap a photo and tag the location. Build a visual timeline of all places you've met someone — a relationship map.
-**Why:** Emotionally sticky. Creates a reason to keep using the app and brings a social/personal element. Great for couples, friends, family.
+**Why:** Emotionally sticky. Creates a reason to keep using the app and brings a social/personal element.
 **How it works:**
 - After a meetup, prompt: "How was it? Add a photo!"
 - Photo + location + date saved to your map
@@ -164,7 +262,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ---
 
-### 3.2 The Midpoint Game (Gamification)
+### 3.3 The Midpoint Game (Gamification)
 **Tagline:** "You've explored 3 midpoints this month. Discover 2 more to unlock a badge."
 **What:** Gamify exploration. Badges, streaks, leaderboards, challenges.
 **Why:** Proven retention mechanic. Works especially well once we have user accounts.
@@ -181,47 +279,32 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ---
 
-### 3.3 Midpoint for Remote Teams (Enterprise)
+### 3.4 Midpoint for Remote Teams (Enterprise)
 **Tagline:** "Quarterly offsite? Find the fairest city for everyone."
-**What:** For distributed teams planning in-person meetups. Enter all team members' locations → find the optimal city where total travel (flights + drives) is minimized and fair.
-**Why:** Enterprise play. Remote work is permanent. Companies spend $thousands on offsites and pick locations arbitrarily.
+**What:** For distributed teams planning in-person meetups. Enter all team members' locations → find optimal city minimizing total travel.
+**Why:** Enterprise play. Remote work is permanent.
 **How it works:**
 - Enter 5-50 team member locations
-- We calculate optimal meeting cities considering:
-  - Flight availability and cost estimates
-  - Drive times for those within driving distance
-  - Hotel costs in candidate cities
-  - Venue availability
+- Calculate optimal cities considering flights, drives, hotel costs, venue availability
 - Output: ranked list of cities with fairness score and estimated total travel cost
 
 **Effort:** XL
 **Revenue:** 💰💰💰 (enterprise SaaS pricing — $50-200/mo per team)
 **Tier:** Separate enterprise product
-**Dependencies:** Flight data API (Skyscanner/Google Flights), hotel pricing API, totally different sales motion
-
----
-
-### 3.4 The Commute Equalizer Pro — Relocation Edition
-**What:** Extension of Commute Equalizer for job changes. "I just got a new job at X. We currently live at Y. My partner works at Z. Where should we move?"
-**Effort:** M (builds on Commute Equalizer)
-**Revenue:** 💰💰💰 (real estate affiliate)
-**Tier:** Premium
+**Dependencies:** Flight data API, hotel pricing API, totally different sales motion
 
 ---
 
 ## CURRENT FEATURES (Shipped)
 
-For reference — what's live today:
-
 - ✅ Drive-time midpoint calculation with live traffic
 - ✅ Multiple route options with time comparisons
-- ✅ Travel modes: Drive, Bike, Walk (with auto-recalculation)
+- ✅ Travel modes: Drive, Bike, Walk (with auto-recalculation + caching)
 - ✅ 6 place categories: Food, Coffee, Parks, Activities, Gas, Hotels (25 results each)
-- ✅ ⭐ Local Only filter (hide chains)
+- ✅ ⭐ Local Only filter (hide chains via Mapbox brand field)
 - ✅ Place details: name, distance, open/closed, address, phone, website, directions
 - ✅ Share route via link
 - ✅ Open midpoint in Google Maps
-- ✅ Route caching per travel mode
 - ✅ Mobile-first responsive design
 - ✅ Zero signup required
 - ✅ 100% free
@@ -233,15 +316,19 @@ For reference — what's live today:
 | Phase | Feature | Revenue Model | Timeline |
 |-------|---------|---------------|----------|
 | 1 | OpenTable integration | Affiliate commission on reservations | Now (application pending) |
-| 2 | Fair Swap Zones | Free feature → user growth → affiliate | Q2 2026 |
-| 3 | Drift Radius | Premium subscription ($5/mo) | Q2 2026 |
-| 4 | Group Gravity | Free for 3, premium for 4+ | Q3 2026 |
-| 5 | Commute Equalizer | Premium ($5/mo or $10/mo bundle) | Q3 2026 |
-| 6 | Date Night itineraries | Premium + OpenTable/Viator affiliate | Q3 2026 |
-| 7 | Recurring Midpoints | Premium (requires accounts) | Q4 2026 |
-| 8 | Enterprise/Remote Teams | SaaS ($50-200/mo) | 2027 |
+| 2 | Distance toggle | Free — drives broader usage | Q1 2026 |
+| 3 | Midpoint Roulette | Free — viral marketing feature | Q1 2026 |
+| 4 | Fair Swap Zones | Free → user growth → affiliate | Q2 2026 |
+| 5 | Drift Radius | Premium subscription ($4.99/mo) | Q2 2026 |
+| 6 | Saved Routes + Travel Journal | Premium ($4.99/mo) | Q2 2026 |
+| 7 | Group Gravity | Free for 3, premium for 4+ | Q3 2026 |
+| 8 | Incremental Stops | Premium ($4.99/mo) | Q3 2026 |
+| 9 | Plan an Outing | Premium + affiliate | Q3 2026 |
+| 10 | Recurring Midpoints | Premium (requires accounts) | Q4 2026 |
+| 11 | Commute Equalizer | Premium (after transit integration) | 2027 |
+| 12 | Enterprise/Remote Teams | SaaS ($50-200/mo) | 2027+ |
 
-**Target premium pricing:** $4.99/mo or $29.99/yr — unlocks Drift Radius, Group Gravity 4+, Commute Equalizer, Date Night, Recurring Midpoints, unlimited Roulette spins.
+**Target premium pricing:** $4.99/mo or $29.99/yr — unlocks Drift Radius, Saved Routes + Travel Journal, Group Gravity 4+, Incremental Stops, Plan an Outing, Recurring Midpoints, unlimited everything.
 
 ---
 
@@ -250,10 +337,28 @@ For reference — what's live today:
 | Feature | Marketing Channel | Why |
 |---------|-------------------|-----|
 | Fair Swap Zones | TikTok, Reddit (r/FacebookMarketplace, r/Flipping) | Safety angle is viral |
-| Midpoint Roulette | TikTok, Instagram Reels | "Let an app pick our date" content |
-| Commute Equalizer | Real estate blogs, couple lifestyle content | High-intent audience |
+| Midpoint Roulette | TikTok, Instagram Reels | "Let an app pick our spot" content |
+| Group Gravity | Reddit (r/roadtrip, r/travel), friend group content | "Plan a reunion" angle |
 | Core product | Reddit (r/LongDistance, r/coparenting), Product Hunt | Direct need |
-| Date Night | Lifestyle blogs, couple influencers | Aspirational content |
+| Incremental Stops | Road trip bloggers, travel TikTok | "Plan your road trip stops" |
+| Plan an Outing | Lifestyle blogs, couple/friend influencers | Aspirational content |
+
+---
+
+## DECISION LOG
+
+| Date | Decision | Rationale | Who |
+|------|----------|-----------|-----|
+| Feb 10 | Distance toggle = free | Costs nothing (pure math), broadens appeal | Theresa |
+| Feb 10 | Saved routes + trip history = paid | High value, retention driver, worth paying for | Theresa |
+| Feb 10 | Pinned stops with travel notes = paid | "Travel journal" concept — sticky, personal | Theresa |
+| Feb 10 | Renamed "Date Night" → "Plan an Outing" | Most users aren't in commuter relationships — frame for groups, reunions, friend weekends | Theresa |
+| Feb 10 | Commute Equalizer → Tier 3 | Without public transit data, won't work in major metros | Theresa |
+| Feb 10 | Group Gravity = free for 3, paid for 4+ | Core use case (3 friends) should be accessible | Theresa |
+| Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
+| Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
+| Feb 9 | Mapbox for place discovery | 20-35x cheaper than Google NearbySearch | Daryl/Wenee |
+| Feb 9 | No Google Ads / AdSense | Affiliate + premium model instead | Daryl |
 
 ---
 
@@ -262,5 +367,7 @@ For reference — what's live today:
 - All premium features assume eventual user account system (OAuth — Google/Apple sign-in, no passwords)
 - Free tier should always be genuinely useful — premium adds depth, not gates core value
 - Fair Swap Zones and Midpoint Roulette are the strongest viral/marketing features
-- Commute Equalizer and Drift Radius are the strongest "worth paying for" features
+- Drift Radius and Saved Routes are the strongest "worth paying for" features
 - Enterprise (Remote Teams) is a completely different product motion — don't distract from consumer growth
+- Commute Equalizer needs transit API integration before it's viable in metro areas
+- "Plan an Outing" framed for ALL groups (reunions, friend weekends, family trips) not just couples
