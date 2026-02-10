@@ -110,7 +110,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 **Effort:** L
 **Revenue:** 💰💰 (premium feature, group planning affiliate potential — Airbnb, VRBO, restaurant group booking)
-**Tier:** Free for 3 people, premium for 4+
+**Tier:** Free with account for 3 people, premium for 4+
 **Technical notes:** Weighted centroid calculation → iterative refinement using drive time queries. More API calls = higher cost per search.
 **Dependencies:** UI for multiple location inputs, optimization algorithm
 
@@ -152,7 +152,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ## TIER 2 — Build After Core Premium (High Value, More Effort)
 
-### 2.1 Plan an Outing (Curated Itineraries)
+### 2.1 Plan an Outing (Curated Itineraries) — _working title, considering: Split Adventure, Midpoint Mission, Split Expedition, Split Day_
 **Tagline:** "Not just a restaurant. A whole experience."
 **What:** Curated multi-stop itineraries at your midpoint — dinner → dessert → activity → walk. Auto-generated based on what's actually there. Framed for ANY group: couples, friend weekends, family reunions, college meetups.
 **Why:** Elevates us from "utility tool" to "experience planner." Most people using this aren't in commuter relationships — they're planning group hangs, reunions, friend weekends.
@@ -194,6 +194,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 **Tagline:** "Feeling adventurous? Just go."
 **What:** Random spot selection at your midpoint. No filters, no choosing. We pick a random place — could be a restaurant, a park, an attraction — you just go.
 **Why:** Fun, shareable, great for groups who can't decide or want spontaneity. Low effort to build, high marketing value.
+**Target persona:** People with natural distance between them — family members in different states, college friends spread across the country, business associates meeting up. NOT couples who live near each other (they don't need a midpoint tool).
 **How it works:**
 - Calculate midpoint as usual
 - Tap "🎲 Surprise Me"
@@ -204,7 +205,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 **Effort:** S
 **Revenue:** 💰 (engagement, viral sharing)
 **Tier:** Free (great for marketing/virality)
-**Marketing angle:** TikTok content — "we let an app pick our date spot" / "we let an app pick our friend group hangout" trending format
+**Marketing angle:** TikTok content — "we let an app pick where our friend group meets" / "siblings in different states let an app decide" trending format
 
 ---
 
@@ -354,7 +355,9 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 | Feb 10 | Pinned stops with travel notes = paid | "Travel journal" concept — sticky, personal | Theresa |
 | Feb 10 | Renamed "Date Night" → "Plan an Outing" | Most users aren't in commuter relationships — frame for groups, reunions, friend weekends | Theresa |
 | Feb 10 | Commute Equalizer → Tier 3 | Without public transit data, won't work in major metros | Theresa |
-| Feb 10 | Group Gravity = free for 3, paid for 4+ | Core use case (3 friends) should be accessible | Theresa |
+| Feb 10 | Group Gravity = free w/ account for 3, paid for 4+ | Core use case (3 friends) should be accessible | Theresa |
+| Feb 10 | Roulette persona = family/friends/business, NOT couples | Couples live close — midpoint tool is for people with distance between them | Theresa |
+| Feb 10 | "Plan an Outing" name TBD | Exploring names aligned with "Split The Distance" brand (adventure, expedition, mission) | Theresa |
 | Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
 | Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
 | Feb 9 | Mapbox for place discovery | 20-35x cheaper than Google NearbySearch | Daryl/Wenee |
