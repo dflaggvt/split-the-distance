@@ -62,7 +62,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 ---
 
 ### 1.2 Saved Routes & Pinned Stops (Travel Journal) ⭐ _Theresa priority_
-**Tagline:** "Your personal road trip journal."
+**Tagline:** "A bookmark for the real world."
 **What:** Save routes you've searched, pin favorite stops along them, and add travel notes. Build a personal guide for routes you drive regularly.
 **Why:** Turns a one-time tool into something people return to. Two use cases:
 1. **Retrospective:** "I stopped at this amazing bakery on I-95 — pin it so I remember next time."
