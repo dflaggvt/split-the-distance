@@ -171,6 +171,11 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 **Revenue:** 💰💰💰 (premium feature, high retention, group affiliate potential — Airbnb, restaurants, activities)
 **Tier:** Premium (creator pays, invitees get free limited access)
 **Dependencies:** Group Gravity (3+ people) ships first as foundation, then this layers coordination on top. Requires user accounts, real-time updates (websockets or polling), push notifications.
+**Build sequence:**
+1. Group Gravity (Tier 1) → 3+ people midpoint
+2. Date/calendar voting (M effort) → first collab feature, standalone useful
+3. Location voting + auto-distance per person
+4. Trip chat/log + live trip mode + push notifications
 **Key differentiator from Roadtrippers:** Roadtrippers = "I plan MY road trip." This = "WE plan OUR meetup." Multiple origins converging, not one origin with stops.
 
 ---
