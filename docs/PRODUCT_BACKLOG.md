@@ -152,7 +152,30 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ## TIER 2 — Build After Core Premium (High Value, More Effort)
 
-### 2.1 Plan an Outing (Curated Itineraries) — _working title, considering: Split Adventure, Midpoint Mission, Split Expedition, Split Day_
+### 2.1 Collaborative Group Trips (Social Trip Planning) 🆕 ⭐ _Theresa concept_
+**Tagline:** "Plan the meetup together — not in a group chat."
+**What:** A full group coordination layer for planning trips by car/bike/walk. One user creates a trip and invites others. The group collaborates on dates, locations, and stops — with voting, auto-distance calculations, and real-time coordination during the trip.
+**Why:** The alternative is 47 messages in a group chat trying to pick a date and a place. This replaces chaotic group texts with structured, distance-aware collaboration. NOT a Roadtrippers competitor — the angle is consensus/social/collaborative, not "plan your solo road trip."
+**Target persona:** Family reunions, college friend weekends, group meetups — multiple origins converging on a shared destination.
+**How it works:**
+- **Create a trip** → invite others (invitees get free limited access, don't need to pay)
+- **Date voting** → suggest date ranges, everyone marks 🟢 yes / 🟡 maybe / 🔴 no, best dates surface
+- **Location voting** → suggest meetup spots, auto-calculate distance from each person's origin, vote up/down
+- **Origin per person** → each invitee sets their starting point (default: home, can change)
+- **Trip chat/log** → running conversation + organized vote-ups, keeps ideas in one place
+- **Multi-stop itinerary** → plan one or many stops, build a full day or multi-day agenda
+- **Live trip mode** → once underway, add stops on the fly, push notifications to the group, share ETAs
+- **Multi-day support** → breakfast spots, attractions, evening plans — a living itinerary built by the group
+
+**Effort:** XL
+**Revenue:** 💰💰💰 (premium feature, high retention, group affiliate potential — Airbnb, restaurants, activities)
+**Tier:** Premium (creator pays, invitees get free limited access)
+**Dependencies:** Group Gravity (3+ people) ships first as foundation, then this layers coordination on top. Requires user accounts, real-time updates (websockets or polling), push notifications.
+**Key differentiator from Roadtrippers:** Roadtrippers = "I plan MY road trip." This = "WE plan OUR meetup." Multiple origins converging, not one origin with stops.
+
+---
+
+### 2.2 Plan an Outing (Curated Itineraries) — _working title, considering: Split Adventure, Midpoint Mission, Split Expedition, Split Day, Go the Distance, Get Split_
 **Tagline:** "Not just a restaurant. A whole experience."
 **What:** Curated multi-stop itineraries at your midpoint — dinner → dessert → activity → walk. Auto-generated based on what's actually there. Framed for ANY group: couples, friend weekends, family reunions, college meetups.
 **Why:** Elevates us from "utility tool" to "experience planner." Most people using this aren't in commuter relationships — they're planning group hangs, reunions, friend weekends.
@@ -358,6 +381,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 | Feb 10 | Group Gravity = free w/ account for 3, paid for 4+ | Core use case (3 friends) should be accessible | Theresa |
 | Feb 10 | Roulette persona = family/friends/business, NOT couples | Couples live close — midpoint tool is for people with distance between them | Theresa |
 | Feb 10 | "Plan an Outing" name TBD | Exploring names aligned with "Split The Distance" brand (adventure, expedition, mission) | Theresa |
+| Feb 10 | Collaborative Group Trips — Tier 2 | Social trip planning with date/location voting, live coordination, multi-day support. Builds on Group Gravity. | Theresa |
 | Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
 | Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
 | Feb 9 | Mapbox for place discovery | 20-35x cheaper than Google NearbySearch | Daryl/Wenee |
