@@ -14,17 +14,23 @@ export async function POST(request) {
     const Stripe = (await import('stripe')).default;
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-    const supabase = createClient(
+    // Auth client — uses public key to validate user token
+    const authClient = createClient(
       process.env.NEXT_PUBLIC_SB_PROJECT_URL,
       process.env.NEXT_PUBLIC_SB_PUBLISHABLE_KEY
+    );
+
+    // Admin client — uses service role key to bypass RLS for DB queries
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SB_PROJECT_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
     );
 
     // Get current user from Supabase auth
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '') || '';
 
-    // Try to get user from cookie/session
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await authClient.auth.getUser(token);
 
     if (authError || !user) {
       return Response.json(

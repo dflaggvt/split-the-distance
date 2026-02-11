@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { useAuth } from './AuthProvider';
 import { useFeatures } from './FeatureProvider';
-import { signInWithGoogle, getSession } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 
 /**
  * PricingModal — 3-column plan comparison with Stripe Checkout redirect.
  * Triggered by showUpgrade() from useFeature(), plan badge in header, or "See all plans" link.
  */
 export default function PricingModal() {
-  const { pricingModalOpen, closePricingModal, featuresByTier } = useFeatures();
+  const { pricingModalOpen, closePricingModal, featuresByTier, openSignIn } = useFeatures();
   const { isLoggedIn, plan } = useAuth();
   const [loading, setLoading] = useState(false);
 
@@ -18,8 +18,9 @@ export default function PricingModal() {
 
   const handleUpgrade = async (priceType) => {
     if (!isLoggedIn) {
-      // Must sign in first
-      await signInWithGoogle();
+      // Must sign in first — close pricing modal and open sign-in modal
+      closePricingModal();
+      openSignIn();
       return;
     }
 
@@ -117,7 +118,7 @@ export default function PricingModal() {
 
             {!isLoggedIn && (
               <button
-                onClick={() => { closePricingModal(); signInWithGoogle(); }}
+                onClick={() => { closePricingModal(); openSignIn(); }}
                 className="w-full mt-4 py-2.5 px-4 text-sm font-semibold text-teal-700 bg-teal-100 rounded-lg cursor-pointer transition-colors hover:bg-teal-200"
               >
                 Sign In — It&apos;s Free
