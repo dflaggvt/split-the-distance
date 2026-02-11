@@ -10,6 +10,16 @@ import { createClient } from '@supabase/supabase-js';
  */
 export async function POST(request) {
   try {
+    // Validate required env vars
+    const missing = ['STRIPE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'NEXT_PUBLIC_SB_PROJECT_URL', 'NEXT_PUBLIC_SB_PUBLISHABLE_KEY']
+      .filter(k => !process.env[k]);
+    if (missing.length > 0) {
+      return Response.json(
+        { error: `Server misconfigured. Missing: ${missing.join(', ')}` },
+        { status: 500 }
+      );
+    }
+
     // Lazy-import Stripe (server-side only)
     const Stripe = (await import('stripe')).default;
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -90,7 +100,7 @@ export async function POST(request) {
   } catch (err) {
     console.error('[Stripe Checkout] Error:', err);
     return Response.json(
-      { error: 'Failed to create checkout session' },
+      { error: 'Failed to create checkout session', detail: err.message },
       { status: 500 }
     );
   }
