@@ -13,6 +13,7 @@ export default function PricingModal() {
   const { pricingModalOpen, closePricingModal, featuresByTier, openSignIn } = useFeatures();
   const { isLoggedIn, plan } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   if (!pricingModalOpen) return null;
 
@@ -25,27 +26,35 @@ export default function PricingModal() {
     }
 
     setLoading(true);
+    setError('');
     try {
       // Get current session token to authenticate the checkout request
       const session = await getSession();
+      if (!session?.access_token) {
+        setError('Session expired. Please sign out and sign back in.');
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token || ''}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ priceType }), // 'monthly' or 'yearly'
+        body: JSON.stringify({ priceType }),
       });
 
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
       } else {
-        console.error('[Pricing] No checkout URL returned:', data);
+        setError(data.error || 'Failed to start checkout. Please try again.');
         setLoading(false);
       }
     } catch (err) {
       console.error('[Pricing] Checkout error:', err);
+      setError('Something went wrong. Please try again.');
       setLoading(false);
     }
   };
@@ -181,6 +190,13 @@ export default function PricingModal() {
             )}
           </div>
         </div>
+
+        {/* Error */}
+        {error && (
+          <p className="text-center text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mb-3">
+            {error}
+          </p>
+        )}
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400">
