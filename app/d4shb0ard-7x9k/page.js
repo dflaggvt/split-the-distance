@@ -9,10 +9,9 @@ import {
   LineChart, Line
 } from 'recharts';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SB_PROJECT_URL,
-  process.env.NEXT_PUBLIC_SB_PUBLISHABLE_KEY
-);
+const supabase = process.env.NEXT_PUBLIC_SB_PROJECT_URL && process.env.NEXT_PUBLIC_SB_PUBLISHABLE_KEY
+  ? createClient(process.env.NEXT_PUBLIC_SB_PROJECT_URL, process.env.NEXT_PUBLIC_SB_PUBLISHABLE_KEY)
+  : null;
 
 const COLORS = ['#0d9488', '#f97316', '#8b5cf6', '#3b82f6', '#ef4444', '#22c55e', '#eab308', '#ec4899'];
 const SOURCE_COLORS = {
@@ -896,11 +895,175 @@ export default function AdminDashboard() {
     </>
   );
 
+  // ==================== FEATURES TAB ====================
+  const [featureFlags, setFeatureFlags] = useState([]);
+  const [featuresLoading, setFeaturesLoading] = useState(false);
+  const [waitlistCounts, setWaitlistCounts] = useState({});
+
+  const fetchFeatures = async () => {
+    setFeaturesLoading(true);
+    try {
+      const res = await fetch('/api/admin/features');
+      const { flags, waitlistCounts: counts, error } = await res.json();
+      if (error) throw new Error(error);
+      setFeatureFlags(flags || []);
+      setWaitlistCounts(counts || {});
+    } catch (err) {
+      console.error('Features fetch error:', err);
+    }
+    setFeaturesLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'features' && featureFlags.length === 0) {
+      fetchFeatures();
+    }
+  }, [activeTab]);
+
+  const updateFeatureFlag = async (key, field, value) => {
+    try {
+      const res = await fetch('/api/admin/features', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, field, value }),
+      });
+      const { flag, error } = await res.json();
+      if (error) throw new Error(error);
+      setFeatureFlags(prev => prev.map(f => f.key === key ? { ...f, ...flag } : f));
+    } catch (err) {
+      console.error('Feature update error:', err);
+    }
+  };
+
+  const STATUS_BADGE = {
+    hidden: 'bg-gray-100 text-gray-500',
+    coming_soon: 'bg-amber-100 text-amber-700',
+    live: 'bg-emerald-100 text-emerald-700',
+  };
+
+  const TIER_BADGE = {
+    anonymous: 'bg-gray-100 text-gray-600',
+    free: 'bg-emerald-100 text-emerald-700',
+    premium: 'bg-purple-100 text-purple-700',
+    enterprise: 'bg-blue-100 text-blue-700',
+  };
+
+  const FeaturesTab = () => (
+    <>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-bold text-gray-900">Feature Flags</h3>
+        <button onClick={fetchFeatures} className="px-3 py-1.5 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition">
+          {featuresLoading ? 'Loading...' : 'Refresh'}
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Feature</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-600">Tier</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">Waitlist</th>
+              <th className="text-center px-4 py-3 font-semibold text-gray-600">Enabled</th>
+            </tr>
+          </thead>
+          <tbody>
+            {featureFlags.map((flag) => (
+              <tr key={flag.key} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                {/* Feature name */}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{flag.emoji}</span>
+                    <div>
+                      <div className="font-medium text-gray-900">{flag.label}</div>
+                      <div className="text-xs text-gray-400 max-w-[250px] truncate">{flag.description}</div>
+                    </div>
+                  </div>
+                </td>
+
+                {/* Status dropdown */}
+                <td className="px-4 py-3">
+                  <select
+                    value={flag.status}
+                    onChange={(e) => updateFeatureFlag(flag.key, 'status', e.target.value)}
+                    className={`px-2 py-1 rounded-full text-xs font-bold border-0 cursor-pointer ${STATUS_BADGE[flag.status] || STATUS_BADGE.hidden}`}
+                  >
+                    <option value="hidden">Hidden</option>
+                    <option value="coming_soon">Coming Soon</option>
+                    <option value="live">Live</option>
+                  </select>
+                </td>
+
+                {/* Tier dropdown */}
+                <td className="px-4 py-3">
+                  <select
+                    value={flag.tier}
+                    onChange={(e) => updateFeatureFlag(flag.key, 'tier', e.target.value)}
+                    className={`px-2 py-1 rounded-full text-xs font-bold border-0 cursor-pointer ${TIER_BADGE[flag.tier] || TIER_BADGE.anonymous}`}
+                  >
+                    <option value="anonymous">Anonymous</option>
+                    <option value="free">Free</option>
+                    <option value="premium">Premium</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </td>
+
+                {/* Waitlist count */}
+                <td className="px-4 py-3 text-center">
+                  {waitlistCounts[flag.key] ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-700">
+                      🔔 {waitlistCounts[flag.key]}
+                    </span>
+                  ) : (
+                    <span className="text-gray-300">—</span>
+                  )}
+                </td>
+
+                {/* Enabled toggle */}
+                <td className="px-4 py-3 text-center">
+                  <button
+                    onClick={() => updateFeatureFlag(flag.key, 'enabled', !flag.enabled)}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${
+                      flag.enabled ? 'bg-emerald-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                      flag.enabled ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {featureFlags.length === 0 && !featuresLoading && (
+          <div className="text-center py-8 text-gray-400 text-sm">
+            No feature flags found. Run the migration to seed them.
+          </div>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-4 p-4 bg-gray-50 rounded-xl text-xs text-gray-500">
+        <div className="font-semibold text-gray-700 mb-2">How it works:</div>
+        <ul className="space-y-1">
+          <li><strong>Status:</strong> Hidden (not shown) → Coming Soon (teaser + Notify Me) → Live (functional)</li>
+          <li><strong>Tier:</strong> Anonymous (no login) → Free (login required) → Premium ($4.99/mo) → Enterprise</li>
+          <li><strong>Enabled:</strong> Kill switch — overrides everything. Disabled = invisible to all users.</li>
+          <li>Changes take effect on next page load (client caches flags for 5 min).</li>
+        </ul>
+      </div>
+    </>
+  );
+
   // ==================== MAIN RENDER ====================
   const tabs = [
     { id: 'overview', label: '📊 Overview' },
     { id: 'attribution', label: '🔗 Attribution' },
     { id: 'shares', label: '📤 Shares' },
+    { id: 'features', label: '🎛️ Features' },
   ];
 
   return (
@@ -979,6 +1142,7 @@ export default function AdminDashboard() {
             {activeTab === 'overview' && <OverviewTab />}
             {activeTab === 'attribution' && <AttributionTab />}
             {activeTab === 'shares' && <SharesTab />}
+            {activeTab === 'features' && <FeaturesTab />}
           </>
         )}
 

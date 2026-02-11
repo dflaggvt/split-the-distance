@@ -6,6 +6,9 @@ import dynamic from 'next/dynamic';
 import { useJsApiLoader } from '@react-google-maps/api';
 import SearchPanel from './SearchPanel';
 import HowItWorks from './HowItWorks';
+import AuthButton from './AuthButton';
+import SignInModal from './SignInModal';
+import PricingModal from './PricingModal';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
@@ -622,13 +625,14 @@ export default function AppClient() {
               </span>
             )}
           </a>
-          <nav className="hidden md:flex items-center gap-4">
+          <nav className="flex items-center gap-4">
             <a
               href="#how-it-works"
-              className="text-sm font-medium text-gray-500 no-underline hover:text-teal-600 transition-colors duration-200"
+              className="hidden md:block text-sm font-medium text-gray-500 no-underline hover:text-teal-600 transition-colors duration-200"
             >
               How It Works
             </a>
+            <AuthButton />
           </nav>
         </div>
       </header>
@@ -717,6 +721,10 @@ export default function AppClient() {
           <span>Split The Distance © {new Date().getFullYear()}</span>
         </div>
       </footer>
+
+      {/* Auth & Pricing Modals */}
+      <SignInModal />
+      <PricingModal />
 
       {/* Toast */}
       {toast && (

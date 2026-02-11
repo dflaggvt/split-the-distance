@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { formatDistance, formatDuration, copyToClipboard } from '@/lib/utils';
 import { logShare, logOutboundClick } from '@/lib/analytics';
+import { useGatedAction } from './FeatureGate';
 
 const SHARE_METHODS = [
   { id: 'copy', label: 'Copy Link', icon: '📋', color: 'text-gray-600' },
@@ -35,6 +36,8 @@ export default function RouteInfo({
   const [showCopied, setShowCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const shareMenuRef = useRef(null);
+  const shareGate = useGatedAction('share');
+  const routeOptionsGate = useGatedAction('alternative_routes');
 
   if (!route) return null;
 
@@ -133,12 +136,14 @@ export default function RouteInfo({
   };
 
   const handleShareClick = () => {
-    // On mobile with native share support, use it directly
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      executeShare('native');
-    } else {
-      setShowShareMenu(!showShareMenu);
-    }
+    shareGate.gate(() => {
+      // On mobile with native share support, use it directly
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        executeShare('native');
+      } else {
+        setShowShareMenu(!showShareMenu);
+      }
+    });
   };
 
   const handleMidpointClick = () => {
@@ -155,11 +160,20 @@ export default function RouteInfo({
 
   return (
     <div className="animate-fadeInUp">
-      {/* Route Options (if alternatives available) */}
+      {/* Route Options (if alternatives available) — gated by feature flag */}
       {hasAlternatives && (
         <div className="mt-5 mb-3">
           <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
             Route Options
+            {!routeOptionsGate.allowed && routeOptionsGate.reason === 'login_required' && (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="inline ml-1 opacity-50">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            )}
+            {!routeOptionsGate.allowed && routeOptionsGate.reason === 'upgrade_required' && (
+              <span className="ml-1 text-[9px] font-bold text-purple-600 bg-purple-100 px-1 py-0.5 rounded-full">PRO</span>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
             {route.allRoutes.map((r, idx) => {
@@ -169,7 +183,7 @@ export default function RouteInfo({
               return (
                 <button
                   key={idx}
-                  onClick={() => onRouteSelect?.(idx)}
+                  onClick={() => routeOptionsGate.gate(() => onRouteSelect?.(idx))}
                   className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-all ${
                     isSelected
                       ? 'border-teal-400 bg-teal-50 shadow-sm'
@@ -278,6 +292,15 @@ export default function RouteInfo({
             <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
           </svg>
           Share This Split
+          {!shareGate.allowed && shareGate.reason === 'login_required' && (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          )}
+          {!shareGate.allowed && shareGate.reason === 'upgrade_required' && (
+            <span className="text-[9px] font-bold text-purple-600 bg-purple-100 px-1 py-0.5 rounded-full">PRO</span>
+          )}
         </button>
         <span
           className={`text-[13px] font-medium text-teal-600 transition-opacity duration-300 ${
