@@ -9,6 +9,7 @@ import HowItWorks from './HowItWorks';
 import AuthButton from './AuthButton';
 import SignInModal from './SignInModal';
 import PricingModal from './PricingModal';
+import { useAuth } from './AuthProvider';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
@@ -30,6 +31,7 @@ const LIBRARIES = [];
 
 export default function AppClient() {
   const searchParams = useSearchParams();
+  const { refreshProfile } = useAuth();
 
   // Load Google Maps
   const { isLoaded } = useJsApiLoader({
@@ -66,6 +68,31 @@ export default function AppClient() {
   // Check internal user status on mount
   useEffect(() => {
     setIsInternal(checkInternalUser());
+  }, []);
+
+  // ---- Handle Stripe redirect (upgrade success/cancel) ----
+  const [upgradeStatus, setUpgradeStatus] = useState(null); // 'success' | 'cancelled' | null
+  useEffect(() => {
+    const status = searchParams.get('upgrade');
+    if (!status) return;
+
+    if (status === 'success') {
+      setUpgradeStatus('success');
+      // Refresh profile to pick up the new plan from DB
+      refreshProfile();
+    } else if (status === 'cancelled') {
+      setUpgradeStatus('cancelled');
+    }
+
+    // Clean the URL params so reloads don't re-trigger
+    const url = new URL(window.location.href);
+    url.searchParams.delete('upgrade');
+    window.history.replaceState({}, '', url.pathname + (url.search || ''));
+
+    // Auto-dismiss after 8 seconds
+    const dismissTimer = setTimeout(() => setUpgradeStatus(null), 8000);
+    return () => clearTimeout(dismissTimer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---- Toast ----
@@ -687,6 +714,42 @@ export default function AppClient() {
       {/* Auth & Pricing Modals */}
       <SignInModal />
       <PricingModal />
+
+      {/* Upgrade status banner */}
+      {upgradeStatus === 'success' && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-md animate-slideUp">
+          <div className="mx-4 bg-emerald-50 border border-emerald-200 rounded-xl shadow-lg px-5 py-4 flex items-start gap-3">
+            <span className="text-2xl leading-none mt-0.5">&#x2705;</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-emerald-800">Welcome to Premium!</p>
+              <p className="text-xs text-emerald-600 mt-0.5">Your upgrade was successful. Enjoy all premium features.</p>
+            </div>
+            <button
+              onClick={() => setUpgradeStatus(null)}
+              className="bg-transparent border-none text-emerald-400 text-lg cursor-pointer leading-none hover:text-emerald-700 p-0"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
+      {upgradeStatus === 'cancelled' && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-md animate-slideUp">
+          <div className="mx-4 bg-amber-50 border border-amber-200 rounded-xl shadow-lg px-5 py-4 flex items-start gap-3">
+            <span className="text-2xl leading-none mt-0.5">&#x2139;&#xFE0F;</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800">Upgrade cancelled</p>
+              <p className="text-xs text-amber-600 mt-0.5">No charges were made. You can upgrade anytime from the menu.</p>
+            </div>
+            <button
+              onClick={() => setUpgradeStatus(null)}
+              className="bg-transparent border-none text-amber-400 text-lg cursor-pointer leading-none hover:text-amber-700 p-0"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

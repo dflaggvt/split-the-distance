@@ -10,6 +10,7 @@ const AuthContext = createContext({
   isLoggedIn: false,
   loading: true,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export function AuthProvider({ children }) {
@@ -53,6 +54,13 @@ export function AuthProvider({ children }) {
     setProfile(null);
   }, []);
 
+  // Re-fetch the profile from DB (e.g. after Stripe upgrade updates the plan)
+  const refreshProfile = useCallback(async () => {
+    if (!user) return;
+    const updated = await fetchUserProfile(user.id);
+    if (updated) setProfile(updated);
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -62,6 +70,7 @@ export function AuthProvider({ children }) {
         isLoggedIn,
         loading,
         signOut: handleSignOut,
+        refreshProfile,
       }}
     >
       {children}
