@@ -54,9 +54,6 @@ export default function SearchPanel({
       <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
         {/* Search Section */}
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 mb-1">
-            Split The Distance
-          </h1>
           <p className="text-sm text-gray-500 mb-5">
             Find your halfway point based on {travelMode === 'BICYCLING' ? 'cycling' : travelMode === 'WALKING' ? 'walking' : travelMode === 'TRANSIT' ? 'transit' : 'drive'} time
           </p>

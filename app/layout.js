@@ -19,6 +19,7 @@ export const viewport = {
 };
 
 export const metadata = {
+  metadataBase: new URL('https://splitthedistance.com'),
   title: 'Split The Distance — Find Your Halfway Point',
   description:
     'Find the perfect meeting point between two locations based on actual drive time. Discover restaurants, cafes, parks, and more at the midpoint.',
@@ -28,15 +29,18 @@ export const metadata = {
       'Find the perfect halfway point between two locations. Discover restaurants, cafes, and more at the midpoint.',
     type: 'website',
     siteName: 'Split The Distance',
+    images: [{ url: '/logo.png', width: 1024, height: 1024, alt: 'Split The Distance logo' }],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'Split The Distance',
     description:
       'Find the perfect halfway point between two locations based on drive time.',
+    images: ['/logo.png'],
   },
   icons: {
-    icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📍</text></svg>",
+    icon: '/logo.svg',
+    apple: '/logo.png',
   },
 };
 

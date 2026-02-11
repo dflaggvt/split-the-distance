@@ -547,28 +547,7 @@ export default function AppClient() {
               href="/"
               className="flex items-center gap-2.5 no-underline text-gray-900"
             >
-              <svg
-                className="shrink-0"
-                viewBox="0 0 32 32"
-                width="32"
-                height="32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M16 2C10.477 2 6 6.477 6 12c0 7.5 10 18 10 18s10-10.5 10-18c0-5.523-4.477-10-10-10z"
-                  fill="#0d9488"
-                  stroke="#0f766e"
-                  strokeWidth="1.5"
-                />
-                <circle cx="16" cy="12" r="4" fill="white" />
-                <path
-                  d="M4 16h6M22 16h6"
-                  stroke="#0d9488"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <img src="/logo.png" alt="Split The Distance" width="28" height="28" className="shrink-0" />
               <span className="text-lg font-bold tracking-tight">
                 Split The Distance
               </span>
@@ -594,28 +573,7 @@ export default function AppClient() {
             href="/"
             className="flex items-center gap-2.5 no-underline text-gray-900"
           >
-            <svg
-              className="shrink-0"
-              viewBox="0 0 32 32"
-              width="32"
-              height="32"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M16 2C10.477 2 6 6.477 6 12c0 7.5 10 18 10 18s10-10.5 10-18c0-5.523-4.477-10-10-10z"
-                fill="#0d9488"
-                stroke="#0f766e"
-                strokeWidth="1.5"
-              />
-              <circle cx="16" cy="12" r="4" fill="white" />
-              <path
-                d="M4 16h6M22 16h6"
-                stroke="#0d9488"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
+            <img src="/logo.png" alt="Split The Distance" width="28" height="28" className="shrink-0" />
             <span className="text-lg font-bold tracking-tight">
               Split The Distance
             </span>
@@ -718,7 +676,11 @@ export default function AppClient() {
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-400 py-5 px-6 text-[13px]">
         <div className="max-w-[800px] mx-auto text-center flex items-center justify-center gap-2 flex-wrap">
-          <span>Split The Distance © {new Date().getFullYear()}</span>
+          <span>Split The Distance &copy; {new Date().getFullYear()}</span>
+          <span className="text-gray-600">·</span>
+          <a href="/legal/terms" className="hover:text-gray-200 transition">Terms</a>
+          <span className="text-gray-600">·</span>
+          <a href="/legal/privacy" className="hover:text-gray-200 transition">Privacy</a>
         </div>
       </footer>
 

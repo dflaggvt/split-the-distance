@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from './AuthProvider';
 import { useFeatures } from './FeatureProvider';
-import { signInWithGoogle } from '@/lib/auth';
 
 const PLAN_BADGES = {
   anonymous: null,
@@ -14,9 +13,8 @@ const PLAN_BADGES = {
 
 export default function AuthButton() {
   const { user, profile, plan, isLoggedIn, signOut } = useAuth();
-  const { openPricingModal } = useFeatures();
+  const { openPricingModal, openSignIn } = useFeatures();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [signingIn, setSigningIn] = useState(false);
   const menuRef = useRef(null);
 
   // Close menu on outside click
@@ -32,28 +30,18 @@ export default function AuthButton() {
     }
   }, [menuOpen]);
 
-  const handleSignIn = async () => {
-    setSigningIn(true);
-    try {
-      await signInWithGoogle();
-    } catch {
-      setSigningIn(false);
-    }
-  };
-
-  // Signed out — show sign-in button
+  // Signed out — show sign-in button that opens the sign-in modal
   if (!isLoggedIn) {
     return (
       <button
-        onClick={handleSignIn}
-        disabled={signingIn}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-gray-600 bg-white border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:border-teal-400 hover:text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+        onClick={openSignIn}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-gray-600 bg-white border border-gray-200 rounded-lg cursor-pointer transition-all duration-200 hover:border-teal-400 hover:text-teal-700 hover:bg-teal-50"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
-        {signingIn ? 'Signing in...' : 'Sign In'}
+        Sign In
       </button>
     );
   }

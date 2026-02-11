@@ -9,9 +9,12 @@ const FeatureContext = createContext({
   loading: true,
   // Modal state
   signInModalFeature: null,
+  signInOpen: false,
   pricingModalOpen: false,
   openSignInModal: () => {},
   closeSignInModal: () => {},
+  openSignIn: () => {},
+  closeSignIn: () => {},
   openPricingModal: () => {},
   closePricingModal: () => {},
 });
@@ -20,6 +23,7 @@ export function FeatureProvider({ children }) {
   const [features, setFeatures] = useState(DEFAULT_FEATURES);
   const [loading, setLoading] = useState(true);
   const [signInModalFeature, setSignInModalFeature] = useState(null); // feature key or null
+  const [signInOpen, setSignInOpen] = useState(false); // generic sign-in modal (no feature context)
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const auth = useAuth();
 
@@ -56,6 +60,14 @@ export function FeatureProvider({ children }) {
     setSignInModalFeature(null);
   }, []);
 
+  const openSignIn = useCallback(() => {
+    setSignInOpen(true);
+  }, []);
+
+  const closeSignIn = useCallback(() => {
+    setSignInOpen(false);
+  }, []);
+
   const openPricingModal = useCallback(() => {
     setPricingModalOpen(true);
   }, []);
@@ -64,23 +76,27 @@ export function FeatureProvider({ children }) {
     setPricingModalOpen(false);
   }, []);
 
-  // Close sign-in modal when user successfully logs in
+  // Close sign-in modals when user successfully logs in
   useEffect(() => {
-    if (auth.isLoggedIn && signInModalFeature) {
-      setSignInModalFeature(null);
+    if (auth.isLoggedIn) {
+      if (signInModalFeature) setSignInModalFeature(null);
+      if (signInOpen) setSignInOpen(false);
     }
-  }, [auth.isLoggedIn, signInModalFeature]);
+  }, [auth.isLoggedIn, signInModalFeature, signInOpen]);
 
   const value = useMemo(() => ({
     features,
     loading,
     signInModalFeature,
+    signInOpen,
     pricingModalOpen,
     openSignInModal,
     closeSignInModal,
+    openSignIn,
+    closeSignIn,
     openPricingModal,
     closePricingModal,
-  }), [features, loading, signInModalFeature, pricingModalOpen, openSignInModal, closeSignInModal, openPricingModal, closePricingModal]);
+  }), [features, loading, signInModalFeature, signInOpen, pricingModalOpen, openSignInModal, closeSignInModal, openSignIn, closeSignIn, openPricingModal, closePricingModal]);
 
   return (
     <FeatureContext.Provider value={value}>

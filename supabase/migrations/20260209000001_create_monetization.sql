@@ -80,8 +80,14 @@ ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "feature_flags_select_all" ON feature_flags
   FOR SELECT USING (true);
 
--- feature_flags: only service role can modify (admin dashboard uses service key)
-CREATE POLICY "feature_flags_modify_service" ON feature_flags
+-- feature_flags: admin users can manage (app_metadata.role = 'admin')
+CREATE POLICY "feature_flags_admin_manage" ON feature_flags
+  FOR ALL USING (
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+  );
+
+-- feature_flags: service role can manage (for programmatic/webhook use)
+CREATE POLICY "feature_flags_service_manage" ON feature_flags
   FOR ALL USING (auth.role() = 'service_role');
 
 -- feature_waitlist: anyone can insert (anonymous Notify Me signups)
@@ -92,8 +98,14 @@ CREATE POLICY "feature_waitlist_insert_all" ON feature_waitlist
 CREATE POLICY "feature_waitlist_select_own" ON feature_waitlist
   FOR SELECT USING (auth.uid() = user_id OR email = (SELECT email FROM auth.users WHERE id = auth.uid()));
 
--- feature_waitlist: service role can read all (admin dashboard)
-CREATE POLICY "feature_waitlist_select_service" ON feature_waitlist
+-- feature_waitlist: admin users can read all
+CREATE POLICY "feature_waitlist_admin_read" ON feature_waitlist
+  FOR SELECT USING (
+    (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
+  );
+
+-- feature_waitlist: service role can read all
+CREATE POLICY "feature_waitlist_service_read" ON feature_waitlist
   FOR SELECT USING (auth.role() = 'service_role');
 
 -- user_profiles: users can read their own profile
