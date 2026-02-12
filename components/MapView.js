@@ -45,6 +45,9 @@ const routePolylineOptions = {
   strokeWeight: 5,
 };
 
+// Per-person route colors for multi-location (A=teal, B=orange, C=purple, D=blue, E=pink)
+const PERSON_ROUTE_COLORS = ['#0d9488', '#f97316', '#8b5cf6', '#3b82f6', '#ec4899'];
+
 // SVG data-URI helpers (no google dependency — safe at module scope)
 function pinSvg(color, label, w = 30, h = 42) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
@@ -257,7 +260,7 @@ export default function MapView({
         onLoad={onLoad}
         options={{ ...mapOptions, mapTypeId: mapType }}
       >
-      {/* Route */}
+      {/* Standard 2-person route */}
       {route?.directionsResult && (
         <DirectionsRenderer
           directions={route.directionsResult}
@@ -266,6 +269,25 @@ export default function MapView({
             routeIndex: selectedRouteIndex,
           }}
         />
+      )}
+
+      {/* Multi-location routes (one per person to the meeting point) */}
+      {multiResult?.personRoutes?.map((personRoute, idx) =>
+        personRoute?.directionsResult ? (
+          <DirectionsRenderer
+            key={`multi-route-${idx}`}
+            directions={personRoute.directionsResult}
+            options={{
+              suppressMarkers: true,
+              preserveViewport: true,
+              polylineOptions: {
+                strokeColor: PERSON_ROUTE_COLORS[idx] || '#6b7280',
+                strokeOpacity: 0.8,
+                strokeWeight: 4,
+              },
+            }}
+          />
+        ) : null
       )}
 
       {/* Start marker */}

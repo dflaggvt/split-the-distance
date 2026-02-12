@@ -280,6 +280,18 @@ export default function AppClient() {
         ];
 
         const result = await getMultiLocationMidpoint(allLocations);
+
+        // Fetch individual routes from each person to the midpoint (for map polylines)
+        const midDest = { lat: result.midpoint.lat, lon: result.midpoint.lon || result.midpoint.lng, name: 'Meeting Point' };
+        const routePromises = allLocations.map(loc => 
+          getRoute(loc, midDest, 'DRIVING').catch(err => {
+            console.warn(`Route to midpoint failed for ${loc.name}:`, err);
+            return null;
+          })
+        );
+        const personRoutes = await Promise.all(routePromises);
+        result.personRoutes = personRoutes; // Attach to multiResult
+
         setMultiResult(result);
         setMidpoint(result.midpoint);
         setRoute(null); // No single route for multi-location
