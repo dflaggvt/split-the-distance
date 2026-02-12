@@ -11,7 +11,7 @@ import SignInModal from './SignInModal';
 import PricingModal from './PricingModal';
 import { useAuth } from './AuthProvider';
 import { searchLocations } from '@/lib/geocoding';
-import { getRoute } from '@/lib/routing';
+import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
 import { logSearch, logPlaceClick, checkInternalUser, trackEvent, getSharedRouteData } from '@/lib/analytics';
 
@@ -28,6 +28,14 @@ const MapView = dynamic(() => import('./MapView'), {
 // Must be a static constant to prevent useJsApiLoader from re-loading
 // Places library no longer needed — we use Places API (New) REST endpoints
 const LIBRARIES = [];
+
+/**
+ * Compute midpoint from a Directions leg based on the selected mode.
+ * 'time' = halfway by drive time, 'distance' = halfway by distance.
+ */
+function computeMidpoint(leg, mode) {
+  return mode === 'distance' ? calculateDistanceMidpoint(leg) : calculateTimeMidpoint(leg);
+}
 
 export default function AppClient() {
   const searchParams = useSearchParams();
@@ -48,6 +56,7 @@ export default function AppClient() {
   const [selectedRouteIndex, setSelectedRouteIndex] = useState(0);
   const [midpoint, setMidpoint] = useState(null);
   const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING | BICYCLING | WALKING
+  const [midpointMode, setMidpointMode] = useState('time'); // 'time' | 'distance'
   const [places, setPlaces] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]); // Start empty - fetch on category click only
   const [localOnly, setLocalOnly] = useState(false);
@@ -240,7 +249,8 @@ export default function AppClient() {
         console.log('[Route Cache MISS]', cacheKey);
       }
       setRoute(routeData);
-      setMidpoint(routeData.midpoint);
+      const mp = computeMidpoint(routeData.allRoutes[0].leg, midpointMode);
+      setMidpoint(mp);
       setHasResults(true);
 
       // Update URL
@@ -266,8 +276,8 @@ export default function AppClient() {
         toName: to.name,
         toLat: to.lat,
         toLng: to.lon,
-        midpointLat: routeData.midpoint.lat,
-        midpointLng: routeData.midpoint.lon,
+        midpointLat: mp.lat,
+        midpointLng: mp.lon,
         distanceMiles: routeData.totalDistance / 1609.344,
         durationSeconds: routeData.totalDuration,
         activeFilters: [],
@@ -289,6 +299,7 @@ export default function AppClient() {
     fetchPlaces,
     activeFilters,
     travelMode,
+    midpointMode,
   ]);
 
   // ---- Handle swap ----
@@ -340,18 +351,35 @@ export default function AppClient() {
       }
 
       setRoute(routeData);
-      setMidpoint(routeData.midpoint);
+      const mp = computeMidpoint(routeData.allRoutes[0].leg, midpointMode);
+      setMidpoint(mp);
       setSelectedRouteIndex(0);
       // Clear places cache since midpoint may have changed
       setPlacesCache({});
       if (activeFilters.length > 0) {
-        fetchPlaces(routeData.midpoint, activeFilters, {});
+        fetchPlaces(mp, activeFilters, {});
       }
     };
 
     recalculate();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [travelMode]);
+
+  // Re-calculate midpoint when midpoint mode changes (time vs distance)
+  useEffect(() => {
+    if (!route) return;
+    const leg = route.allRoutes?.[selectedRouteIndex]?.leg;
+    if (!leg) return;
+
+    const mp = computeMidpoint(leg, midpointMode);
+    setMidpoint(mp);
+    // Clear places cache since midpoint moved
+    setPlacesCache({});
+    if (activeFilters.length > 0) {
+      fetchPlaces(mp, activeFilters, {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [midpointMode]);
 
   // React to filter changes - separate from toggle to avoid closure issues
   useEffect(() => {
@@ -396,27 +424,28 @@ export default function AppClient() {
       if (!route?.allRoutes?.[index]) return;
       
       const selectedRoute = route.allRoutes[index];
+      const mp = computeMidpoint(selectedRoute.leg, midpointMode);
       setSelectedRouteIndex(index);
-      setMidpoint(selectedRoute.midpoint);
+      setMidpoint(mp);
       
       // Update route state with new selection
       setRoute((prev) => ({
         ...prev,
         totalDuration: selectedRoute.totalDuration,
         totalDistance: selectedRoute.totalDistance,
-        midpoint: selectedRoute.midpoint,
+        midpoint: mp,
         selectedRouteIndex: index,
       }));
       
       // Re-fetch places for the new midpoint
-      await fetchPlaces(selectedRoute.midpoint, activeFilters);
+      await fetchPlaces(mp, activeFilters);
       
       trackEvent('route_selected', {
         route_index: index,
         route_summary: selectedRoute.summary,
       });
     },
-    [route, fetchPlaces, activeFilters]
+    [route, fetchPlaces, activeFilters, midpointMode]
   );
 
   // ---- Auto-run from URL params on mount ----
@@ -659,6 +688,8 @@ export default function AppClient() {
           onRouteSelect={handleRouteSelect}
           travelMode={travelMode}
           onTravelModeChange={setTravelMode}
+          midpointMode={midpointMode}
+          onMidpointModeChange={setMidpointMode}
           localOnly={localOnly}
           onLocalOnlyToggle={() => setLocalOnly(prev => !prev)}
         />
@@ -670,6 +701,7 @@ export default function AppClient() {
             to={toLocation}
             route={route}
             midpoint={midpoint}
+            midpointMode={midpointMode}
             places={localOnly ? places.filter(p => !p.brand) : places}
             activePlaceId={activePlaceId}
             onPlaceClick={handlePlaceClick}

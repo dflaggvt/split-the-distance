@@ -6,7 +6,8 @@ import RouteInfo from './RouteInfo';
 import FilterChips from './FilterChips';
 import PlacesList from './PlacesList';
 import ComingSoonSection from './ComingSoonSection';
-import { useGatedAction } from './FeatureGate';
+import RouletteSection from './RouletteSection';
+import FeatureGate, { useGatedAction } from './FeatureGate';
 
 export default function SearchPanel({
   fromValue,
@@ -37,11 +38,14 @@ export default function SearchPanel({
   onRouteSelect,
   travelMode,
   onTravelModeChange,
+  midpointMode,
+  onMidpointModeChange,
   localOnly,
   onLocalOnlyToggle,
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
+  const distanceToggleGate = useGatedAction('distance_toggle');
 
   const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
 
@@ -55,7 +59,11 @@ export default function SearchPanel({
         {/* Search Section */}
         <div>
           <p className="text-sm text-gray-500 mb-5">
-            Find your halfway point based on {travelMode === 'BICYCLING' ? 'cycling' : travelMode === 'WALKING' ? 'walking' : travelMode === 'TRANSIT' ? 'transit' : 'drive'} time
+            Find your halfway point based on {
+              midpointMode === 'distance'
+                ? 'distance'
+                : travelMode === 'BICYCLING' ? 'cycling time' : travelMode === 'WALKING' ? 'walking time' : travelMode === 'TRANSIT' ? 'transit time' : 'drive time'
+            }
           </p>
 
           {/* Travel Mode Selector — gated by feature flag */}
@@ -83,6 +91,36 @@ export default function SearchPanel({
                   </svg>
                 )}
                 {!travelModeGate.allowed && travelModeGate.reason === 'upgrade_required' && (
+                  <span className="text-[9px] font-bold opacity-70">PRO</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Midpoint Mode Toggle — gated by feature flag */}
+          <div className="flex gap-1 mb-4">
+            {[
+              { mode: 'time', icon: '⏱', label: 'Travel Time' },
+              { mode: 'distance', icon: '📏', label: 'Distance' },
+            ].map(({ mode, icon, label }) => (
+              <button
+                key={mode}
+                onClick={() => distanceToggleGate.gate(() => onMidpointModeChange?.(mode))}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                  midpointMode === mode
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <span>{icon}</span>
+                <span>{label}</span>
+                {!distanceToggleGate.allowed && distanceToggleGate.reason === 'login_required' && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                )}
+                {!distanceToggleGate.allowed && distanceToggleGate.reason === 'upgrade_required' && (
                   <span className="text-[9px] font-bold opacity-70">PRO</span>
                 )}
               </button>
@@ -187,6 +225,12 @@ export default function SearchPanel({
               onRouteSelect={onRouteSelect}
               travelMode={travelMode}
             />
+            <FeatureGate feature="roulette">
+              <RouletteSection
+                midpoint={midpoint}
+                onPlaceClick={onPlaceClick}
+              />
+            </FeatureGate>
             <FilterChips
               activeFilters={activeFilters}
               onToggle={onFilterToggle}

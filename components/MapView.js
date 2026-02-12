@@ -66,6 +66,7 @@ export default function MapView({
   to,
   route,
   midpoint,
+  midpointMode = 'time',
   places = [],
   activePlaceId,
   onPlaceClick,
@@ -265,7 +266,10 @@ export default function MapView({
           position={{ lat: midpoint.lat, lng: midpoint.lon }}
           icon={midIcon}
           zIndex={200}
-          title={`Midpoint — ${formatDuration(route.totalDuration / 2)} from each`}
+          title={midpointMode === 'distance'
+            ? `Midpoint — ${Math.round(route.totalDistance / 2 / 1609.344)} mi from each`
+            : `Midpoint — ${formatDuration(route.totalDuration / 2)} from each`
+          }
         />
       )}
 
