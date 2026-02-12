@@ -33,6 +33,9 @@ export default function RouteInfo({
   onRouteSelect,
   travelMode = 'DRIVING',
   multiResult = null,
+  driftRadius = null,
+  driftLoading = false,
+  onDriftRadiusChange,
 }) {
   const modeLabels = TRAVEL_MODE_LABELS[travelMode] || TRAVEL_MODE_LABELS.DRIVING;
   const [showCopied, setShowCopied] = useState(false);
@@ -42,6 +45,80 @@ export default function RouteInfo({
   const shareMenuRef = useRef(null);
   const shareGate = useGatedAction('share');
   const routeOptionsGate = useGatedAction('alternative_routes');
+  const driftGate = useGatedAction('drift_radius');
+
+  const DRIFT_OPTIONS = [5, 10, 15];
+
+  const renderDriftRadiusToggle = () => (
+    <div className="mt-2 pt-2 border-t border-gray-100">
+      <div className="flex items-center justify-between">
+        <button
+          onClick={() => driftGate.gate(() => {
+            if (driftRadius) {
+              onDriftRadiusChange?.(null);
+            } else {
+              onDriftRadiusChange?.(10);
+            }
+          })}
+          className="flex items-center gap-1.5 text-[13px] font-medium text-gray-600 hover:text-gray-800 transition-colors"
+        >
+          <span className="text-base">🎯</span>
+          <span>Drift Radius</span>
+          {!driftGate.allowed && driftGate.reason === 'upgrade_required' && (
+            <span className="text-[9px] font-bold text-purple-600 bg-purple-100 px-1 py-0.5 rounded-full">PRO</span>
+          )}
+          {!driftGate.allowed && driftGate.reason === 'login_required' && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          )}
+          {driftLoading && (
+            <span className="inline-block w-3 h-3 border-[1.5px] border-teal-300 border-t-teal-600 rounded-full animate-spin" />
+          )}
+        </button>
+
+        {/* Toggle switch */}
+        {driftGate.allowed && (
+          <button
+            onClick={() => {
+              if (driftRadius) {
+                onDriftRadiusChange?.(null);
+              } else {
+                onDriftRadiusChange?.(10);
+              }
+            }}
+            className={`relative w-9 h-5 rounded-full transition-colors ${
+              driftRadius ? 'bg-teal-500' : 'bg-gray-300'
+            }`}
+          >
+            <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+              driftRadius ? 'translate-x-[18px]' : 'translate-x-0.5'
+            }`} />
+          </button>
+        )}
+      </div>
+
+      {/* Tolerance pills — shown when drift radius is active */}
+      {driftRadius && (
+        <div className="flex gap-1.5 mt-2 animate-fadeInUp">
+          {DRIFT_OPTIONS.map((min) => (
+            <button
+              key={min}
+              onClick={() => onDriftRadiusChange?.(min)}
+              className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                driftRadius.minutes === min
+                  ? 'bg-teal-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              ±{min} min
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   // Reverse geocode midpoint to get city/state label
   useEffect(() => {
@@ -239,6 +316,9 @@ export default function RouteInfo({
                 </span>
               </div>
             )}
+
+            {/* Drift Radius toggle */}
+            {renderDriftRadiusToggle()}
           </div>
 
           {/* Footer */}
@@ -282,6 +362,9 @@ export default function RouteInfo({
               <span className="text-gray-300">|</span>
               <span className="text-gray-500">~{formatDuration(route.totalDuration / 2)} each</span>
             </div>
+
+            {/* Drift Radius toggle */}
+            {renderDriftRadiusToggle()}
           </div>
 
           {/* Footer — Open in Maps + Share */}

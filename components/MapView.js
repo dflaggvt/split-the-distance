@@ -6,6 +6,7 @@ import {
   DirectionsRenderer,
   MarkerF,
   InfoWindowF,
+  PolygonF,
 } from '@react-google-maps/api';
 import { formatDuration } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
@@ -80,6 +81,7 @@ export default function MapView({
   selectedRouteIndex = 0,
   extraLocations = [],
   multiResult = null,
+  driftRadius = null,
 }) {
   const mapRef = useRef(null);
   const [activeInfoWindow, setActiveInfoWindow] = useState(null);
@@ -288,6 +290,22 @@ export default function MapView({
             }}
           />
         ) : null
+      )}
+
+      {/* Drift Radius zone polygon */}
+      {driftRadius?.polygon && (
+        <PolygonF
+          paths={driftRadius.polygon}
+          options={{
+            fillColor: '#0d9488',
+            fillOpacity: 0.1,
+            strokeColor: '#0d9488',
+            strokeOpacity: 0.6,
+            strokeWeight: 2,
+            clickable: false,
+            zIndex: 10,
+          }}
+        />
       )}
 
       {/* Start marker */}

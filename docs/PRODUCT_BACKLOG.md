@@ -44,7 +44,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ## TIER 1 — Build Next (High Impact, Achievable Now)
 
-### 1.1 Drift Radius (Fairness Zone) ⭐ _Theresa priority_
+### 1.1 Drift Radius (Fairness Zone) ⭐ _Theresa priority_ ✅ SHIPPED
 **Tagline:** "Not just a point — a zone where it's fair for both of you."
 **What:** Instead of a single midpoint, show a shaded area on the map where drive times for both people are within a configurable tolerance (e.g., ±5, 10, or 15 minutes).
 **Why:** Genuinely novel — no competitor does this. Solves the real problem: exact midpoints sometimes land in the middle of nowhere. A fairness zone gives users way more options while keeping it equitable.
@@ -59,6 +59,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 **Tier:** Premium
 **Dependencies:** Multiple Google Routes API calls per search (cost consideration — may need caching strategy)
 **Technical notes:** Could use isochrone mapping (Mapbox has an Isochrone API). Overlay two isochrones and show the intersection.
+**Status:** ✅ Shipped Feb 2026. Uses Mapbox Isochrone API from midpoint with ±5/10/15 min tolerance. Client-side cache by midpoint+mode+minutes. Places filter to within zone. Premium feature.
 
 ---
 

@@ -16,6 +16,7 @@ import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint, getMultiLoc
 import { searchNearby } from '@/lib/places';
 import { logSearch, logPlaceClick, checkInternalUser, trackEvent, getSharedRouteData } from '@/lib/analytics';
 import { saveSearch } from '@/lib/searchHistory';
+import { fetchIsochrone, filterPlacesInZone } from '@/lib/isochrone';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -67,6 +68,9 @@ export default function AppClient() {
   const [localOnly, setLocalOnly] = useState(false);
   const [placesCache, setPlacesCache] = useState({}); // Cache: { category: [places] }
   const routeCacheRef = useRef({}); // Cache: { "lat,lon|lat,lon|MODE": routeData }
+  const driftCacheRef = useRef({}); // Cache: { "lat,lng|MODE|minutes": isochroneResult }
+  const [driftRadius, setDriftRadius] = useState(null); // null | { minutes, polygon, bbox, ... }
+  const [driftLoading, setDriftLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [activePlaceId, setActivePlaceId] = useState(null);
@@ -208,6 +212,8 @@ export default function AppClient() {
 
     // Clear route cache for new search
     routeCacheRef.current = {};
+    driftCacheRef.current = {};
+    setDriftRadius(null);
 
     // Track search button click
     trackEvent('search_clicked', {
@@ -424,6 +430,40 @@ export default function AppClient() {
       if (splitBtn) splitBtn.click();
     }, 100);
   }, []);
+
+  // ---- Handle drift radius toggle ----
+  const handleDriftRadiusChange = useCallback(async (minutes) => {
+    // Toggle off if same minutes clicked again, or null passed
+    if (!minutes || (driftRadius?.minutes === minutes)) {
+      setDriftRadius(null);
+      return;
+    }
+
+    if (!midpoint) return;
+
+    const lat = midpoint.lat.toFixed(4);
+    const lng = (midpoint.lon ?? midpoint.lng).toFixed(4);
+    const cacheKey = `${lat},${lng}|${travelMode}|${minutes}`;
+
+    // Check cache
+    if (driftCacheRef.current[cacheKey]) {
+      setDriftRadius(driftCacheRef.current[cacheKey]);
+      return;
+    }
+
+    setDriftLoading(true);
+    try {
+      const result = await fetchIsochrone(midpoint, { minutes, travelMode });
+      driftCacheRef.current[cacheKey] = result;
+      setDriftRadius(result);
+    } catch (err) {
+      console.error('[Drift Radius] Error:', err);
+      showToast('Could not load drift radius. Please try again.');
+      setDriftRadius(null);
+    } finally {
+      setDriftLoading(false);
+    }
+  }, [midpoint, travelMode, driftRadius, showToast]);
 
   // ---- Handle swap ----
   const handleSwap = useCallback(() => {
@@ -798,7 +838,7 @@ export default function AppClient() {
           midpoint={midpoint}
           fromLocation={fromLocation}
           toLocation={toLocation}
-          places={places}
+          places={driftRadius ? filterPlacesInZone(places, driftRadius) : places}
           placesLoading={placesLoading}
           activeFilters={activeFilters}
           onFilterToggle={handleFilterToggle}
@@ -819,6 +859,9 @@ export default function AppClient() {
           extraLocations={extraLocations}
           onExtraLocationsChange={setExtraLocations}
           multiResult={multiResult}
+          driftRadius={driftRadius}
+          driftLoading={driftLoading}
+          onDriftRadiusChange={handleDriftRadiusChange}
         />
 
         {/* Map Container */}
@@ -829,12 +872,16 @@ export default function AppClient() {
             route={route}
             midpoint={midpoint}
             midpointMode={midpointMode}
-            places={localOnly ? places.filter(p => !p.brand) : places}
+            places={(() => {
+              let filtered = localOnly ? places.filter(p => !p.brand) : places;
+              return driftRadius ? filterPlacesInZone(filtered, driftRadius) : filtered;
+            })()}
             activePlaceId={activePlaceId}
             onPlaceClick={handlePlaceClick}
             selectedRouteIndex={selectedRouteIndex}
             extraLocations={extraLocations.filter(el => el.location).map(el => el.location)}
             multiResult={multiResult}
+            driftRadius={driftRadius}
           />
 
           {/* Mobile panel toggle */}

@@ -47,6 +47,9 @@ export default function SearchPanel({
   extraLocations = [],
   onExtraLocationsChange,
   multiResult,
+  driftRadius,
+  driftLoading,
+  onDriftRadiusChange,
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
@@ -358,6 +361,9 @@ export default function SearchPanel({
               onRouteSelect={onRouteSelect}
               travelMode={travelMode}
               multiResult={multiResult}
+              driftRadius={driftRadius}
+              driftLoading={driftLoading}
+              onDriftRadiusChange={onDriftRadiusChange}
             />
             <FilterChips
               activeFilters={activeFilters}
