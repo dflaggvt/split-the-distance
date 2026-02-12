@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import LocationInput from './LocationInput';
 import RouteInfo from './RouteInfo';
 import FilterChips from './FilterChips';
@@ -94,6 +94,50 @@ export default function SearchPanel({
     ));
   };
 
+  // ---- Travel mode distance limits ----
+  // Haversine: straight-line miles between two lat/lon points
+  const haversineMiles = (a, b) => {
+    const R = 3958.8; // Earth radius in miles
+    const dLat = (b.lat - a.lat) * Math.PI / 180;
+    const dLon = ((b.lon || b.lng) - (a.lon || a.lng)) * Math.PI / 180;
+    const sinLat = Math.sin(dLat / 2);
+    const sinLon = Math.sin(dLon / 2);
+    const h = sinLat * sinLat + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * sinLon * sinLon;
+    return R * 2 * Math.asin(Math.sqrt(h));
+  };
+
+  // Max pairwise straight-line distance across all resolved locations
+  const maxPairwiseMiles = useMemo(() => {
+    const locs = [fromLocation, toLocation, ...extraLocations.map(el => el.location)].filter(Boolean);
+    if (locs.length < 2) return 0;
+    let max = 0;
+    for (let i = 0; i < locs.length; i++) {
+      for (let j = i + 1; j < locs.length; j++) {
+        max = Math.max(max, haversineMiles(locs[i], locs[j]));
+      }
+    }
+    return max;
+  }, [fromLocation, toLocation, extraLocations]);
+
+  const TRAVEL_MODE_LIMITS = { DRIVING: Infinity, BICYCLING: 75, WALKING: 25 };
+
+  const handleTravelModeClick = (mode) => {
+    const limit = TRAVEL_MODE_LIMITS[mode];
+    if (maxPairwiseMiles > limit) {
+      onError?.(`Locations are too far apart for ${mode === 'WALKING' ? 'walking' : 'biking'} (${Math.round(maxPairwiseMiles)} mi apart, max ${limit} mi). Try driving instead.`);
+      return;
+    }
+    travelModeGate.gate(() => onTravelModeChange?.(mode));
+  };
+
+  // Auto-snap to DRIVING if current mode exceeds distance limit after locations change
+  useEffect(() => {
+    const limit = TRAVEL_MODE_LIMITS[travelMode];
+    if (limit !== Infinity && maxPairwiseMiles > limit) {
+      onTravelModeChange?.('DRIVING');
+    }
+  }, [maxPairwiseMiles, travelMode, onTravelModeChange]);
+
   const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
 
   return (
@@ -128,20 +172,26 @@ export default function SearchPanel({
                 { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
                 { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
                 { mode: 'WALKING', icon: '🚶', label: 'Walk' },
-              ].map(({ mode, icon, label }) => (
-                <button
-                  key={mode}
-                  onClick={() => travelModeGate.gate(() => onTravelModeChange?.(mode))}
-                  className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-[13px] font-medium transition-all ${
-                    travelMode === mode
-                      ? 'bg-teal-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <span className="text-sm">{icon}</span>
-                  <span>{label}</span>
-                </button>
-              ))}
+              ].map(({ mode, icon, label }) => {
+                const tooFar = maxPairwiseMiles > TRAVEL_MODE_LIMITS[mode];
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => handleTravelModeClick(mode)}
+                    title={tooFar ? `Too far for ${label.toLowerCase()} (${Math.round(maxPairwiseMiles)} mi, max ${TRAVEL_MODE_LIMITS[mode]} mi)` : label}
+                    className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-[13px] font-medium transition-all ${
+                      travelMode === mode
+                        ? 'bg-teal-600 text-white shadow-sm'
+                        : tooFar
+                          ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span className="text-sm">{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Divider */}
