@@ -22,11 +22,11 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 - Local Only filter (hide chains)
 - Sharing via link
 - Travel modes: Drive, Bike, Walk
+- Place photos from affiliate partners (OpenTable restaurant photos, etc.) — free because they cost us nothing
 
 ### Free with Account
 - Midpoint Roulette ("🎲 Surprise Me")
 - Reservation history (reservations made via our site)
-- Place photos from affiliate partners (OpenTable restaurant photos, etc.) — free because they cost us nothing
 - Trip history (view-only, last 5 routes)
 
 ### Paid Premium ($4.99/mo or $29.99/yr)
