@@ -177,54 +177,52 @@ export default function RouteInfo({
 
   return (
     <div className="animate-fadeInUp">
-      {/* Combined Halfway Point + Stats + Share Card */}
+      {/* Halfway Point Card */}
       {midpoint && (
-        <div className="mt-5 mb-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-[10px] overflow-hidden">
-          {/* Midpoint header */}
-          <button
-            onClick={handleMidpointClick}
-            className="w-full flex items-center gap-2.5 px-4 pt-3 pb-2 cursor-pointer hover:bg-orange-100/40 transition-colors group text-left"
-          >
-            <span className="text-xl">📍</span>
-            <div className="flex-1 min-w-0">
-              <span className="text-[11px] font-semibold text-orange-700 uppercase tracking-wide">
-                Halfway Point
-              </span>
-              {midpointLabel && (
-                <div className="text-base font-bold text-orange-900 truncate">
-                  {midpointLabel}
+        <div className="mt-5 mb-3 rounded-xl overflow-hidden shadow-sm border border-orange-200/80">
+          {/* Hero section — gradient bg with location */}
+          <div className="bg-gradient-to-br from-orange-500 to-amber-500 px-4 py-4 text-white">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-white/80 text-xs font-semibold uppercase tracking-wider">Halfway Point</span>
                 </div>
-              )}
+                {midpointLabel ? (
+                  <h3 className="text-xl font-bold truncate leading-tight">{midpointLabel}</h3>
+                ) : (
+                  <h3 className="text-lg font-bold leading-tight opacity-90">Midpoint found</h3>
+                )}
+              </div>
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 ml-3">
+                <span className="text-lg">📍</span>
+              </div>
             </div>
-          </button>
 
-          {/* Inline stats */}
-          <div className="flex items-center justify-center gap-3 px-4 py-2 text-center">
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide">Distance</span>
-              <span className="text-sm font-bold text-orange-900">{formatDistance(route.totalDistance)}</span>
-            </div>
-            <div className="w-px h-7 bg-orange-200" />
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide">{modeLabels.time}</span>
-              <span className="text-sm font-bold text-orange-900">{formatDuration(route.totalDuration)}</span>
-            </div>
-            <div className="w-px h-7 bg-orange-200" />
-            <div className="flex flex-col items-center">
-              <span className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide">{modeLabels.each}</span>
-              <span className="text-sm font-bold text-orange-900">~{formatDuration(route.totalDuration / 2)}</span>
+            {/* Stats inline */}
+            <div className="flex items-center gap-2 mt-3 text-sm">
+              <span className="font-bold">{formatDistance(route.totalDistance)}</span>
+              <span className="text-white/50">·</span>
+              <span className="font-bold">{formatDuration(route.totalDuration)}</span>
+              <span className="text-white/50">·</span>
+              <span className="font-medium text-white/90">~{formatDuration(route.totalDuration / 2)} each</span>
             </div>
           </div>
 
-          {/* Footer: Open in Maps + Share */}
-          <div className="flex items-center justify-between px-4 pb-3 pt-1 relative" ref={shareMenuRef}>
+          {/* Action bar */}
+          <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-2.5 relative" ref={shareMenuRef}>
             <button
               onClick={handleMidpointClick}
-              className="text-xs font-medium text-orange-600 hover:text-orange-800 hover:underline transition-colors"
+              className="flex items-center gap-1.5 text-[13px] font-medium text-orange-700 hover:text-orange-900 transition-colors group"
             >
-              Open in Google Maps →
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500 group-hover:text-orange-700 transition-colors">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              <span className="group-hover:underline">Open in Maps</span>
             </button>
-            <div className="relative flex items-center gap-1.5">
+
+            <div className="relative flex items-center gap-2">
               <span
                 className={`text-[11px] font-medium text-teal-600 transition-opacity duration-300 ${
                   showCopied ? 'opacity-100' : 'opacity-0'
@@ -234,16 +232,16 @@ export default function RouteInfo({
               </span>
               <button
                 onClick={handleShareClick}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-orange-700 bg-white/60 border border-orange-200 cursor-pointer transition-all hover:bg-white hover:border-orange-300"
+                className="flex items-center gap-1.5 text-[13px] font-medium text-orange-700 hover:text-orange-900 transition-colors group"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500 group-hover:text-orange-700 transition-colors">
                   <circle cx="18" cy="5" r="3" />
                   <circle cx="6" cy="12" r="3" />
                   <circle cx="18" cy="19" r="3" />
                   <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
                   <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
                 </svg>
-                Share
+                <span className="group-hover:underline">Share</span>
                 {!shareGate.allowed && shareGate.reason === 'login_required' && (
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
