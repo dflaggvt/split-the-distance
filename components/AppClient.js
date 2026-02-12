@@ -279,12 +279,12 @@ export default function AppClient() {
           ...resolvedExtras.map(loc => ({ lat: loc.lat, lon: loc.lon, name: loc.name })),
         ];
 
-        const result = await getMultiLocationMidpoint(allLocations, { mode: midpointMode });
+        const result = await getMultiLocationMidpoint(allLocations, { mode: midpointMode, travelMode });
 
         // Fetch individual routes from each person to the midpoint (for map polylines)
         const midDest = { lat: result.midpoint.lat, lon: result.midpoint.lon || result.midpoint.lng, name: 'Meeting Point' };
         const routePromises = allLocations.map(loc => 
-          getRoute(loc, midDest, 'DRIVING').catch(err => {
+          getRoute(loc, midDest, travelMode).catch(err => {
             console.warn(`Route to midpoint failed for ${loc.name}:`, err);
             return null;
           })

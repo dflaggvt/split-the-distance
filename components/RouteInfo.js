@@ -198,7 +198,11 @@ export default function RouteInfo({
               <h3 className="text-lg font-bold text-gray-700 leading-tight">Meeting point found</h3>
             )}
             <p className="text-xs text-gray-400 mt-1">
-              Optimized for fairest {multiResult.optimizeBy === 'distance' ? 'distance' : 'drive time'}
+              Optimized for fairest {
+                multiResult.optimizeBy === 'distance'
+                  ? 'distance'
+                  : travelMode === 'BICYCLING' ? 'cycling time' : travelMode === 'WALKING' ? 'walking time' : 'drive time'
+              }
             </p>
 
             {/* Per-person drive times */}
