@@ -293,15 +293,15 @@ export default function MapView({
       )}
 
       {/* Drift Radius zone polygon */}
-      {driftRadius?.polygon && (
+      {driftRadius?.polygon?.length > 0 && (
         <PolygonF
           paths={driftRadius.polygon}
           options={{
             fillColor: '#0d9488',
-            fillOpacity: 0.1,
+            fillOpacity: 0.15,
             strokeColor: '#0d9488',
-            strokeOpacity: 0.6,
-            strokeWeight: 2,
+            strokeOpacity: 0.7,
+            strokeWeight: 2.5,
             clickable: false,
             zIndex: 10,
           }}

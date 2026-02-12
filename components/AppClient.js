@@ -453,7 +453,9 @@ export default function AppClient() {
 
     setDriftLoading(true);
     try {
+      console.log('[Drift Radius] Fetching isochrone:', { midpoint, minutes, travelMode });
       const result = await fetchIsochrone(midpoint, { minutes, travelMode });
+      console.log('[Drift Radius] Got polygon with', result.polygon?.length, 'points');
       driftCacheRef.current[cacheKey] = result;
       setDriftRadius(result);
     } catch (err) {
