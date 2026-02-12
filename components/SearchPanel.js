@@ -54,18 +54,18 @@ export default function SearchPanel({
   const group3Gate = useGatedAction('group_gravity_3');
   const group4Gate = useGatedAction('group_gravity_4plus');
 
-  // Max locations: 2 (base) + extras. Free=3 total, Premium=5 total.
-  const maxExtraLocations = group4Gate.allowed ? 3 : (group3Gate.allowed ? 1 : 0);
+  // Display max: always show button up to the highest theoretical tier
+  // so the gate can prompt login/upgrade when clicked
+  const displayMax = 3; // up to 5 total people
 
   const handleAddLocation = () => {
-    if (extraLocations.length >= maxExtraLocations) return;
-    // Gate: 1 extra = group_gravity_3, 2+ extras = group_gravity_4plus
     const nextCount = extraLocations.length + 1;
+    // Gate the action: first extra needs group_gravity_3 (free), 2+ needs group_gravity_4plus (premium)
     if (nextCount === 1) {
       group3Gate.gate(() => {
         onExtraLocationsChange?.([...extraLocations, { value: '', location: null }]);
       });
-    } else {
+    } else if (nextCount <= 3) {
       group4Gate.gate(() => {
         onExtraLocationsChange?.([...extraLocations, { value: '', location: null }]);
       });
@@ -257,7 +257,7 @@ export default function SearchPanel({
             </div>
 
             {/* + Add location button */}
-            {extraLocations.length < maxExtraLocations && (
+            {extraLocations.length < displayMax && (
               <button
                 onClick={handleAddLocation}
                 className="mt-2 ml-6 flex items-center gap-1.5 text-[13px] font-medium text-teal-600 hover:text-teal-700 transition-colors"
@@ -265,7 +265,7 @@ export default function SearchPanel({
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                Add person ({2 + extraLocations.length}/{2 + maxExtraLocations})
+                Add person ({2 + extraLocations.length}/{2 + displayMax})
               </button>
             )}
           </div>
