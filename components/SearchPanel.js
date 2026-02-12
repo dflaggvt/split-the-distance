@@ -66,65 +66,53 @@ export default function SearchPanel({
             }
           </p>
 
-          {/* Travel Mode Selector — gated by feature flag */}
-          <div className="flex gap-1 mb-4">
-            {[
-              { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
-              { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
-              { mode: 'WALKING', icon: '🚶', label: 'Walk' },
-            ].map(({ mode, icon, label }) => (
-              <button
-                key={mode}
-                onClick={() => travelModeGate.gate(() => onTravelModeChange?.(mode))}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-                  travelMode === mode
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <span>{icon}</span>
-                <span>{label}</span>
-                {!travelModeGate.allowed && travelModeGate.reason === 'login_required' && (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                )}
-                {!travelModeGate.allowed && travelModeGate.reason === 'upgrade_required' && (
-                  <span className="text-[9px] font-bold opacity-70">PRO</span>
-                )}
-              </button>
-            ))}
-          </div>
+          {/* Travel Mode + Midpoint Mode — combined single row */}
+          <div className="flex gap-2 mb-4 items-center">
+            {/* Travel Mode Selector */}
+            <div className="flex gap-1 flex-1">
+              {[
+                { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
+                { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
+                { mode: 'WALKING', icon: '🚶', label: 'Walk' },
+              ].map(({ mode, icon, label }) => (
+                <button
+                  key={mode}
+                  onClick={() => travelModeGate.gate(() => onTravelModeChange?.(mode))}
+                  className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-[13px] font-medium transition-all ${
+                    travelMode === mode
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <span className="text-sm">{icon}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
 
-          {/* Midpoint Mode Toggle — gated by feature flag */}
-          <div className="flex gap-1 mb-4">
-            {[
-              { mode: 'time', icon: '⏱', label: 'Travel Time' },
-              { mode: 'distance', icon: '📏', label: 'Distance' },
-            ].map(({ mode, icon, label }) => (
-              <button
-                key={mode}
-                onClick={() => distanceToggleGate.gate(() => onMidpointModeChange?.(mode))}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                  midpointMode === mode
-                    ? 'bg-teal-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <span>{icon}</span>
-                <span>{label}</span>
-                {!distanceToggleGate.allowed && distanceToggleGate.reason === 'login_required' && (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                )}
-                {!distanceToggleGate.allowed && distanceToggleGate.reason === 'upgrade_required' && (
-                  <span className="text-[9px] font-bold opacity-70">PRO</span>
-                )}
-              </button>
-            ))}
+            {/* Divider */}
+            <div className="w-px h-7 bg-gray-200" />
+
+            {/* Midpoint Mode Toggle */}
+            <div className="flex gap-1">
+              {[
+                { mode: 'time', icon: '⏱', title: 'Split by travel time' },
+                { mode: 'distance', icon: '📏', title: 'Split by distance' },
+              ].map(({ mode, icon, title }) => (
+                <button
+                  key={mode}
+                  onClick={() => distanceToggleGate.gate(() => onMidpointModeChange?.(mode))}
+                  title={title}
+                  className={`w-9 h-9 flex items-center justify-center rounded-lg text-base transition-all ${
+                    midpointMode === mode
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {icon}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Input Group - Google Maps Style */}
@@ -225,12 +213,6 @@ export default function SearchPanel({
               onRouteSelect={onRouteSelect}
               travelMode={travelMode}
             />
-            <FeatureGate feature="roulette">
-              <RouletteSection
-                midpoint={midpoint}
-                onPlaceClick={onPlaceClick}
-              />
-            </FeatureGate>
             <FilterChips
               activeFilters={activeFilters}
               onToggle={onFilterToggle}
@@ -244,6 +226,12 @@ export default function SearchPanel({
               onPlaceClick={onPlaceClick}
               activeFilters={activeFilters}
             />
+            <FeatureGate feature="roulette">
+              <RouletteSection
+                midpoint={midpoint}
+                onPlaceClick={onPlaceClick}
+              />
+            </FeatureGate>
             {/* Coming Soon features teaser */}
             <ComingSoonSection show={true} />
           </div>
