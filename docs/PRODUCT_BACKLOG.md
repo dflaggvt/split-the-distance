@@ -147,6 +147,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 **Tier:** Free
 **Dependencies:** Google Geocoding API (or free alternative like Nominatim)
 **Requested by:** Theresa (Feb 11, 2026)
+**Enhancement:** Context-aware label — if both origins are in the same city (bike/walk use case), show nearest cross streets or neighborhood instead of city/state. No extra API calls needed, geocoder already returns street-level data. (Theresa, Feb 11)
 
 ---
 
