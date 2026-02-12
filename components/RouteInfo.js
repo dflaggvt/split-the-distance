@@ -34,7 +34,6 @@ export default function RouteInfo({
   travelMode = 'DRIVING',
   multiResult = null,
   driftRadius = null,
-  driftLoading = false,
   onDriftRadiusChange,
 }) {
   const modeLabels = TRAVEL_MODE_LABELS[travelMode] || TRAVEL_MODE_LABELS.DRIVING;
@@ -72,9 +71,6 @@ export default function RouteInfo({
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
-          )}
-          {driftLoading && (
-            <span className="inline-block w-3 h-3 border-[1.5px] border-teal-300 border-t-teal-600 rounded-full animate-spin" />
           )}
         </button>
 

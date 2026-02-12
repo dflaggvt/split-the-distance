@@ -48,7 +48,6 @@ export default function SearchPanel({
   onExtraLocationsChange,
   multiResult,
   driftRadius,
-  driftLoading,
   onDriftRadiusChange,
 }) {
   const toInputRef = useRef(null);
@@ -362,7 +361,6 @@ export default function SearchPanel({
               travelMode={travelMode}
               multiResult={multiResult}
               driftRadius={driftRadius}
-              driftLoading={driftLoading}
               onDriftRadiusChange={onDriftRadiusChange}
             />
             <FilterChips
