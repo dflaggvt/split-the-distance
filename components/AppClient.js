@@ -279,7 +279,7 @@ export default function AppClient() {
           ...resolvedExtras.map(loc => ({ lat: loc.lat, lon: loc.lon, name: loc.name })),
         ];
 
-        const result = await getMultiLocationMidpoint(allLocations);
+        const result = await getMultiLocationMidpoint(allLocations, { mode: midpointMode });
 
         // Fetch individual routes from each person to the midpoint (for map polylines)
         const midDest = { lat: result.midpoint.lat, lon: result.midpoint.lon || result.midpoint.lng, name: 'Meeting Point' };

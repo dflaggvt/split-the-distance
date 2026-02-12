@@ -107,7 +107,7 @@ export default function SearchPanel({
         <div>
           <p className="text-sm text-gray-500 mb-5">
             {extraLocations.length > 0
-              ? `Find the fairest meeting point for ${2 + extraLocations.length} people`
+              ? <>Find the fairest meeting point for {2 + extraLocations.length} people by {midpointMode === 'distance' ? 'distance' : 'drive time'}</>
               : <>Find your halfway point based on {
                   midpointMode === 'distance'
                     ? 'distance'
@@ -116,39 +116,42 @@ export default function SearchPanel({
             }
           </p>
 
-          {/* Travel Mode + Midpoint Mode — hidden in group mode (Distance Matrix is always DRIVING) */}
-          {extraLocations.length === 0 && (
+          {/* Travel Mode + Midpoint Mode row */}
           <div className="flex gap-2 mb-4 items-center">
-            {/* Travel Mode Selector */}
-            <div className="flex gap-1 flex-1">
-              {[
-                { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
-                { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
-                { mode: 'WALKING', icon: '🚶', label: 'Walk' },
-              ].map(({ mode, icon, label }) => (
-                <button
-                  key={mode}
-                  onClick={() => travelModeGate.gate(() => onTravelModeChange?.(mode))}
-                  className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-[13px] font-medium transition-all ${
-                    travelMode === mode
-                      ? 'bg-teal-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <span className="text-sm">{icon}</span>
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
+            {/* Travel Mode Selector — hidden in group mode (Distance Matrix is always DRIVING) */}
+            {extraLocations.length === 0 && (
+              <>
+                <div className="flex gap-1 flex-1">
+                  {[
+                    { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
+                    { mode: 'BICYCLING', icon: '🚴', label: 'Bike' },
+                    { mode: 'WALKING', icon: '🚶', label: 'Walk' },
+                  ].map(({ mode, icon, label }) => (
+                    <button
+                      key={mode}
+                      onClick={() => travelModeGate.gate(() => onTravelModeChange?.(mode))}
+                      className={`flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-lg text-[13px] font-medium transition-all ${
+                        travelMode === mode
+                          ? 'bg-teal-600 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <span className="text-sm">{icon}</span>
+                      <span>{label}</span>
+                    </button>
+                  ))}
+                </div>
 
-            {/* Divider */}
-            <div className="w-px h-7 bg-gray-200" />
+                {/* Divider */}
+                <div className="w-px h-7 bg-gray-200" />
+              </>
+            )}
 
-            {/* Midpoint Mode Toggle */}
+            {/* Midpoint Mode Toggle — always visible */}
             <div className="flex gap-1">
               {[
-                { mode: 'time', icon: '⏱', title: 'Split by travel time' },
-                { mode: 'distance', icon: '📏', title: 'Split by distance' },
+                { mode: 'time', icon: '⏱', title: 'Optimize by travel time' },
+                { mode: 'distance', icon: '📏', title: 'Optimize by distance' },
               ].map(({ mode, icon, title }) => (
                 <button
                   key={mode}
@@ -165,7 +168,6 @@ export default function SearchPanel({
               ))}
             </div>
           </div>
-          )}
 
           {/* Input Group - Google Maps Style */}
           <div className="mb-4">
