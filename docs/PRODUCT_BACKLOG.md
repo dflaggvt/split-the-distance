@@ -35,7 +35,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 - Drift Radius (fairness zone)
 - Group Gravity (4+ people)
 - Incremental Stops (road trip mode)
-- Plan an Outing (curated multi-stop itineraries)
+- Curated Journey Itineraries (AI-powered multi-stop planning)
 - Full trip history (unlimited)
 - Recurring Midpoints (fresh suggestions on a schedule)
 - Place photos from paid APIs (non-restaurant/non-affiliate categories)
@@ -197,12 +197,12 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 
 ---
 
-### 2.2 Plan an Outing (Curated Itineraries) — _working title, considering: Split Adventure, Midpoint Mission, Split Expedition, Split Day, Go the Distance, Get Split_
+### 2.2 Curated Journey Itineraries — _working title, considering: Split Adventure, Midpoint Mission, Split Expedition, Split Day, Go the Distance, Get Split_
 **Tagline:** "Not just a restaurant. A whole experience."
 **What:** Curated multi-stop itineraries at your midpoint — dinner → dessert → activity → walk. Auto-generated based on what's actually there. Framed for ANY group: couples, friend weekends, family reunions, college meetups.
 **Why:** Elevates us from "utility tool" to "experience planner." Most people using this aren't in commuter relationships — they're planning group hangs, reunions, friend weekends.
 **How it works:**
-- After finding midpoint, tap "Plan an Outing"
+- After finding midpoint, tap "Curated Journey Itineraries"
 - We auto-generate 2-3 itinerary options:
   - 🍽 Dinner at [restaurant] → 🍦 Dessert at [cafe] → 🌳 Walk at [park]
   - 🎯 Activity at [attraction] → 🍕 Late dinner at [restaurant]
@@ -214,6 +214,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 **Revenue:** 💰💰💰 (OpenTable reservations, activity booking affiliate, premium feature)
 **Tier:** Premium (1 free itinerary per search, unlimited with subscription)
 **Dependencies:** OpenTable integration (for restaurant quality/booking), enough POI data density
+**AI Integration:** Use AI to intelligently generate itineraries based on group preferences, time of day, weather, season, and available POIs — not just random combinations but thoughtful, personalized journeys. (Theresa, Feb 11)
 **Theresa's note:** Frame for groups/reunions/friend weekends, not just couples
 
 ---
@@ -369,12 +370,12 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | 6 | Saved Routes + Travel Journal | Premium ($4.99/mo) | Q2 2026 |
 | 7 | Group Gravity | Free for 3, premium for 4+ | Q3 2026 |
 | 8 | Incremental Stops | Premium ($4.99/mo) | Q3 2026 |
-| 9 | Plan an Outing | Premium + affiliate | Q3 2026 |
+| 9 | Curated Journey Itineraries | Premium + affiliate | Q3 2026 |
 | 10 | Recurring Midpoints | Premium (requires accounts) | Q4 2026 |
 | 11 | Commute Equalizer | Premium (after transit integration) | 2027 |
 | 12 | Enterprise/Remote Teams | SaaS ($50-200/mo) | 2027+ |
 
-**Target premium pricing:** $4.99/mo or $29.99/yr — unlocks Drift Radius, Saved Routes + Travel Journal, Group Gravity 4+, Incremental Stops, Plan an Outing, Recurring Midpoints, unlimited everything.
+**Target premium pricing:** $4.99/mo or $29.99/yr — unlocks Drift Radius, Saved Routes + Travel Journal, Group Gravity 4+, Incremental Stops, Curated Journey Itineraries, Recurring Midpoints, unlimited everything.
 
 ---
 
@@ -387,7 +388,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | Group Gravity | Reddit (r/roadtrip, r/travel), friend group content | "Plan a reunion" angle |
 | Core product | Reddit (r/LongDistance, r/coparenting), Product Hunt | Direct need |
 | Incremental Stops | Road trip bloggers, travel TikTok | "Plan your road trip stops" |
-| Plan an Outing | Lifestyle blogs, couple/friend influencers | Aspirational content |
+| Curated Journey Itineraries | Lifestyle blogs, couple/friend influencers | Aspirational content |
 
 ---
 
@@ -398,11 +399,11 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | Feb 10 | Distance toggle = free | Costs nothing (pure math), broadens appeal | Theresa |
 | Feb 10 | Saved routes + trip history = paid | High value, retention driver, worth paying for | Theresa |
 | Feb 10 | Pinned stops with travel notes = paid | "Travel journal" concept — sticky, personal | Theresa |
-| Feb 10 | Renamed "Date Night" → "Plan an Outing" | Most users aren't in commuter relationships — frame for groups, reunions, friend weekends | Theresa |
+| Feb 10 | Renamed "Date Night" → "Curated Journey Itineraries" | Most users aren't in commuter relationships — frame for groups, reunions, friend weekends | Theresa |
 | Feb 10 | Commute Equalizer → Tier 3 | Without public transit data, won't work in major metros | Theresa |
 | Feb 10 | Group Gravity = free w/ account for 3, paid for 4+ | Core use case (3 friends) should be accessible | Theresa |
 | Feb 10 | Roulette persona = family/friends/business, NOT couples | Couples live close — midpoint tool is for people with distance between them | Theresa |
-| Feb 10 | "Plan an Outing" name TBD | Exploring names aligned with "Split The Distance" brand (adventure, expedition, mission) | Theresa |
+| Feb 10 | "Curated Journey Itineraries" name TBD | Exploring names aligned with "Split The Distance" brand (adventure, expedition, mission) | Theresa |
 | Feb 10 | Collaborative Group Trips — Tier 2 | Social trip planning with date/location voting, live coordination, multi-day support. Builds on Group Gravity. | Theresa |
 | Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
 | Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
@@ -420,4 +421,4 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 - Drift Radius and Saved Routes are the strongest "worth paying for" features
 - Enterprise (Remote Teams) is a completely different product motion — don't distract from consumer growth
 - Commute Equalizer needs transit API integration before it's viable in metro areas
-- "Plan an Outing" framed for ALL groups (reunions, friend weekends, family trips) not just couples
+- "Curated Journey Itineraries" framed for ALL groups (reunions, friend weekends, family trips) not just couples
