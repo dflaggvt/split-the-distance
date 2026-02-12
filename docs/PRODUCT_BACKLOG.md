@@ -102,7 +102,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 
 ---
 
-### 1.4 Group Gravity (3+ People) ⭐ _Theresa priority_ ✅ SHIPPED
+### 1.4 Group Gravity (3+ People) ⭐ _Theresa priority_ ✅ SHIPPED — **Premium only (all group sizes)**
 **Tagline:** "5 friends. 3 states. 1 perfect meeting spot."
 **What:** Find the optimal meeting point for 3 or more people, weighted by drive time. Perfect for family reunions, college friend weekends, group hangs.
 **Why:** Most-requested feature type for midpoint tools. Competitors either don't support it or charge for it (WhatsHalfway's multi-point is paid). Weekend trips, friend groups, family reunions.
@@ -369,7 +369,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | 4 | Fair Swap Zones | Free → user growth → affiliate | Q2 2026 |
 | 5 | Drift Radius | Premium subscription ($4.99/mo) | Q2 2026 |
 | 6 | Saved Routes + Travel Journal | Premium ($4.99/mo) | Q2 2026 |
-| 7 | Group Gravity | Free for 3, premium for 4+ | Q3 2026 |
+| 7 | Group Gravity | Premium (all group sizes) | Q3 2026 |
 | 8 | Incremental Stops | Premium ($4.99/mo) | Q3 2026 |
 | 9 | Curated Journey Itineraries | Premium + affiliate | Q3 2026 |
 | 10 | Recurring Midpoints | Premium (requires accounts) | Q4 2026 |
@@ -403,6 +403,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | Feb 10 | Renamed "Date Night" → "Curated Journey Itineraries" | Most users aren't in commuter relationships — frame for groups, reunions, friend weekends | Theresa |
 | Feb 10 | Commute Equalizer → Tier 3 | Without public transit data, won't work in major metros | Theresa |
 | Feb 10 | Group Gravity = free w/ account for 3, paid for 4+ | Core use case (3 friends) should be accessible | Theresa |
+| Feb 11 | Group Gravity → all premium (no free tier) | API cost per additional origin makes free tier unsustainable | Theresa |
 | Feb 10 | Roulette persona = family/friends/business, NOT couples | Couples live close — midpoint tool is for people with distance between them | Theresa |
 | Feb 10 | "Curated Journey Itineraries" name TBD | Exploring names aligned with "Split The Distance" brand (adventure, expedition, mission) | Theresa |
 | Feb 10 | Collaborative Group Trips — Tier 2 | Social trip planning with date/location voting, live coordination, multi-day support. Builds on Group Gravity. | Theresa |
