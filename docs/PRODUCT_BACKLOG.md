@@ -27,7 +27,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 ### Free with Account
 - Midpoint Roulette ("🎲 Surprise Me")
 - Reservation history (reservations made via our site)
-- Trip history (view-only, last 5 routes)
+- Search history (view-only, last 10 searches)
 
 ### Paid Premium ($4.99/mo or $29.99/yr)
 - Unlimited saved routes with pinned stops
@@ -36,7 +36,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 - Group Gravity (4+ people)
 - Incremental Stops (road trip mode)
 - Curated Journey Itineraries (AI-powered multi-stop planning)
-- Full trip history (unlimited)
+- Full search history (unlimited)
 - Recurring Midpoints (fresh suggestions on a schedule)
 - Place photos from paid APIs (non-restaurant/non-affiliate categories)
 
