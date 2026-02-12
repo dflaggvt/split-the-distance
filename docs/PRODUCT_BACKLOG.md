@@ -138,7 +138,19 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 
 ---
 
-### 1.6 Distance-Based Midpoint Toggle 🆕
+### 1.6 Midpoint Location Label 🆕
+**What:** Show city/state info for the midpoint pin on the map. Currently it's just a pin with no context — users don't know what town/area the midpoint is in.
+**Options:** (a) Display city, state text above the "Open in Google Maps" link, or (b) make the midpoint pin clickable to reveal city/state in an InfoWindow.
+**Why:** Contextualizes the midpoint. Users need to know *where* they're meeting, not just see a dot.
+**Effort:** S (reverse geocode the midpoint coordinates → extract city/state)
+**Revenue:** 💰 (UX improvement, reduces confusion)
+**Tier:** Free
+**Dependencies:** Google Geocoding API (or free alternative like Nominatim)
+**Requested by:** Theresa (Feb 11, 2026)
+
+---
+
+### 1.7 Distance-Based Midpoint Toggle 🆕
 **Tagline:** "Split by time or distance — your choice."
 **What:** Toggle between drive-time midpoint (default) and simple distance-based midpoint.
 **Why:** Some users just want the geographic middle. Costs us nothing (pure math, no API call). Makes the tool more complete.
@@ -393,6 +405,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | Feb 10 | Collaborative Group Trips — Tier 2 | Social trip planning with date/location voting, live coordination, multi-day support. Builds on Group Gravity. | Theresa |
 | Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
 | Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
+| Feb 11 | Midpoint pin needs location context | Show city/state above "Open in Google Maps" or make pin clickable to reveal it. Currently just a floating pin with no info. | Theresa |
 | Feb 9 | Mapbox for place discovery | 20-35x cheaper than Google NearbySearch | Daryl/Wenee |
 | Feb 9 | No Google Ads / AdSense | Affiliate + premium model instead | Daryl |
 
