@@ -179,47 +179,35 @@ export default function RouteInfo({
     <div className="animate-fadeInUp">
       {/* Halfway Point Card */}
       {midpoint && (
-        <div className="mt-5 mb-3 rounded-xl overflow-hidden shadow-sm border border-orange-200/80">
-          {/* Hero section — gradient bg with location */}
-          <div className="bg-gradient-to-br from-orange-500 to-amber-500 px-4 py-4 text-white">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-white/80 text-xs font-semibold uppercase tracking-wider">Halfway Point</span>
-                </div>
-                {midpointLabel ? (
-                  <h3 className="text-xl font-bold truncate leading-tight">{midpointLabel}</h3>
-                ) : (
-                  <h3 className="text-lg font-bold leading-tight opacity-90">Midpoint found</h3>
-                )}
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 ml-3">
-                <span className="text-lg">📍</span>
-              </div>
-            </div>
+        <div className="mt-5 mb-3 rounded-xl overflow-hidden border border-orange-300 bg-white">
+          {/* Orange banner — HALFWAY POINT label only */}
+          <div className="bg-gradient-to-r from-orange-400 to-amber-400 px-4 py-2">
+            <span className="text-white text-xs font-bold uppercase tracking-wider">Halfway Point</span>
+          </div>
 
-            {/* Stats inline */}
-            <div className="flex items-center gap-2 mt-3 text-sm">
-              <span className="font-bold">{formatDistance(route.totalDistance)}</span>
-              <span className="text-white/50">·</span>
-              <span className="font-bold">{formatDuration(route.totalDuration)}</span>
-              <span className="text-white/50">·</span>
-              <span className="font-medium text-white/90">~{formatDuration(route.totalDuration / 2)} each</span>
+          {/* Body — city name + stats on white bg */}
+          <div className="px-4 pt-3 pb-2">
+            {midpointLabel ? (
+              <h3 className="text-[22px] font-bold text-gray-900 leading-tight">{midpointLabel}</h3>
+            ) : (
+              <h3 className="text-lg font-bold text-gray-700 leading-tight">Midpoint found</h3>
+            )}
+            <div className="flex items-center gap-1.5 mt-2 text-[15px] text-gray-500">
+              <span className="font-semibold text-gray-600">{formatDistance(route.totalDistance)}</span>
+              <span className="text-gray-300">|</span>
+              <span className="font-semibold text-gray-600">{formatDuration(route.totalDuration)}</span>
+              <span className="text-gray-300">|</span>
+              <span className="text-gray-500">~{formatDuration(route.totalDuration / 2)} each</span>
             </div>
           </div>
 
-          {/* Action bar */}
-          <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-2.5 relative" ref={shareMenuRef}>
+          {/* Footer — Open in Maps + Share */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-orange-100 relative" ref={shareMenuRef}>
             <button
               onClick={handleMidpointClick}
-              className="flex items-center gap-1.5 text-[13px] font-medium text-orange-700 hover:text-orange-900 transition-colors group"
+              className="text-[13px] font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500 group-hover:text-orange-700 transition-colors">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-              <span className="group-hover:underline">Open in Maps</span>
+              Open in Google Maps
             </button>
 
             <div className="relative flex items-center gap-2">
@@ -232,16 +220,16 @@ export default function RouteInfo({
               </span>
               <button
                 onClick={handleShareClick}
-                className="flex items-center gap-1.5 text-[13px] font-medium text-orange-700 hover:text-orange-900 transition-colors group"
+                className="flex items-center gap-1.5 text-[13px] font-medium text-gray-600 hover:text-gray-800 transition-colors"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500 group-hover:text-orange-700 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="18" cy="5" r="3" />
                   <circle cx="6" cy="12" r="3" />
                   <circle cx="18" cy="19" r="3" />
                   <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
                   <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
                 </svg>
-                <span className="group-hover:underline">Share</span>
+                Share
                 {!shareGate.allowed && shareGate.reason === 'login_required' && (
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
