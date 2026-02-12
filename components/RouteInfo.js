@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { formatDistance, formatDuration, copyToClipboard } from '@/lib/utils';
 import { logShare, logOutboundClick } from '@/lib/analytics';
+import { reverseGeocode } from '@/lib/geocoding';
 import { useGatedAction } from './FeatureGate';
 
 const SHARE_METHODS = [
@@ -35,9 +36,24 @@ export default function RouteInfo({
   const modeLabels = TRAVEL_MODE_LABELS[travelMode] || TRAVEL_MODE_LABELS.DRIVING;
   const [showCopied, setShowCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [midpointLabel, setMidpointLabel] = useState(null);
   const shareMenuRef = useRef(null);
   const shareGate = useGatedAction('share');
   const routeOptionsGate = useGatedAction('alternative_routes');
+
+  // Reverse geocode midpoint to get city/state label
+  useEffect(() => {
+    if (!midpoint?.lat || !midpoint?.lon) {
+      setMidpointLabel(null);
+      return;
+    }
+    let cancelled = false;
+    setMidpointLabel(null);
+    reverseGeocode(midpoint.lat, midpoint.lon).then((label) => {
+      if (!cancelled) setMidpointLabel(label);
+    });
+    return () => { cancelled = true; };
+  }, [midpoint?.lat, midpoint?.lon]);
 
   if (!route) return null;
 
@@ -232,7 +248,12 @@ export default function RouteInfo({
             <span className="text-[11px] font-semibold text-orange-700 uppercase tracking-wide">
               Halfway Point
             </span>
-            <span className="text-sm font-bold text-orange-900 group-hover:underline">
+            {midpointLabel && (
+              <span className="text-sm font-bold text-orange-900">
+                {midpointLabel}
+              </span>
+            )}
+            <span className={`group-hover:underline ${midpointLabel ? 'text-xs text-orange-600' : 'text-sm font-bold text-orange-900'}`}>
               Open in Google Maps →
             </span>
           </div>
