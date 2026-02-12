@@ -9,6 +9,7 @@ import HowItWorks from './HowItWorks';
 import AuthButton from './AuthButton';
 import SignInModal from './SignInModal';
 import PricingModal from './PricingModal';
+import AccountModal from './AccountModal';
 import { useAuth } from './AuthProvider';
 import { searchLocations } from '@/lib/geocoding';
 import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint } from '@/lib/routing';
@@ -743,9 +744,10 @@ export default function AppClient() {
         </div>
       </footer>
 
-      {/* Auth & Pricing Modals */}
+      {/* Auth, Pricing & Account Modals */}
       <SignInModal />
       <PricingModal />
+      <AccountModal />
 
       {/* Upgrade status banner */}
       {upgradeStatus === 'success' && (

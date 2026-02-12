@@ -13,7 +13,7 @@ const PLAN_BADGES = {
 
 export default function AuthButton() {
   const { user, profile, plan, isLoggedIn, signOut } = useAuth();
-  const { openPricingModal, openSignIn } = useFeatures();
+  const { openPricingModal, openSignIn, openAccountModal } = useFeatures();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -91,12 +91,12 @@ export default function AuthButton() {
             <div className="text-xs text-gray-500 truncate">{user?.email}</div>
           </div>
 
-          {/* Plan info + upgrade */}
+          {/* Account settings */}
           <button
-            onClick={() => { setMenuOpen(false); openPricingModal(); }}
+            onClick={() => { setMenuOpen(false); openAccountModal(); }}
             className="w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[13px] text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            <span className="font-medium">My Plan</span>
+            <span className="font-medium">My Account</span>
             {badge && (
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${badge.className}`}>
                 {badge.label}
