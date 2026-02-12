@@ -12,7 +12,7 @@ import PricingModal from './PricingModal';
 import AccountModal from './AccountModal';
 import { useAuth } from './AuthProvider';
 import { searchLocations } from '@/lib/geocoding';
-import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint } from '@/lib/routing';
+import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint, getMultiLocationMidpoint } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
 import { logSearch, logPlaceClick, checkInternalUser, trackEvent, getSharedRouteData } from '@/lib/analytics';
 import { saveSearch } from '@/lib/searchHistory';
@@ -59,6 +59,9 @@ export default function AppClient() {
   const [midpoint, setMidpoint] = useState(null);
   const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING | BICYCLING | WALKING
   const [midpointMode, setMidpointMode] = useState('time'); // 'time' | 'distance'
+  // Extra locations for group midpoint (3-5 people). from+to are always locations 1-2.
+  const [extraLocations, setExtraLocations] = useState([]); // Array of { value, location }
+  const [multiResult, setMultiResult] = useState(null); // Result from getMultiLocationMidpoint
   const [places, setPlaces] = useState([]);
   const [activeFilters, setActiveFilters] = useState([]); // Start empty - fetch on category click only
   const [localOnly, setLocalOnly] = useState(false);
@@ -199,6 +202,10 @@ export default function AppClient() {
       return;
     }
 
+    // Check extra locations all have values
+    const validExtras = extraLocations.filter(el => el.value.trim());
+    const isMulti = validExtras.length > 0;
+
     // Clear route cache for new search
     routeCacheRef.current = {};
 
@@ -206,12 +213,14 @@ export default function AppClient() {
     trackEvent('search_clicked', {
       from_input: fromVal,
       to_input: toVal,
+      location_count: 2 + validExtras.length,
     });
 
     setLoading(true);
+    setMultiResult(null);
 
     try {
-      // Geocode if needed
+      // Geocode from/to if needed
       let from = fromLocation;
       let to = toLocation;
 
@@ -239,74 +248,131 @@ export default function AppClient() {
         setToValue(to.name);
       }
 
-      // Get route (with cache)
-      const cacheKey = `${from.lat},${from.lon}|${to.lat},${to.lon}|${travelMode}`;
-      let routeData;
-      if (routeCacheRef.current[cacheKey]) {
-        console.log('[Route Cache HIT]', cacheKey);
-        routeData = routeCacheRef.current[cacheKey];
-      } else {
-        routeData = await getRoute(from, to, travelMode);
-        routeCacheRef.current[cacheKey] = routeData;
-        console.log('[Route Cache MISS]', cacheKey);
+      // Geocode extra locations if needed
+      const resolvedExtras = [];
+      if (isMulti) {
+        for (let i = 0; i < validExtras.length; i++) {
+          const el = validExtras[i];
+          if (el.location) {
+            resolvedExtras.push(el.location);
+          } else {
+            const results = await searchLocations(el.value.trim());
+            if (results.length === 0) {
+              throw new Error(
+                `Could not find location: "${el.value.trim()}". Try being more specific.`
+              );
+            }
+            resolvedExtras.push(results[0]);
+            // Update the extra location with resolved data
+            setExtraLocations(prev => prev.map((item, idx) =>
+              idx === i ? { ...item, location: results[0], value: results[0].name } : item
+            ));
+          }
+        }
       }
-      setRoute(routeData);
-      const mp = computeMidpoint(routeData.allRoutes[0].leg, midpointMode);
-      setMidpoint(mp);
-      setHasResults(true);
 
-      // Update URL
-      const params = new URLSearchParams({
-        from: fromValue.trim() || from.name,
-        to: toValue.trim() || to.name,
-      });
-      window.history.replaceState(
-        {},
-        '',
-        `${window.location.pathname}?${params}`
-      );
+      if (isMulti) {
+        // ---- MULTI-LOCATION PATH (3-5 people) ----
+        const allLocations = [
+          { lat: from.lat, lon: from.lon, name: from.name },
+          { lat: to.lat, lon: to.lon, name: to.name },
+          ...resolvedExtras.map(loc => ({ lat: loc.lat, lon: loc.lon, name: loc.name })),
+        ];
 
-      // Don't fetch places automatically - wait for user to click a category
-      // This saves 6 API calls (~$0.19) per search
-      setPlaces([]);
+        const result = await getMultiLocationMidpoint(allLocations);
+        setMultiResult(result);
+        setMidpoint(result.midpoint);
+        setRoute(null); // No single route for multi-location
+        setHasResults(true);
+        setPlaces([]);
 
-      // Fire-and-forget analytics
-      logSearch({
-        fromName: from.name,
-        fromLat: from.lat,
-        fromLng: from.lon,
-        toName: to.name,
-        toLat: to.lat,
-        toLng: to.lon,
-        midpointLat: mp.lat,
-        midpointLng: mp.lon,
-        distanceMiles: routeData.totalDistance / 1609.344,
-        durationSeconds: routeData.totalDuration,
-        activeFilters: [],
-        placesFound: 0,
-      });
+        // Update URL
+        const params = new URLSearchParams({
+          from: from.name,
+          to: to.name,
+        });
+        allLocations.slice(2).forEach((loc, i) => {
+          params.set(`loc${i + 3}`, loc.name);
+        });
+        window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
 
-      // Auto-save to search history for logged-in users
-      if (isLoggedIn && user?.id) {
-        saveSearch({
-          userId: user.id,
+        // Analytics
+        logSearch({
           fromName: from.name,
           fromLat: from.lat,
           fromLng: from.lon,
           toName: to.name,
           toLat: to.lat,
           toLng: to.lon,
-          travelMode,
-          midpointMode,
+          midpointLat: result.midpoint.lat,
+          midpointLng: result.midpoint.lon || result.midpoint.lng,
+          distanceMiles: null,
+          durationSeconds: result.maxDrive,
+          activeFilters: [],
+          placesFound: 0,
+        });
+      } else {
+        // ---- STANDARD 2-LOCATION PATH ----
+        const cacheKey = `${from.lat},${from.lon}|${to.lat},${to.lon}|${travelMode}`;
+        let routeData;
+        if (routeCacheRef.current[cacheKey]) {
+          routeData = routeCacheRef.current[cacheKey];
+        } else {
+          routeData = await getRoute(from, to, travelMode);
+          routeCacheRef.current[cacheKey] = routeData;
+        }
+        setRoute(routeData);
+        setMultiResult(null);
+        const mp = computeMidpoint(routeData.allRoutes[0].leg, midpointMode);
+        setMidpoint(mp);
+        setHasResults(true);
+
+        // Update URL
+        const params = new URLSearchParams({
+          from: fromValue.trim() || from.name,
+          to: toValue.trim() || to.name,
+        });
+        window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
+
+        setPlaces([]);
+
+        // Fire-and-forget analytics
+        logSearch({
+          fromName: from.name,
+          fromLat: from.lat,
+          fromLng: from.lon,
+          toName: to.name,
+          toLat: to.lat,
+          toLng: to.lon,
+          midpointLat: mp.lat,
+          midpointLng: mp.lon,
           distanceMiles: routeData.totalDistance / 1609.344,
           durationSeconds: routeData.totalDuration,
-          isUnlimited: plan === 'premium',
-        }).then(() => {
-          // Refresh the history list if visible
-          if (typeof window !== 'undefined' && window.__refreshSearchHistory) {
-            window.__refreshSearchHistory();
-          }
+          activeFilters: [],
+          placesFound: 0,
         });
+
+        // Auto-save to search history for logged-in users
+        if (isLoggedIn && user?.id) {
+          saveSearch({
+            userId: user.id,
+            fromName: from.name,
+            fromLat: from.lat,
+            fromLng: from.lon,
+            toName: to.name,
+            toLat: to.lat,
+            toLng: to.lon,
+            travelMode,
+            midpointMode,
+            distanceMiles: routeData.totalDistance / 1609.344,
+            durationSeconds: routeData.totalDuration,
+            isUnlimited: plan === 'premium',
+          }).then(() => {
+            if (typeof window !== 'undefined' && window.__refreshSearchHistory) {
+              window.__refreshSearchHistory();
+            }
+          });
+        }
       }
     } catch (err) {
       console.error('Split error:', err);
@@ -319,6 +385,7 @@ export default function AppClient() {
     toValue,
     fromLocation,
     toLocation,
+    extraLocations,
     loading,
     showToast,
     fetchPlaces,
@@ -737,6 +804,9 @@ export default function AppClient() {
           localOnly={localOnly}
           onLocalOnlyToggle={() => setLocalOnly(prev => !prev)}
           onResplit={handleResplit}
+          extraLocations={extraLocations}
+          onExtraLocationsChange={setExtraLocations}
+          multiResult={multiResult}
         />
 
         {/* Map Container */}
@@ -751,6 +821,8 @@ export default function AppClient() {
             activePlaceId={activePlaceId}
             onPlaceClick={handlePlaceClick}
             selectedRouteIndex={selectedRouteIndex}
+            extraLocations={extraLocations.filter(el => el.location).map(el => el.location)}
+            multiResult={multiResult}
           />
 
           {/* Mobile panel toggle */}

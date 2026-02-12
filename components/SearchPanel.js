@@ -44,10 +44,55 @@ export default function SearchPanel({
   localOnly,
   onLocalOnlyToggle,
   onResplit,
+  extraLocations = [],
+  onExtraLocationsChange,
+  multiResult,
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
   const distanceToggleGate = useGatedAction('distance_toggle');
+  const group3Gate = useGatedAction('group_gravity_3');
+  const group4Gate = useGatedAction('group_gravity_4plus');
+
+  // Max locations: 2 (base) + extras. Free=3 total, Premium=5 total.
+  const maxExtraLocations = group4Gate.allowed ? 3 : (group3Gate.allowed ? 1 : 0);
+
+  const handleAddLocation = () => {
+    if (extraLocations.length >= maxExtraLocations) return;
+    // Gate: 1 extra = group_gravity_3, 2+ extras = group_gravity_4plus
+    const nextCount = extraLocations.length + 1;
+    if (nextCount === 1) {
+      group3Gate.gate(() => {
+        onExtraLocationsChange?.([...extraLocations, { value: '', location: null }]);
+      });
+    } else {
+      group4Gate.gate(() => {
+        onExtraLocationsChange?.([...extraLocations, { value: '', location: null }]);
+      });
+    }
+  };
+
+  const handleRemoveLocation = (idx) => {
+    onExtraLocationsChange?.(extraLocations.filter((_, i) => i !== idx));
+  };
+
+  const handleExtraValueChange = (idx, val) => {
+    onExtraLocationsChange?.(extraLocations.map((el, i) =>
+      i === idx ? { ...el, value: val, location: val.trim() ? el.location : null } : el
+    ));
+  };
+
+  const handleExtraSelect = (idx, loc) => {
+    onExtraLocationsChange?.(extraLocations.map((el, i) =>
+      i === idx ? { ...el, location: loc, value: loc.name } : el
+    ));
+  };
+
+  const handleExtraClear = (idx) => {
+    onExtraLocationsChange?.(extraLocations.map((el, i) =>
+      i === idx ? { value: '', location: null } : el
+    ));
+  };
 
   const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
 
@@ -61,14 +106,18 @@ export default function SearchPanel({
         {/* Search Section */}
         <div>
           <p className="text-sm text-gray-500 mb-5">
-            Find your halfway point based on {
-              midpointMode === 'distance'
-                ? 'distance'
-                : travelMode === 'BICYCLING' ? 'cycling time' : travelMode === 'WALKING' ? 'walking time' : travelMode === 'TRANSIT' ? 'transit time' : 'drive time'
+            {extraLocations.length > 0
+              ? `Find the fairest meeting point for ${2 + extraLocations.length} people`
+              : <>Find your halfway point based on {
+                  midpointMode === 'distance'
+                    ? 'distance'
+                    : travelMode === 'BICYCLING' ? 'cycling time' : travelMode === 'WALKING' ? 'walking time' : travelMode === 'TRANSIT' ? 'transit time' : 'drive time'
+                }</>
             }
           </p>
 
-          {/* Travel Mode + Midpoint Mode — combined single row */}
+          {/* Travel Mode + Midpoint Mode — hidden in group mode (Distance Matrix is always DRIVING) */}
+          {extraLocations.length === 0 && (
           <div className="flex gap-2 mb-4 items-center">
             {/* Travel Mode Selector */}
             <div className="flex gap-1 flex-1">
@@ -116,18 +165,27 @@ export default function SearchPanel({
               ))}
             </div>
           </div>
+          )}
 
           {/* Input Group - Google Maps Style */}
           <div className="mb-4">
             <div className="flex">
               {/* Left side: Timeline markers */}
               <div className="flex flex-col items-center mr-3 py-3">
-                {/* Origin marker (hollow circle) */}
-                <div className="w-3 h-3 rounded-full border-2 border-gray-400 bg-white" />
-                {/* Dotted line */}
+                {/* A marker */}
+                <div className="w-3 h-3 rounded-full border-2 border-teal-500 bg-white" />
                 <div className="flex-1 w-0.5 my-1 border-l-2 border-dotted border-gray-300 min-h-[20px]" />
-                {/* Destination marker (red pin) */}
-                <div className="w-3 h-3 rounded-full bg-red-500" />
+                {/* B marker */}
+                <div className="w-3 h-3 rounded-full border-2 border-orange-500 bg-white" />
+                {/* Extra location markers */}
+                {extraLocations.map((_, idx) => (
+                  <div key={idx} className="flex flex-col items-center">
+                    <div className="flex-1 w-0.5 my-1 border-l-2 border-dotted border-gray-300 min-h-[20px]" />
+                    <div className={`w-3 h-3 rounded-full border-2 bg-white ${
+                      idx === 0 ? 'border-purple-500' : idx === 1 ? 'border-blue-500' : 'border-pink-500'
+                    }`} />
+                  </div>
+                ))}
               </div>
 
               {/* Center: Input fields */}
@@ -138,7 +196,7 @@ export default function SearchPanel({
                   onSelect={onFromSelect}
                   onClear={onFromClear}
                   onError={onError}
-                  placeholder="Starting point"
+                  placeholder="Person A"
                   variant="minimal"
                   onEnter={() => toInputRef.current?.focus()}
                 />
@@ -148,36 +206,68 @@ export default function SearchPanel({
                   onSelect={onToSelect}
                   onClear={onToClear}
                   onError={onError}
-                  placeholder="Destination"
+                  placeholder="Person B"
                   variant="minimal"
                   inputRef={toInputRef}
                   onEnter={canSplit ? onSplit : undefined}
                 />
+                {/* Extra location inputs */}
+                {extraLocations.map((el, idx) => (
+                  <div key={idx} className="flex items-center gap-1">
+                    <div className="flex-1">
+                      <LocationInput
+                        value={el.value}
+                        onChange={(val) => handleExtraValueChange(idx, val)}
+                        onSelect={(loc) => handleExtraSelect(idx, loc)}
+                        onClear={() => handleExtraClear(idx)}
+                        onError={onError}
+                        placeholder={`Person ${String.fromCharCode(67 + idx)}`}
+                        variant="minimal"
+                        onEnter={canSplit ? onSplit : undefined}
+                      />
+                    </div>
+                    <button
+                      onClick={() => handleRemoveLocation(idx)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                      title="Remove location"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
               </div>
 
-              {/* Right side: Swap button */}
-              <div className="flex items-center ml-2">
-                <button
-                  onClick={onSwap}
-                  title="Swap locations"
-                  aria-label="Swap locations"
-                  className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-teal-600 hover:bg-gray-50 rounded-full transition-all duration-200"
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+              {/* Right side: Swap button (only for 2 locations) */}
+              {extraLocations.length === 0 && (
+                <div className="flex items-center ml-2">
+                  <button
+                    onClick={onSwap}
+                    title="Swap locations"
+                    aria-label="Swap locations"
+                    className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-teal-600 hover:bg-gray-50 rounded-full transition-all duration-200"
                   >
-                    <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
-                  </svg>
-                </button>
-              </div>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* + Add location button */}
+            {extraLocations.length < maxExtraLocations && (
+              <button
+                onClick={handleAddLocation}
+                className="mt-2 ml-6 flex items-center gap-1.5 text-[13px] font-medium text-teal-600 hover:text-teal-700 transition-colors"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                Add person ({2 + extraLocations.length}/{2 + maxExtraLocations})
+              </button>
+            )}
           </div>
 
           {/* Split Button */}
@@ -203,7 +293,7 @@ export default function SearchPanel({
         </div>
 
         {/* Results */}
-        {hasResults && route ? (
+        {hasResults && (route || multiResult) ? (
           <div className="animate-fadeInUp">
             <RouteInfo 
               route={route} 
@@ -215,6 +305,7 @@ export default function SearchPanel({
               selectedRouteIndex={selectedRouteIndex}
               onRouteSelect={onRouteSelect}
               travelMode={travelMode}
+              multiResult={multiResult}
             />
             <FilterChips
               activeFilters={activeFilters}

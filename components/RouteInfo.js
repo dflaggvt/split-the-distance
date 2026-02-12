@@ -32,6 +32,7 @@ export default function RouteInfo({
   selectedRouteIndex = 0,
   onRouteSelect,
   travelMode = 'DRIVING',
+  multiResult = null,
 }) {
   const modeLabels = TRAVEL_MODE_LABELS[travelMode] || TRAVEL_MODE_LABELS.DRIVING;
   const [showCopied, setShowCopied] = useState(false);
@@ -56,9 +57,9 @@ export default function RouteInfo({
     return () => { cancelled = true; };
   }, [midpoint?.lat, midpoint?.lon]);
 
-  if (!route) return null;
+  if (!route && !multiResult) return null;
 
-  const hasAlternatives = route.allRoutes && route.allRoutes.length > 1;
+  const hasAlternatives = route?.allRoutes && route.allRoutes.length > 1;
 
   // Close share menu when clicking outside
   useEffect(() => {
@@ -174,6 +175,82 @@ export default function RouteInfo({
     });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+
+  // ---- MULTI-LOCATION CARD ----
+  if (multiResult && midpoint) {
+    const PERSON_COLORS = ['#0d9488', '#f97316', '#8b5cf6', '#3b82f6', '#ec4899'];
+    const PERSON_LABELS = ['A', 'B', 'C', 'D', 'E'];
+    return (
+      <div className="animate-fadeInUp">
+        <div className="mt-5 mb-3 rounded-xl overflow-hidden border border-purple-300 bg-white">
+          {/* Purple banner — GROUP MIDPOINT label */}
+          <div className="bg-gradient-to-r from-purple-500 to-indigo-500 px-4 py-2">
+            <span className="text-white text-xs font-bold uppercase tracking-wider">
+              Group Meeting Point ({multiResult.locations?.length || '?'} people)
+            </span>
+          </div>
+
+          {/* Body */}
+          <div className="px-4 pt-3 pb-2">
+            {midpointLabel ? (
+              <h3 className="text-[22px] font-bold text-gray-900 leading-tight">{midpointLabel}</h3>
+            ) : (
+              <h3 className="text-lg font-bold text-gray-700 leading-tight">Meeting point found</h3>
+            )}
+            <p className="text-xs text-gray-400 mt-1">Optimized for fairest drive time</p>
+
+            {/* Per-person drive times */}
+            {multiResult.driveTimes && (
+              <div className="mt-3 space-y-1.5">
+                {multiResult.driveTimes.map((dt, idx) => {
+                  const name = dt.name?.split(',')[0] || `Person ${PERSON_LABELS[idx]}`;
+                  const color = PERSON_COLORS[idx] || '#6b7280';
+                  return (
+                    <div key={idx} className="flex items-center justify-between text-[13px]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                        <span className="text-gray-700 font-medium">{name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-500">
+                        {dt.distanceText && <span>{dt.distanceText}</span>}
+                        {dt.distanceText && <span className="text-gray-300">|</span>}
+                        <span className="font-semibold text-gray-600">
+                          {dt.durationText || formatDuration(dt.duration)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Max spread */}
+            {multiResult.maxDrive && multiResult.minDrive && (
+              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
+                <span>Drive time spread</span>
+                <span className="font-medium text-gray-600">
+                  {formatDuration(multiResult.minDrive)} – {formatDuration(multiResult.maxDrive)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-purple-100">
+            <button
+              onClick={handleMidpointClick}
+              className="text-[13px] font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+            >
+              Open in Google Maps
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- STANDARD 2-LOCATION CARD ----
+  if (!route) return null;
 
   return (
     <div className="animate-fadeInUp">

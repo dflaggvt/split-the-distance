@@ -102,7 +102,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 
 ---
 
-### 1.4 Group Gravity (3+ People) ⭐ _Theresa priority_
+### 1.4 Group Gravity (3+ People) ⭐ _Theresa priority_ ✅ SHIPPED
 **Tagline:** "5 friends. 3 states. 1 perfect meeting spot."
 **What:** Find the optimal meeting point for 3 or more people, weighted by drive time. Perfect for family reunions, college friend weekends, group hangs.
 **Why:** Most-requested feature type for midpoint tools. Competitors either don't support it or charge for it (WhatsHalfway's multi-point is paid). Weekend trips, friend groups, family reunions.
@@ -117,6 +117,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 **Tier:** Free with account for 3 people, premium for 4+
 **Technical notes:** Weighted centroid calculation → iterative refinement using drive time queries. More API calls = higher cost per search.
 **Dependencies:** UI for multiple location inputs, optimization algorithm
+**Status:** ✅ Shipped Feb 2026. Free users can add 1 extra person (3 total), premium users up to 3 extra (5 total). Uses iterative Distance Matrix optimization.
 
 ---
 

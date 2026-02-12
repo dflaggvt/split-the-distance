@@ -61,6 +61,10 @@ const START_PIN_URL = pinSvg('#0d9488', 'A');
 const END_PIN_URL = pinSvg('#f97316', 'B');
 const MID_PIN_URL = pinSvg('#ef4444', '★', 34, 46);
 
+// Extra location pin colors (C, D, E)
+const EXTRA_PIN_COLORS = ['#8b5cf6', '#3b82f6', '#ec4899'];
+const EXTRA_PIN_LABELS = ['C', 'D', 'E'];
+
 export default function MapView({
   from,
   to,
@@ -71,6 +75,8 @@ export default function MapView({
   activePlaceId,
   onPlaceClick,
   selectedRouteIndex = 0,
+  extraLocations = [],
+  multiResult = null,
 }) {
   const mapRef = useRef(null);
   const [activeInfoWindow, setActiveInfoWindow] = useState(null);
@@ -132,6 +138,17 @@ export default function MapView({
     []
   );
 
+  // Extra location pin icons (C, D, E)
+  const extraIcons = useMemo(
+    () =>
+      EXTRA_PIN_COLORS.map((color, i) => ({
+        url: pinSvg(color, EXTRA_PIN_LABELS[i]),
+        scaledSize: new google.maps.Size(30, 42),
+        anchor: new google.maps.Point(15, 42),
+      })),
+    []
+  );
+
   // POI icons keyed by emoji
   const poiIcons = useMemo(() => {
     const icons = {};
@@ -150,18 +167,29 @@ export default function MapView({
     return icons;
   }, [places]);
 
-  // Fit bounds when route changes
+  // Fit bounds when route / multi-result changes
   useEffect(() => {
-    if (!mapRef.current || !route?.directionsResult) return;
+    if (!mapRef.current) return;
 
     const bounds = new google.maps.LatLngBounds();
-    const leg = route.directionsResult.routes[0].legs[0];
 
-    bounds.extend(leg.start_location);
-    bounds.extend(leg.end_location);
-
-    if (midpoint) {
-      bounds.extend(new google.maps.LatLng(midpoint.lat, midpoint.lon));
+    if (multiResult) {
+      // Multi-location: include all origin locations + midpoint
+      if (from) bounds.extend(new google.maps.LatLng(from.lat, from.lon || from.lng));
+      if (to) bounds.extend(new google.maps.LatLng(to.lat, to.lon || to.lng));
+      extraLocations.forEach(loc => {
+        if (loc) bounds.extend(new google.maps.LatLng(loc.lat, loc.lon || loc.lng));
+      });
+      if (midpoint) bounds.extend(new google.maps.LatLng(midpoint.lat, midpoint.lon || midpoint.lng));
+    } else if (route?.directionsResult) {
+      const leg = route.directionsResult.routes[0].legs[0];
+      bounds.extend(leg.start_location);
+      bounds.extend(leg.end_location);
+      if (midpoint) {
+        bounds.extend(new google.maps.LatLng(midpoint.lat, midpoint.lon));
+      }
+    } else {
+      return; // nothing to fit
     }
 
     mapRef.current.fitBounds(bounds, {
@@ -170,7 +198,7 @@ export default function MapView({
       bottom: 50,
       left: window.innerWidth > 768 ? 60 : 20,
     });
-  }, [route, midpoint]);
+  }, [route, midpoint, multiResult, from, to, extraLocations]);
 
   // Zoom to midpoint area when places load
   const prevPlacesCount = useRef(0);
@@ -260,15 +288,29 @@ export default function MapView({
         />
       )}
 
-      {/* Midpoint marker */}
-      {midpoint && route && (
+      {/* Extra location markers (C, D, E) */}
+      {extraLocations.map((loc, idx) => loc && (
         <MarkerF
-          position={{ lat: midpoint.lat, lng: midpoint.lon }}
+          key={`extra-${idx}`}
+          position={{ lat: loc.lat, lng: loc.lon || loc.lng }}
+          icon={extraIcons[idx]}
+          zIndex={100}
+          title={`Person ${EXTRA_PIN_LABELS[idx]}: ${loc.name || ''}`}
+        />
+      ))}
+
+      {/* Midpoint marker */}
+      {midpoint && (route || multiResult) && (
+        <MarkerF
+          position={{ lat: midpoint.lat, lng: midpoint.lon || midpoint.lng }}
           icon={midIcon}
           zIndex={200}
-          title={midpointMode === 'distance'
-            ? `Midpoint — ${Math.round(route.totalDistance / 2 / 1609.344)} mi from each`
-            : `Midpoint — ${formatDuration(route.totalDuration / 2)} from each`
+          title={
+            multiResult
+              ? `Group meeting point`
+              : midpointMode === 'distance'
+                ? `Midpoint — ${Math.round(route.totalDistance / 2 / 1609.344)} mi from each`
+                : `Midpoint — ${formatDuration(route.totalDuration / 2)} from each`
           }
         />
       )}
