@@ -21,10 +21,10 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 - Place discovery (all 6 categories, 25 results each)
 - Local Only filter (hide chains)
 - Sharing via link
-- Midpoint Roulette ("🎲 Surprise Me")
 - Travel modes: Drive, Bike, Walk
 
 ### Free with Account
+- Midpoint Roulette ("🎲 Surprise Me")
 - Reservation history (reservations made via our site)
 - Place photos from affiliate partners (OpenTable restaurant photos, etc.) — free because they cost us nothing
 - Trip history (view-only, last 5 routes)
