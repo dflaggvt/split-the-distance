@@ -229,14 +229,11 @@ export default function RouletteSection({ midpoint, onPlaceClick }) {
       {phase === 'idle' && !currentPick && !fetchingPool && (
         <button
           onClick={handleSpin}
-          className="w-full py-3.5 px-4 rounded-xl border-2 border-dashed border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 text-left cursor-pointer transition-all duration-200 hover:border-amber-400 hover:from-amber-100 hover:to-orange-100 hover:shadow-sm active:scale-[0.99] group"
+          className="w-full py-3.5 px-4 rounded-xl border-2 border-dashed border-amber-400 bg-amber-50/60 cursor-pointer transition-all duration-200 hover:border-amber-500 hover:bg-amber-100/60 hover:shadow-sm active:scale-[0.99] group"
         >
-          <div className="flex items-center gap-3">
-            <span className="text-2xl group-hover:animate-bounce">🎲</span>
-            <div>
-              <div className="text-sm font-bold text-amber-800">Surprise Me</div>
-              <div className="text-xs text-amber-600 mt-0.5">Can&apos;t decide? We&apos;ll pick a spot for you.</div>
-            </div>
+          <div className="flex items-center justify-center gap-2.5">
+            <span className="text-xl group-hover:animate-bounce">🎲</span>
+            <span className="text-[15px] font-bold text-gray-800">Can&apos;t decide? Surprise Me</span>
           </div>
         </button>
       )}

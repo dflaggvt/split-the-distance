@@ -28,20 +28,22 @@ export default function PlaceCard({ place, isActive, onClick }) {
   return (
     <div
       onClick={() => onClick(place.id)}
-      className={`flex items-start gap-3 p-3 rounded-md cursor-pointer transition-colors duration-200 ${
-        isActive ? 'bg-teal-50' : 'hover:bg-gray-50'
+      className={`flex items-center gap-3 px-3.5 py-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+        isActive
+          ? 'border-teal-300 bg-teal-50 shadow-sm'
+          : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
       }`}
     >
-      {/* Photo or emoji icon */}
+      {/* Icon / Photo */}
       {photoUrl ? (
         <img
           src={photoUrl}
           alt={place.name}
-          className="w-12 h-12 rounded-md object-cover shrink-0"
+          className="w-12 h-12 rounded-lg object-cover shrink-0"
         />
       ) : (
         <div
-          className={`w-9 h-9 rounded-md flex items-center justify-center text-lg shrink-0 ${
+          className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl shrink-0 ${
             isActive ? 'bg-teal-100' : 'bg-gray-100'
           }`}
         >
@@ -49,78 +51,33 @@ export default function PlaceCard({ place, isActive, onClick }) {
         </div>
       )}
 
+      {/* Name + Category */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold text-gray-800 truncate">
-            {place.name}
-          </div>
-          {/* Directions button */}
-          <button
-            onClick={handleDirectionsClick}
-            title="Get directions"
-            className="shrink-0 w-7 h-7 rounded-full bg-teal-50 text-teal-600 flex items-center justify-center hover:bg-teal-100 transition-colors"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 2L12 22M12 2L6 8M12 2L18 8" />
-            </svg>
-          </button>
+        <div className="text-[15px] font-bold text-gray-900 truncate leading-tight">
+          {place.name}
         </div>
+        <div className="text-[13px] text-gray-500 mt-0.5 truncate">
+          {place.categoryLabel}
+        </div>
+      </div>
 
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          <span className="text-xs text-gray-500">{place.categoryLabel}</span>
-          <span className="text-xs text-teal-600 font-medium">
+      {/* Right side: Open badge OR distance */}
+      <div className="shrink-0 flex flex-col items-end gap-1">
+        {place.openNow != null && (
+          <span
+            className={`text-xs font-semibold px-2 py-0.5 rounded ${
+              place.openNow
+                ? 'bg-green-600 text-white'
+                : 'bg-red-100 text-red-600'
+            }`}
+          >
+            {place.openNow ? 'Open' : 'Closed'}
+          </span>
+        )}
+        {place.distanceFormatted && (
+          <span className="text-[13px] text-gray-400 font-medium">
             {place.distanceFormatted}
           </span>
-        </div>
-
-        {/* Rating, price, open status */}
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          {place.rating && (
-            <span className="text-xs">
-              <span className="text-amber-500">
-                {'★'.repeat(Math.round(place.rating))}
-              </span>{' '}
-              <span className="text-gray-500">
-                {place.rating.toFixed(1)}
-              </span>
-              {place.userRatingsTotal > 0 && (
-                <span className="text-gray-400 ml-0.5">
-                  ({place.userRatingsTotal})
-                </span>
-              )}
-            </span>
-          )}
-
-          {place.priceLevel != null && place.priceLevel > 0 && (
-            <span className="text-xs text-gray-500">
-              {'$'.repeat(place.priceLevel)}
-            </span>
-          )}
-
-          {place.openNow != null && (
-            <span
-              className={`text-xs font-medium ${
-                place.openNow ? 'text-green-600' : 'text-red-500'
-              }`}
-            >
-              {place.openNow ? 'Open' : 'Closed'}
-            </span>
-          )}
-        </div>
-
-        {place.address && (
-          <div className="text-xs text-gray-400 truncate mt-0.5">
-            {place.address}
-          </div>
         )}
       </div>
     </div>

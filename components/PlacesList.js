@@ -56,7 +56,7 @@ export default function PlacesList({
   }
 
   return (
-    <div ref={listRef} className="flex flex-col gap-0.5">
+    <div ref={listRef} className="flex flex-col gap-2">
       {places.map((place) => (
         <div key={place.id} data-place-id={place.id}>
           <PlaceCard
