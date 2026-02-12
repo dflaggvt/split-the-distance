@@ -15,6 +15,7 @@ import { searchLocations } from '@/lib/geocoding';
 import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
 import { logSearch, logPlaceClick, checkInternalUser, trackEvent, getSharedRouteData } from '@/lib/analytics';
+import { saveSearch } from '@/lib/searchHistory';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -40,7 +41,7 @@ function computeMidpoint(leg, mode) {
 
 export default function AppClient() {
   const searchParams = useSearchParams();
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, user, isLoggedIn, plan } = useAuth();
 
   // Load Google Maps
   const { isLoaded } = useJsApiLoader({
@@ -284,6 +285,29 @@ export default function AppClient() {
         activeFilters: [],
         placesFound: 0,
       });
+
+      // Auto-save to search history for logged-in users
+      if (isLoggedIn && user?.id) {
+        saveSearch({
+          userId: user.id,
+          fromName: from.name,
+          fromLat: from.lat,
+          fromLng: from.lon,
+          toName: to.name,
+          toLat: to.lat,
+          toLng: to.lon,
+          travelMode,
+          midpointMode,
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+          isUnlimited: plan === 'premium',
+        }).then(() => {
+          // Refresh the history list if visible
+          if (typeof window !== 'undefined' && window.__refreshSearchHistory) {
+            window.__refreshSearchHistory();
+          }
+        });
+      }
     } catch (err) {
       console.error('Split error:', err);
       showToast(err.message || 'Something went wrong. Please try again.');
@@ -301,7 +325,26 @@ export default function AppClient() {
     activeFilters,
     travelMode,
     midpointMode,
+    isLoggedIn,
+    user,
+    plan,
   ]);
+
+  // ---- Handle re-split from search history ----
+  const handleResplit = useCallback((entry) => {
+    // Populate inputs with the saved route
+    setFromValue(entry.fromName);
+    setToValue(entry.toName);
+    setFromLocation({ name: entry.fromName, lat: entry.fromLat, lon: entry.fromLng });
+    setToLocation({ name: entry.toName, lat: entry.toLat, lon: entry.toLng });
+    if (entry.travelMode) setTravelMode(entry.travelMode);
+    if (entry.midpointMode) setMidpointMode(entry.midpointMode);
+    // Trigger the split on next tick (after state updates)
+    setTimeout(() => {
+      const splitBtn = document.querySelector('[data-split-btn]');
+      if (splitBtn) splitBtn.click();
+    }, 100);
+  }, []);
 
   // ---- Handle swap ----
   const handleSwap = useCallback(() => {
@@ -693,6 +736,7 @@ export default function AppClient() {
           onMidpointModeChange={setMidpointMode}
           localOnly={localOnly}
           onLocalOnlyToggle={() => setLocalOnly(prev => !prev)}
+          onResplit={handleResplit}
         />
 
         {/* Map Container */}

@@ -82,6 +82,9 @@ export async function DELETE(request) {
     await supabase.from('feature_waitlist').delete().eq('user_id', userId);
     console.log('[Account Delete] Deleted feature_waitlist entries for user:', userId);
 
+    await supabase.from('search_history').delete().eq('user_id', userId);
+    console.log('[Account Delete] Deleted search_history entries for user:', userId);
+
     // Step 3: Delete the Supabase Auth user (this cascades any remaining FK references)
     const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
 

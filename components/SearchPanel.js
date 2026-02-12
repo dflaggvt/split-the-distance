@@ -7,6 +7,7 @@ import FilterChips from './FilterChips';
 import PlacesList from './PlacesList';
 import ComingSoonSection from './ComingSoonSection';
 import RouletteSection from './RouletteSection';
+import SearchHistory from './SearchHistory';
 import FeatureGate, { useGatedAction } from './FeatureGate';
 
 export default function SearchPanel({
@@ -42,6 +43,7 @@ export default function SearchPanel({
   onMidpointModeChange,
   localOnly,
   onLocalOnlyToggle,
+  onResplit,
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
@@ -180,6 +182,7 @@ export default function SearchPanel({
 
           {/* Split Button */}
           <button
+            data-split-btn
             onClick={onSplit}
             disabled={!canSplit}
             className={`w-full h-[52px] border-none rounded-[10px] text-white font-bold text-base cursor-pointer relative overflow-hidden transition-all duration-200 max-md:h-12 max-md:text-[15px] ${
@@ -236,8 +239,12 @@ export default function SearchPanel({
             <ComingSoonSection show={true} />
           </div>
         ) : (
-          /* Empty State */
-          <div className={`flex flex-col items-center text-center pt-10 pb-5 ${hasResults ? 'hidden' : ''}`}>
+          /* Empty State + Search History */
+          <div className={`pt-4 pb-5 ${hasResults ? 'hidden' : ''}`}>
+            {/* Search History (for logged-in users) */}
+            <SearchHistory onResplit={onResplit} show={!hasResults} />
+
+            <div className="flex flex-col items-center text-center pt-4">
             <div className="mb-5 opacity-90">
               <svg
                 width="120"
@@ -296,6 +303,7 @@ export default function SearchPanel({
                   <span>{feature.text}</span>
                 </div>
               ))}
+            </div>
             </div>
           </div>
         )}
