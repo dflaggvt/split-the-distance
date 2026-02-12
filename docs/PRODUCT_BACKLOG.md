@@ -26,7 +26,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 
 ### Free with Account
 - Reservation history (reservations made via our site)
-- Place photos in results
+- Place photos from affiliate partners (OpenTable restaurant photos, etc.) — free because they cost us nothing
 - Trip history (view-only, last 5 routes)
 
 ### Paid Premium ($4.99/mo or $29.99/yr)
@@ -38,6 +38,7 @@ Each feature is categorized by tier (build priority), tagged with effort, revenu
 - Plan an Outing (curated multi-stop itineraries)
 - Full trip history (unlimited)
 - Recurring Midpoints (fresh suggestions on a schedule)
+- Place photos from paid APIs (non-restaurant/non-affiliate categories)
 
 ---
 
