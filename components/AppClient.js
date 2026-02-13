@@ -394,7 +394,7 @@ export default function AppClient() {
             if (typeof window !== 'undefined' && window.__refreshSearchHistory) {
               window.__refreshSearchHistory();
             }
-          });
+          }).catch(err => console.warn('[SearchHistory] Save failed:', err));
         }
       }
     } catch (err) {

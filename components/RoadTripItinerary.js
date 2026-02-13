@@ -23,7 +23,7 @@ export default function RoadTripItinerary({
   const activeColor = STOP_COLORS[activeStopIndex % STOP_COLORS.length];
 
   // Progress percentage for the active stop
-  const progressPct = activeStop
+  const progressPct = activeStop && totalDistance > 0
     ? Math.round((activeStop.distanceFromStart / totalDistance) * 100)
     : 0;
 

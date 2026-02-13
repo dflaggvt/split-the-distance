@@ -57,6 +57,7 @@ export default function RouteInfo({
   const [midpointLabel, setMidpointLabel] = useState(null);
   const [routeOptionsOpen, setRouteOptionsOpen] = useState(false);
   const shareMenuRef = useRef(null);
+  const copiedTimerRef = useRef(null);
   const shareGate = useGatedAction('share');
   const routeOptionsGate = useGatedAction('alternative_routes');
   const driftGate = useGatedAction('drift_radius');
@@ -279,8 +280,9 @@ export default function RouteInfo({
       case 'copy':
         const success = await copyToClipboard(shareUrl);
         if (success) {
+          if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
           setShowCopied(true);
-          setTimeout(() => setShowCopied(false), 2500);
+          copiedTimerRef.current = setTimeout(() => setShowCopied(false), 2500);
         }
         break;
 
