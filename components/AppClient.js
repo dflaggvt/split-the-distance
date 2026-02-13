@@ -952,6 +952,25 @@ export default function AppClient() {
             midpoint={midpoint}
             midpointMode={midpointMode}
             places={(() => {
+              // In road trip mode, show places for the active stop
+              if (roadTripStops) {
+                const filters = stopFilters[activeStopIndex] || [];
+                const all = [];
+                const seen = new Set();
+                filters.forEach(cat => {
+                  const key = `${activeStopIndex}|${cat}`;
+                  if (stopPlaces[key]) {
+                    stopPlaces[key].forEach(p => {
+                      if (!seen.has(p.id)) {
+                        seen.add(p.id);
+                        all.push(p);
+                      }
+                    });
+                  }
+                });
+                return all;
+              }
+              // Normal mode
               let filtered = localOnly ? places.filter(p => !p.brand) : places;
               return driftRadius ? filterPlacesInZone(filtered, driftRadius) : filtered;
             })()}
