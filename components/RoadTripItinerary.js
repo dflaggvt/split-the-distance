@@ -20,85 +20,139 @@ export default function RoadTripItinerary({
   const totalDuration = route?.totalDuration || 0;
   const totalDistance = route?.totalDistance || 0;
   const activeStop = stops[activeStopIndex];
+  const activeColor = STOP_COLORS[activeStopIndex % STOP_COLORS.length];
+
+  // Progress percentage for the active stop
+  const progressPct = activeStop
+    ? Math.round((activeStop.distanceFromStart / totalDistance) * 100)
+    : 0;
 
   return (
     <div className="mt-5 mb-3 animate-fadeInUp">
-      {/* Compact header */}
-      <div className="flex items-center justify-between mb-2">
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-1">
         <h3 className="text-[15px] font-bold text-gray-800 flex items-center gap-1.5">
-          <span className="text-lg">🛣️</span>
-          Road Trip Stops
+          🛣️ Road Trip
         </h3>
         <button
           onClick={onExitRoadTrip}
-          className="text-[12px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-[11px] font-semibold text-gray-400 hover:text-red-400 transition-colors uppercase tracking-wide"
         >
           Exit
         </button>
       </div>
-      <p className="text-[12px] text-gray-400 mb-3">
+      <p className="text-[11px] text-gray-400 mb-4">
         {stops.length} stop{stops.length !== 1 ? 's' : ''} every{' '}
         {interval?.mode === 'distance'
           ? `${interval.value} mi`
           : `${interval.value} min`
         }
-        {' '}along {formatDistance(totalDistance)} / {formatDuration(totalDuration)}
+        <span className="mx-1 text-gray-300">&middot;</span>
+        {formatDistance(totalDistance)}
+        <span className="mx-1 text-gray-300">&middot;</span>
+        {formatDuration(totalDuration)}
       </p>
 
-      {/* Horizontal stop pills */}
-      <div className="flex items-center gap-1.5 mb-3 overflow-x-auto py-2">
-        {/* Start pill */}
-        <button
-          onClick={() => onActiveStopIndexChange?.(-1)}
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-teal-600 text-white"
-          title={fromName?.split(',')[0] || 'Start'}
-        >
-          <span className="text-[10px]">A</span>
-          <span>Start</span>
-        </button>
+      {/* Route progress track */}
+      <div className="relative px-1 mb-4">
+        {/* Background track */}
+        <div className="absolute top-1/2 left-4 right-4 h-[3px] -translate-y-1/2 bg-gray-200 rounded-full" />
+        {/* Filled track up to active stop */}
+        <div
+          className="absolute top-1/2 left-4 h-[3px] -translate-y-1/2 rounded-full transition-all duration-300"
+          style={{
+            background: activeColor,
+            width: `${progressPct * 0.92}%`,
+            opacity: 0.4,
+          }}
+        />
 
-        {/* Numbered stop pills */}
-        {stops.map((stop, idx) => {
-          const isActive = idx === activeStopIndex;
-          const color = STOP_COLORS[idx % STOP_COLORS.length];
-          return (
-            <button
-              key={stop.index}
-              onClick={() => onActiveStopIndexChange?.(idx)}
-              className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold text-white transition-all ${
-                isActive ? 'ring-2 ring-offset-2 scale-110 shadow-md' : 'opacity-75 hover:opacity-100'
-              }`}
-              style={{
-                backgroundColor: color,
-                '--tw-ring-color': color,
-              }}
-              title={`Stop ${stop.index}: ${stop.label}`}
-            >
-              {stop.index}
-            </button>
-          );
-        })}
+        {/* Dots on track */}
+        <div className="relative flex items-center justify-between">
+          {/* Start dot */}
+          <button
+            onClick={() => onActiveStopIndexChange?.(-1)}
+            className="w-6 h-6 rounded-full bg-teal-600 flex items-center justify-center z-10 shrink-0"
+            title={fromName?.split(',')[0] || 'Start'}
+          >
+            <span className="text-white text-[9px] font-black">A</span>
+          </button>
 
-        {/* End pill */}
-        <button
-          onClick={() => onActiveStopIndexChange?.(-2)}
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-orange-500 text-white"
-          title={toName?.split(',')[0] || 'End'}
-        >
-          <span className="text-[10px]">B</span>
-          <span>End</span>
-        </button>
+          {/* Stop dots */}
+          {stops.map((stop, idx) => {
+            const isActive = idx === activeStopIndex;
+            const color = STOP_COLORS[idx % STOP_COLORS.length];
+            return (
+              <button
+                key={stop.index}
+                onClick={() => onActiveStopIndexChange?.(idx)}
+                className={`rounded-full flex items-center justify-center font-bold text-white z-10 shrink-0 transition-all duration-200 ${
+                  isActive
+                    ? 'w-9 h-9 text-[14px] shadow-lg ring-[3px] ring-white'
+                    : 'w-6 h-6 text-[10px] hover:scale-110'
+                }`}
+                style={{ backgroundColor: color }}
+                title={`Stop ${stop.index}: ${stop.label}`}
+              >
+                {stop.index}
+              </button>
+            );
+          })}
+
+          {/* End dot */}
+          <button
+            onClick={() => onActiveStopIndexChange?.(-2)}
+            className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center z-10 shrink-0"
+            title={toName?.split(',')[0] || 'End'}
+          >
+            <span className="text-white text-[9px] font-black">B</span>
+          </button>
+        </div>
+
+        {/* Labels under start/end */}
+        <div className="flex justify-between mt-1 px-0">
+          <span className="text-[10px] text-gray-400 font-medium w-6 text-center">
+            {fromName?.split(',')[0]?.slice(0, 8) || 'Start'}
+          </span>
+          <span className="text-[10px] text-gray-400 font-medium w-6 text-center">
+            {toName?.split(',')[0]?.slice(0, 8) || 'End'}
+          </span>
+        </div>
       </div>
 
       {/* Selected stop info card */}
       {activeStop && (
-        <div className="px-3 py-2.5 rounded-lg border border-gray-200 bg-white mb-1">
-          <p className="text-[15px] font-bold text-gray-800">{activeStop.label}</p>
-          <p className="text-[12px] text-gray-400 mt-0.5">
-            {formatDuration(activeStop.timeFromStart)} from start
-            <span className="mx-1.5 text-gray-300">|</span>
-            {formatDistance(activeStop.distanceFromStart)}
-          </p>
+        <div
+          className="rounded-xl overflow-hidden border transition-colors duration-200"
+          style={{ borderColor: `${activeColor}30` }}
+        >
+          {/* Colored top bar */}
+          <div className="h-1" style={{ background: activeColor }} />
+          <div className="px-3.5 py-3 bg-white">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                {/* Stop badge */}
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[13px] font-bold shrink-0"
+                  style={{ backgroundColor: activeColor }}
+                >
+                  {activeStop.index}
+                </div>
+                <div>
+                  <p className="text-[15px] font-bold text-gray-800 leading-tight">
+                    {activeStop.label}
+                  </p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    {formatDuration(activeStop.timeFromStart)} in
+                    <span className="mx-1 text-gray-300">&middot;</span>
+                    {formatDistance(activeStop.distanceFromStart)}
+                    <span className="mx-1 text-gray-300">&middot;</span>
+                    {progressPct}% of trip
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
