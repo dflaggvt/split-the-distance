@@ -361,6 +361,9 @@ export default function RouteInfo({
       destinationUrl: url,
       fromSearchRoute: `${fromName} → ${toName}`,
     });
+    if (user?.id) {
+      logUserEvent(user.id, 'outbound_click', { type: 'midpoint_directions' });
+    }
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 

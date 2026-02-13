@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchFeatureFlags, checkAccess, getComingSoonFeatures, getFeaturesByTier, DEFAULT_FEATURES } from '@/lib/features';
 import { useAuth } from './AuthProvider';
+import { logUserEvent } from '@/lib/userEvents';
 
 const FeatureContext = createContext({
   features: DEFAULT_FEATURES,
@@ -74,7 +75,11 @@ export function FeatureProvider({ children }) {
 
   const openPricingModal = useCallback(() => {
     setPricingModalOpen(true);
-  }, []);
+    // Track pricing modal view for conversion funnel
+    if (auth.user?.id) {
+      logUserEvent(auth.user.id, 'pricing_modal_opened', {});
+    }
+  }, [auth.user]);
 
   const closePricingModal = useCallback(() => {
     setPricingModalOpen(false);

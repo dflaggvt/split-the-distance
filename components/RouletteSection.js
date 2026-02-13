@@ -223,6 +223,9 @@ export default function RouletteSection({ midpoint, onPlaceClick }) {
       placeCategory: currentPick.category,
       destinationUrl: url,
     });
+    if (user?.id) {
+      logUserEvent(user.id, 'outbound_click', { type: 'roulette_directions', placeName: currentPick.name });
+    }
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 

@@ -1149,10 +1149,17 @@ export default function AdminDashboard() {
     filter_toggle: '🗂️',
     roulette_spin: '🎲',
     road_trip_activated: '🛣️',
+    road_trip_stop_selected: '📌',
     drift_radius_toggled: '🎯',
     share_created: '🔗',
     sign_in: '🔐',
     upgrade_completed: '💎',
+    travel_mode_changed: '🚗',
+    midpoint_mode_changed: '📏',
+    outbound_click: '🚀',
+    group_location_added: '👥',
+    pricing_modal_opened: '💰',
+    search_history_resplit: '🕐',
   };
 
   const EVENT_LABELS = {
@@ -1161,10 +1168,17 @@ export default function AdminDashboard() {
     filter_toggle: 'Filter Toggle',
     roulette_spin: 'Roulette Spin',
     road_trip_activated: 'Road Trip',
+    road_trip_stop_selected: 'Stop Selected',
     drift_radius_toggled: 'Drift Radius',
     share_created: 'Share',
     sign_in: 'Sign In',
     upgrade_completed: 'Upgrade',
+    travel_mode_changed: 'Travel Mode',
+    midpoint_mode_changed: 'Midpoint Mode',
+    outbound_click: 'Outbound Click',
+    group_location_added: 'Group Search',
+    pricing_modal_opened: 'Viewed Pricing',
+    search_history_resplit: 'Re-split',
   };
 
   const filteredUsers = usersSearch.trim()
@@ -1298,6 +1312,27 @@ export default function AdminDashboard() {
                               )}
                               {e.event_type === 'upgrade_completed' && (
                                 <>Plan: {e.metadata.plan}</>
+                              )}
+                              {e.event_type === 'travel_mode_changed' && (
+                                <>Switched to: {e.metadata.mode}</>
+                              )}
+                              {e.event_type === 'midpoint_mode_changed' && (
+                                <>Switched to: {e.metadata.mode}</>
+                              )}
+                              {e.event_type === 'outbound_click' && (
+                                <>{e.metadata.type}{e.metadata.placeName ? `: ${e.metadata.placeName}` : ''}</>
+                              )}
+                              {e.event_type === 'group_location_added' && (
+                                <>{e.metadata.totalPeople} people total</>
+                              )}
+                              {e.event_type === 'pricing_modal_opened' && (
+                                <>Viewed pricing page</>
+                              )}
+                              {e.event_type === 'search_history_resplit' && e.metadata.from && (
+                                <>{e.metadata.from.split(',')[0]} → {e.metadata.to?.split(',')[0]}</>
+                              )}
+                              {e.event_type === 'road_trip_stop_selected' && (
+                                <>Stop {e.metadata.stopIndex + 1}: {e.metadata.label}</>
                               )}
                             </div>
                           )}

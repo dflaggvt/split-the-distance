@@ -474,12 +474,19 @@ export default function AppClient() {
     setToLocation({ name: entry.toName, lat: entry.toLat, lon: entry.toLng });
     if (entry.travelMode) setTravelMode(entry.travelMode);
     if (entry.midpointMode) setMidpointMode(entry.midpointMode);
+    // Per-user event
+    if (user?.id) {
+      logUserEvent(user.id, 'search_history_resplit', {
+        from: entry.fromName,
+        to: entry.toName,
+      });
+    }
     // Trigger the split on next tick (after state updates)
     setTimeout(() => {
       const splitBtn = document.querySelector('[data-split-btn]');
       if (splitBtn) splitBtn.click();
     }, 100);
-  }, []);
+  }, [user]);
 
   // ---- Handle drift radius toggle ----
   const handleDriftRadiusChange = useCallback((minutes) => {
@@ -582,9 +589,38 @@ export default function AppClient() {
     setPlaces([]);
     setPlacesCache({});
     setActiveFilters([]);
-  }, [roadTripStops]);
+    // Per-user event
+    if (user?.id) {
+      logUserEvent(user.id, 'road_trip_stop_selected', { stopIndex: idx, label: stop.label });
+    }
+  }, [roadTripStops, user]);
 
   // ---- Handle swap ----
+  // ---- Tracked travel mode change ----
+  const handleTravelModeChange = useCallback((mode) => {
+    setTravelMode(mode);
+    if (user?.id) {
+      logUserEvent(user.id, 'travel_mode_changed', { mode });
+    }
+  }, [user]);
+
+  // ---- Tracked midpoint mode change ----
+  const handleMidpointModeChange = useCallback((mode) => {
+    setMidpointMode(mode);
+    if (user?.id) {
+      logUserEvent(user.id, 'midpoint_mode_changed', { mode });
+    }
+  }, [user]);
+
+  // ---- Tracked extra locations change ----
+  const handleExtraLocationsChange = useCallback((newExtras) => {
+    // Detect if a location was added (array grew)
+    if (newExtras.length > extraLocations.length && user?.id) {
+      logUserEvent(user.id, 'group_location_added', { totalPeople: 2 + newExtras.length });
+    }
+    setExtraLocations(newExtras);
+  }, [extraLocations.length, user]);
+
   const handleSwap = useCallback(() => {
     setFromValue(toValue);
     setToValue(fromValue);
@@ -980,14 +1016,14 @@ export default function AppClient() {
           selectedRouteIndex={selectedRouteIndex}
           onRouteSelect={handleRouteSelect}
           travelMode={travelMode}
-          onTravelModeChange={setTravelMode}
+          onTravelModeChange={handleTravelModeChange}
           midpointMode={midpointMode}
-          onMidpointModeChange={setMidpointMode}
+          onMidpointModeChange={handleMidpointModeChange}
           localOnly={localOnly}
           onLocalOnlyToggle={() => setLocalOnly(prev => !prev)}
           onResplit={handleResplit}
           extraLocations={extraLocations}
-          onExtraLocationsChange={setExtraLocations}
+          onExtraLocationsChange={handleExtraLocationsChange}
           multiResult={multiResult}
           driftRadius={driftRadius}
           onDriftRadiusChange={handleDriftRadiusChange}
