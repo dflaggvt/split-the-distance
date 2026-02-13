@@ -1,11 +1,8 @@
 'use client';
 
 import { trackEvent, logOutboundClick } from '@/lib/analytics';
-import { useAuth } from './AuthProvider';
-import { logUserEvent } from '@/lib/userEvents';
 
 export default function PlaceCard({ place, isActive, onClick }) {
-  const { user } = useAuth();
   const photoUrl = place.photoUrl || null;
 
   const handleDirectionsClick = (e) => {
@@ -24,14 +21,6 @@ export default function PlaceCard({ place, isActive, onClick }) {
       placeCategory: place.category,
       destinationUrl: url,
     });
-    // Per-user event
-    if (user?.id) {
-      logUserEvent(user.id, 'outbound_click', {
-        type: 'place_directions',
-        placeName: place.name,
-        category: place.category,
-      });
-    }
     
     window.open(url, '_blank', 'noopener,noreferrer');
   };

@@ -44,7 +44,7 @@ function incrementDailyRolls() {
 }
 
 export default function RouletteSection({ midpoint, onPlaceClick }) {
-  const { isLoggedIn, plan } = useAuth();
+  const { isLoggedIn, plan, user } = useAuth();
   const { openSignIn, openPricingModal } = useFeatures();
   const unlimitedGate = useGatedAction('roulette_unlimited');
   const isUnlimited = unlimitedGate.allowed;
