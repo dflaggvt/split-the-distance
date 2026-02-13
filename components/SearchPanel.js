@@ -54,10 +54,6 @@ export default function SearchPanel({
   roadTripInterval,
   activeStopIndex,
   onActiveStopIndexChange,
-  stopPlaces,
-  stopFilters,
-  stopPlacesLoading,
-  onStopFilterToggle,
   onActivateRoadTrip,
   onExitRoadTrip,
 }) {
@@ -377,46 +373,40 @@ export default function SearchPanel({
               onActivateRoadTrip={onActivateRoadTrip}
               onExitRoadTrip={onExitRoadTrip}
             />
-            {/* Show road trip itinerary OR normal results */}
-            {roadTripStops ? (
+            {/* Road trip stop selector (when active) */}
+            {roadTripStops && (
               <RoadTripItinerary
                 stops={roadTripStops}
                 interval={roadTripInterval}
                 fromName={fromValue}
                 toName={toValue}
                 route={route}
-                stopPlaces={stopPlaces}
-                stopFilters={stopFilters}
-                stopPlacesLoading={stopPlacesLoading}
                 activeStopIndex={activeStopIndex}
                 onActiveStopIndexChange={onActiveStopIndexChange}
-                onStopFilterToggle={onStopFilterToggle}
-                onPlaceClick={onPlaceClick}
-                activePlaceId={activePlaceId}
                 onExitRoadTrip={onExitRoadTrip}
               />
-            ) : (
-              <>
-                <FilterChips
-                  activeFilters={activeFilters}
-                  onToggle={onFilterToggle}
-                  localOnly={localOnly}
-                  onLocalOnlyToggle={onLocalOnlyToggle}
-                />
-                <PlacesList
-                  places={localOnly ? places.filter(p => !p.brand) : places}
-                  loading={placesLoading}
-                  activePlaceId={activePlaceId}
+            )}
+            {/* Standard filter chips + places list (used for both normal and road trip mode) */}
+            <FilterChips
+              activeFilters={activeFilters}
+              onToggle={onFilterToggle}
+              localOnly={localOnly}
+              onLocalOnlyToggle={onLocalOnlyToggle}
+            />
+            <PlacesList
+              places={localOnly ? places.filter(p => !p.brand) : places}
+              loading={placesLoading}
+              activePlaceId={activePlaceId}
+              onPlaceClick={onPlaceClick}
+              activeFilters={activeFilters}
+            />
+            {!roadTripStops && (
+              <FeatureGate feature="roulette">
+                <RouletteSection
+                  midpoint={midpoint}
                   onPlaceClick={onPlaceClick}
-                  activeFilters={activeFilters}
                 />
-                <FeatureGate feature="roulette">
-                  <RouletteSection
-                    midpoint={midpoint}
-                    onPlaceClick={onPlaceClick}
-                  />
-                </FeatureGate>
-              </>
+              </FeatureGate>
             )}
             {/* Coming Soon features teaser */}
             <ComingSoonSection show={true} />

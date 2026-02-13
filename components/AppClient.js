@@ -73,9 +73,7 @@ export default function AppClient() {
   const [roadTripStops, setRoadTripStops] = useState(null); // null | Array<StopPoint>
   const [roadTripInterval, setRoadTripInterval] = useState(null); // { value, mode } e.g. { value: 90, mode: 'time' }
   const [activeStopIndex, setActiveStopIndex] = useState(0);
-  const [stopPlaces, setStopPlaces] = useState({}); // { [stopIndex]: Place[] }
-  const [stopFilters, setStopFilters] = useState({}); // { [stopIndex]: string[] }
-  const [stopPlacesLoading, setStopPlacesLoading] = useState({});
+  const savedMidpointRef = useRef(null); // Stores original midpoint during road trip mode
   const [loading, setLoading] = useState(false);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [activePlaceId, setActivePlaceId] = useState(null);
@@ -220,8 +218,7 @@ export default function AppClient() {
     setDriftRadius(null);
     setRoadTripStops(null);
     setRoadTripInterval(null);
-    setStopPlaces({});
-    setStopFilters({});
+    savedMidpointRef.current = null;
 
     // Track search button click
     trackEvent('search_clicked', {
@@ -477,12 +474,19 @@ export default function AppClient() {
       label: labels[i] || `Stop ${stop.index}`,
     }));
 
+    // Save the original midpoint so we can restore on exit
+    savedMidpointRef.current = midpoint;
+
     setRoadTripStops(stopsWithLabels);
     setRoadTripInterval(interval);
     setActiveStopIndex(0);
-    setStopPlaces({});
-    setStopFilters({});
-    setStopPlacesLoading({});
+
+    // Set midpoint to first stop so the standard places pipeline works
+    const firstStop = stopsWithLabels[0];
+    setMidpoint({ lat: firstStop.lat, lon: firstStop.lon });
+    setPlaces([]);
+    setPlacesCache({});
+    setActiveFilters([]);
 
     trackEvent('road_trip_activated', {
       interval_value: interval.value,
@@ -491,49 +495,37 @@ export default function AppClient() {
       route_duration: route.totalDuration,
       route_distance: route.totalDistance,
     });
-  }, [route, selectedRouteIndex, showToast]);
+  }, [route, selectedRouteIndex, showToast, midpoint]);
 
   const handleExitRoadTrip = useCallback(() => {
     setRoadTripStops(null);
     setRoadTripInterval(null);
     setActiveStopIndex(0);
-    setStopPlaces({});
-    setStopFilters({});
-    setStopPlacesLoading({});
+
+    // Restore original midpoint and clear road trip places
+    if (savedMidpointRef.current) {
+      setMidpoint(savedMidpointRef.current);
+      savedMidpointRef.current = null;
+    }
+    setPlaces([]);
+    setPlacesCache({});
+    setActiveFilters([]);
   }, []);
 
-  // ---- Handle per-stop category toggle ----
-  const handleStopFilterToggle = useCallback(async (stopIndex, category) => {
-    const stop = roadTripStops?.[stopIndex];
-    if (!stop) return;
+  // ---- Handle road trip stop selection ----
+  const handleActiveStopChange = useCallback((idx) => {
+    // Start/End pills are special: -1 = start, -2 = end (informational only)
+    if (idx < 0) return;
+    if (!roadTripStops?.[idx]) return;
+    setActiveStopIndex(idx);
 
-    // Toggle the filter for this stop
-    setStopFilters(prev => {
-      const current = prev[stopIndex] || [];
-      const next = current.includes(category)
-        ? current.filter(c => c !== category)
-        : [...current, category];
-      return { ...prev, [stopIndex]: next };
-    });
-
-    // Check if we already have places for this stop + category cached
-    const cacheKey = `${stopIndex}|${category}`;
-    if (stopPlaces[cacheKey]) return; // Already cached
-
-    // Fetch places near this stop
-    setStopPlacesLoading(prev => ({ ...prev, [stopIndex]: true }));
-    try {
-      const results = await searchNearby(
-        { lat: stop.lat, lon: stop.lon },
-        [category]
-      );
-      setStopPlaces(prev => ({ ...prev, [cacheKey]: results }));
-    } catch (err) {
-      console.error(`[Road Trip] Place search error for stop ${stopIndex}:`, err);
-    } finally {
-      setStopPlacesLoading(prev => ({ ...prev, [stopIndex]: false }));
-    }
-  }, [roadTripStops, stopPlaces]);
+    // Move the midpoint to this stop so the standard fetchPlaces pipeline picks it up
+    const stop = roadTripStops[idx];
+    setMidpoint({ lat: stop.lat, lon: stop.lon });
+    setPlaces([]);
+    setPlacesCache({});
+    setActiveFilters([]);
+  }, [roadTripStops]);
 
   // ---- Handle swap ----
   const handleSwap = useCallback(() => {
@@ -908,7 +900,7 @@ export default function AppClient() {
           midpoint={midpoint}
           fromLocation={fromLocation}
           toLocation={toLocation}
-          places={driftRadius ? filterPlacesInZone(places, driftRadius) : places}
+          places={(!roadTripStops && driftRadius) ? filterPlacesInZone(places, driftRadius) : places}
           placesLoading={placesLoading}
           activeFilters={activeFilters}
           onFilterToggle={handleFilterToggle}
@@ -934,11 +926,7 @@ export default function AppClient() {
           roadTripStops={roadTripStops}
           roadTripInterval={roadTripInterval}
           activeStopIndex={activeStopIndex}
-          onActiveStopIndexChange={setActiveStopIndex}
-          stopPlaces={stopPlaces}
-          stopFilters={stopFilters}
-          stopPlacesLoading={stopPlacesLoading}
-          onStopFilterToggle={handleStopFilterToggle}
+          onActiveStopIndexChange={handleActiveStopChange}
           onActivateRoadTrip={handleActivateRoadTrip}
           onExitRoadTrip={handleExitRoadTrip}
         />
@@ -952,27 +940,8 @@ export default function AppClient() {
             midpoint={midpoint}
             midpointMode={midpointMode}
             places={(() => {
-              // In road trip mode, show places for the active stop
-              if (roadTripStops) {
-                const filters = stopFilters[activeStopIndex] || [];
-                const all = [];
-                const seen = new Set();
-                filters.forEach(cat => {
-                  const key = `${activeStopIndex}|${cat}`;
-                  if (stopPlaces[key]) {
-                    stopPlaces[key].forEach(p => {
-                      if (!seen.has(p.id)) {
-                        seen.add(p.id);
-                        all.push(p);
-                      }
-                    });
-                  }
-                });
-                return all;
-              }
-              // Normal mode
               let filtered = localOnly ? places.filter(p => !p.brand) : places;
-              return driftRadius ? filterPlacesInZone(filtered, driftRadius) : filtered;
+              return (!roadTripStops && driftRadius) ? filterPlacesInZone(filtered, driftRadius) : filtered;
             })()}
             activePlaceId={activePlaceId}
             onPlaceClick={handlePlaceClick}
@@ -982,7 +951,7 @@ export default function AppClient() {
             driftRadius={driftRadius}
             roadTripStops={roadTripStops}
             activeStopIndex={activeStopIndex}
-            onActiveStopIndexChange={setActiveStopIndex}
+            onActiveStopIndexChange={handleActiveStopChange}
           />
 
           {/* Mobile panel toggle */}
