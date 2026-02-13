@@ -202,14 +202,13 @@ export default function MapView({
     return icons;
   }, [places]);
 
-  // Fit bounds when route / multi-result / road trip stops change
+  // Fit bounds when route / multi-result changes (NOT in road trip mode — that's handled separately)
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || roadTripStops) return;
 
     const bounds = new google.maps.LatLngBounds();
 
     if (multiResult) {
-      // Multi-location: include all origin locations + midpoint
       if (from) bounds.extend(new google.maps.LatLng(from.lat, from.lon || from.lng));
       if (to) bounds.extend(new google.maps.LatLng(to.lat, to.lon || to.lng));
       extraLocations.forEach(loc => {
@@ -220,17 +219,11 @@ export default function MapView({
       const leg = route.directionsResult.routes[0].legs[0];
       bounds.extend(leg.start_location);
       bounds.extend(leg.end_location);
-      if (midpoint && !roadTripStops) {
+      if (midpoint) {
         bounds.extend(new google.maps.LatLng(midpoint.lat, midpoint.lon));
       }
-      // Include all road trip stops in bounds
-      if (roadTripStops) {
-        roadTripStops.forEach(stop => {
-          bounds.extend(new google.maps.LatLng(stop.lat, stop.lon));
-        });
-      }
     } else {
-      return; // nothing to fit
+      return;
     }
 
     mapRef.current.fitBounds(bounds, {
@@ -241,7 +234,7 @@ export default function MapView({
     });
   }, [route, midpoint, multiResult, from, to, extraLocations, roadTripStops]);
 
-  // Zoom to midpoint area when places load (normal mode only — road trip panning is handled by the active stop effect)
+  // Zoom to midpoint area when places load (normal mode only)
   const prevPlacesCount = useRef(0);
   useEffect(() => {
     if (!mapRef.current || roadTripStops) {
@@ -249,13 +242,11 @@ export default function MapView({
       return;
     }
 
-    // Zoom in when places go from 0 to some (filter activated)
     if (places.length > 0 && prevPlacesCount.current === 0 && midpoint) {
       mapRef.current.panTo({ lat: midpoint.lat, lng: midpoint.lon });
       mapRef.current.setZoom(11);
     }
 
-    // Zoom back out when all filters deactivated
     if (places.length === 0 && prevPlacesCount.current > 0 && route?.directionsResult) {
       const bounds = new google.maps.LatLngBounds();
       const leg = route.directionsResult.routes[0].legs[0];
@@ -269,16 +260,21 @@ export default function MapView({
     prevPlacesCount.current = places.length;
   }, [places, midpoint, route, roadTripStops]);
 
-  // Pan to active road trip stop — this is the sole map-movement control in road trip mode
+  // Road trip mode: pan to active stop ONLY when the user clicks a different stop
+  const prevStopIndex = useRef(null);
   useEffect(() => {
-    if (!mapRef.current || !roadTripStops || activeStopIndex == null) return;
+    if (!mapRef.current || !roadTripStops) {
+      prevStopIndex.current = null;
+      return;
+    }
+    // Only move the map when the stop index actually changes
+    if (activeStopIndex === prevStopIndex.current) return;
+    prevStopIndex.current = activeStopIndex;
+
     const stop = roadTripStops[activeStopIndex];
     if (stop) {
       mapRef.current.panTo({ lat: stop.lat, lng: stop.lon });
-      // Zoom in to stop-level detail if currently zoomed out
-      if (mapRef.current.getZoom() < 11) {
-        mapRef.current.setZoom(12);
-      }
+      mapRef.current.setZoom(12);
     }
   }, [activeStopIndex, roadTripStops]);
 
