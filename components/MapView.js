@@ -241,29 +241,22 @@ export default function MapView({
     });
   }, [route, midpoint, multiResult, from, to, extraLocations, roadTripStops]);
 
-  // Zoom to relevant area when places load
+  // Zoom to midpoint area when places load (normal mode only — road trip panning is handled by the active stop effect)
   const prevPlacesCount = useRef(0);
   useEffect(() => {
-    if (!mapRef.current) return;
-
-    if (places.length > 0 && prevPlacesCount.current === 0) {
-      // Places just appeared — pan to the relevant center
-      if (roadTripStops) {
-        // Road trip mode: center on the active stop
-        const stop = roadTripStops[activeStopIndex];
-        if (stop) {
-          mapRef.current.panTo({ lat: stop.lat, lng: stop.lon });
-          mapRef.current.setZoom(12);
-        }
-      } else if (midpoint) {
-        // Normal mode: center on midpoint
-        mapRef.current.panTo({ lat: midpoint.lat, lng: midpoint.lon });
-        mapRef.current.setZoom(11);
-      }
+    if (!mapRef.current || roadTripStops) {
+      prevPlacesCount.current = places.length;
+      return;
     }
 
-    // Zoom back out when all filters deactivated (normal mode only)
-    if (places.length === 0 && prevPlacesCount.current > 0 && !roadTripStops && route?.directionsResult) {
+    // Zoom in when places go from 0 to some (filter activated)
+    if (places.length > 0 && prevPlacesCount.current === 0 && midpoint) {
+      mapRef.current.panTo({ lat: midpoint.lat, lng: midpoint.lon });
+      mapRef.current.setZoom(11);
+    }
+
+    // Zoom back out when all filters deactivated
+    if (places.length === 0 && prevPlacesCount.current > 0 && route?.directionsResult) {
       const bounds = new google.maps.LatLngBounds();
       const leg = route.directionsResult.routes[0].legs[0];
       bounds.extend(leg.start_location);
@@ -274,16 +267,17 @@ export default function MapView({
       });
     }
     prevPlacesCount.current = places.length;
-  }, [places, midpoint, route, roadTripStops, activeStopIndex]);
+  }, [places, midpoint, route, roadTripStops]);
 
-  // Pan to active road trip stop
+  // Pan to active road trip stop — this is the sole map-movement control in road trip mode
   useEffect(() => {
     if (!mapRef.current || !roadTripStops || activeStopIndex == null) return;
     const stop = roadTripStops[activeStopIndex];
     if (stop) {
       mapRef.current.panTo({ lat: stop.lat, lng: stop.lon });
-      if (mapRef.current.getZoom() < 10) {
-        mapRef.current.setZoom(10);
+      // Zoom in to stop-level detail if currently zoomed out
+      if (mapRef.current.getZoom() < 11) {
+        mapRef.current.setZoom(12);
       }
     }
   }, [activeStopIndex, roadTripStops]);
