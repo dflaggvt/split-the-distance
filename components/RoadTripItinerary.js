@@ -46,7 +46,7 @@ export default function RoadTripItinerary({
       </p>
 
       {/* Horizontal stop pills */}
-      <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1">
+      <div className="flex items-center gap-1.5 mb-3 overflow-x-auto py-2">
         {/* Start pill */}
         <button
           onClick={() => onActiveStopIndexChange?.(-1)}
