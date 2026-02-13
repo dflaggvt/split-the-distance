@@ -19,6 +19,7 @@ import { searchNearby } from '@/lib/places';
 import { logSearch, logPlaceClick, checkInternalUser, trackEvent, getSharedRouteData } from '@/lib/analytics';
 import { saveSearch } from '@/lib/searchHistory';
 import { generateDriftCircle, filterPlacesInZone } from '@/lib/isochrone';
+import { logUserEvent } from '@/lib/userEvents';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -110,6 +111,10 @@ export default function AppClient() {
       setWelcomeModalType('upgrade');
       // Refresh profile to pick up the new plan from DB
       refreshProfile();
+      // Log upgrade event
+      if (user?.id) {
+        logUserEvent(user.id, 'upgrade_completed', { plan: 'premium' });
+      }
     } else if (status === 'cancelled') {
       setUpgradeStatus('cancelled');
     }
@@ -402,6 +407,19 @@ export default function AppClient() {
           placesFound: 0,
         });
 
+        // Log user event for per-user analytics
+        if (user?.id) {
+          logUserEvent(user.id, 'search', {
+            from: from.name,
+            to: to.name,
+            distanceMiles: Math.round(routeData.totalDistance / 1609.344),
+            durationMin: Math.round(routeData.totalDuration / 60),
+            travelMode,
+            midpointMode,
+            locationCount: isMulti ? 2 + validExtras.length : 2,
+          });
+        }
+
         // Auto-save to search history for logged-in users
         if (isLoggedIn && user?.id) {
           saveSearch({
@@ -476,7 +494,11 @@ export default function AppClient() {
     // Pure client-side computation — no API call needed
     const result = generateDriftCircle(midpoint, { minutes, travelMode });
     setDriftRadius(result);
-  }, [midpoint, travelMode, driftRadius]);
+    // Per-user event
+    if (user?.id) {
+      logUserEvent(user.id, 'drift_radius_toggled', { minutes, travelMode });
+    }
+  }, [midpoint, travelMode, driftRadius, user]);
 
   // ---- Handle road trip activation ----
   const handleActivateRoadTrip = useCallback(async (interval) => {
@@ -522,7 +544,15 @@ export default function AppClient() {
       route_duration: route.totalDuration,
       route_distance: route.totalDistance,
     });
-  }, [route, selectedRouteIndex, showToast, midpoint]);
+    // Per-user event
+    if (user?.id) {
+      logUserEvent(user.id, 'road_trip_activated', {
+        intervalValue: interval.value,
+        intervalMode: interval.mode,
+        stopCount: stopsWithLabels.length,
+      });
+    }
+  }, [route, selectedRouteIndex, showToast, midpoint, user]);
 
   const handleExitRoadTrip = useCallback(() => {
     setRoadTripStops(null);
@@ -572,8 +602,12 @@ export default function AppClient() {
           : [...prev, key];
         return next;
       });
+      // Per-user event
+      if (user?.id) {
+        logUserEvent(user.id, 'filter_toggle', { category: key });
+      }
     },
-    []
+    [user]
   );
 
   // Re-calculate route when travel mode changes (if we have locations)
@@ -667,8 +701,15 @@ export default function AppClient() {
         midpointLat: midpoint?.lat ?? null,
         midpointLng: midpoint?.lon ?? null,
       });
+      // Per-user event
+      if (user?.id) {
+        logUserEvent(user.id, 'place_click', {
+          placeName: place.name,
+          category: place.category,
+        });
+      }
     }
-  }, [places, fromValue, toValue, midpoint]);
+  }, [places, fromValue, toValue, midpoint, user]);
 
   // ---- Handle route selection ----
   const handleRouteSelect = useCallback(

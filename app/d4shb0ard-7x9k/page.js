@@ -1065,6 +1065,357 @@ export default function AdminDashboard() {
     </>
   );
 
+  // ==================== USERS TAB STATE ====================
+  const [usersList, setUsersList] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersSearch, setUsersSearch] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+  const [userEvents, setUserEvents] = useState([]);
+  const [userEventsLoading, setUserEventsLoading] = useState(false);
+
+  const fetchUsers = async () => {
+    if (!supabase) return;
+    setUsersLoading(true);
+    try {
+      // Fetch all user profiles
+      const { data: profiles, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+
+      // For each user, get event counts
+      const enriched = await Promise.all((profiles || []).map(async (p) => {
+        const [
+          { count: eventCount },
+          { data: lastEvent },
+        ] = await Promise.all([
+          supabase.from('user_events').select('*', { count: 'exact', head: true }).eq('user_id', p.id),
+          supabase.from('user_events').select('event_type, created_at').eq('user_id', p.id).order('created_at', { ascending: false }).limit(1),
+        ]);
+        return {
+          ...p,
+          eventCount: eventCount || 0,
+          lastActive: lastEvent?.[0]?.created_at || p.updated_at || p.created_at,
+          lastEventType: lastEvent?.[0]?.event_type || null,
+        };
+      }));
+
+      setUsersList(enriched);
+    } catch (err) {
+      console.error('Users fetch error:', err);
+    }
+    setUsersLoading(false);
+  };
+
+  const fetchUserDetail = async (userId) => {
+    if (!supabase || !userId) return;
+    setUserEventsLoading(true);
+    setSelectedUserId(userId);
+
+    try {
+      // Fetch profile
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      setSelectedUserProfile(profile);
+
+      // Fetch all events for this user
+      const { data: events } = await supabase
+        .from('user_events')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      setUserEvents(events || []);
+    } catch (err) {
+      console.error('User detail fetch error:', err);
+    }
+    setUserEventsLoading(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'users' && usersList.length === 0) {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  const EVENT_ICONS = {
+    search: '🔍',
+    place_click: '📍',
+    filter_toggle: '🗂️',
+    roulette_spin: '🎲',
+    road_trip_activated: '🛣️',
+    drift_radius_toggled: '🎯',
+    share_created: '🔗',
+    sign_in: '🔐',
+    upgrade_completed: '💎',
+  };
+
+  const EVENT_LABELS = {
+    search: 'Search',
+    place_click: 'Place Click',
+    filter_toggle: 'Filter Toggle',
+    roulette_spin: 'Roulette Spin',
+    road_trip_activated: 'Road Trip',
+    drift_radius_toggled: 'Drift Radius',
+    share_created: 'Share',
+    sign_in: 'Sign In',
+    upgrade_completed: 'Upgrade',
+  };
+
+  const filteredUsers = usersSearch.trim()
+    ? usersList.filter(u =>
+        (u.display_name || '').toLowerCase().includes(usersSearch.toLowerCase()) ||
+        (u.email || '').toLowerCase().includes(usersSearch.toLowerCase())
+      )
+    : usersList;
+
+  // ---- User Detail View ----
+  const UserDetailView = () => {
+    if (!selectedUserProfile) return null;
+    const p = selectedUserProfile;
+
+    // Compute stats from events
+    const eventsByType = {};
+    userEvents.forEach(e => {
+      eventsByType[e.event_type] = (eventsByType[e.event_type] || 0) + 1;
+    });
+
+    // Group events by day for the timeline
+    const eventsByDay = {};
+    userEvents.forEach(e => {
+      const day = new Date(e.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      if (!eventsByDay[day]) eventsByDay[day] = [];
+      eventsByDay[day].push(e);
+    });
+
+    return (
+      <div>
+        {/* Back button */}
+        <button
+          onClick={() => { setSelectedUserId(null); setSelectedUserProfile(null); setUserEvents([]); }}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-4 transition-colors"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          Back to Users
+        </button>
+
+        {/* Profile header */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
+          <div className="flex items-center gap-4">
+            {p.avatar_url ? (
+              <img src={p.avatar_url} alt="" className="w-14 h-14 rounded-full" />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 text-xl font-bold">
+                {(p.display_name || p.email || '?')[0].toUpperCase()}
+              </div>
+            )}
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-gray-900">{p.display_name || 'No name'}</h3>
+              <p className="text-sm text-gray-500">{p.email}</p>
+              <div className="flex items-center gap-3 mt-1.5">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${p.plan === 'premium' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {(p.plan || 'free').toUpperCase()}
+                </span>
+                <span className="text-xs text-gray-400">
+                  Joined {new Date(p.created_at).toLocaleDateString()}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {userEvents.length} events tracked
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats cards */}
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-6">
+          {Object.entries(eventsByType).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+            <div key={type} className="bg-white rounded-lg border border-gray-100 p-3 text-center">
+              <span className="text-lg">{EVENT_ICONS[type] || '📝'}</span>
+              <div className="text-xl font-bold text-gray-900 mt-1">{count}</div>
+              <div className="text-[10px] text-gray-400 font-medium uppercase">{EVENT_LABELS[type] || type}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Activity Timeline */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Activity Timeline</h3>
+          {userEventsLoading ? (
+            <div className="text-center py-8 text-gray-400">Loading events...</div>
+          ) : userEvents.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm">No events recorded yet</div>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(eventsByDay).map(([day, events]) => (
+                <div key={day}>
+                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{day}</div>
+                  <div className="space-y-1.5">
+                    {events.map((e) => (
+                      <div key={e.id} className="flex items-start gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+                        <span className="text-base shrink-0 mt-0.5">{EVENT_ICONS[e.event_type] || '📝'}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-800">
+                              {EVENT_LABELS[e.event_type] || e.event_type}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              {new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {e.metadata && Object.keys(e.metadata).length > 0 && (
+                            <div className="text-xs text-gray-400 mt-0.5 truncate">
+                              {e.event_type === 'search' && e.metadata.from && e.metadata.to && (
+                                <>{e.metadata.from.split(',')[0]} → {e.metadata.to.split(',')[0]} ({e.metadata.distanceMiles} mi, {e.metadata.durationMin} min)</>
+                              )}
+                              {e.event_type === 'place_click' && e.metadata.placeName && (
+                                <>{e.metadata.placeName} ({e.metadata.category})</>
+                              )}
+                              {e.event_type === 'filter_toggle' && e.metadata.category && (
+                                <>Category: {e.metadata.category}</>
+                              )}
+                              {e.event_type === 'roulette_spin' && e.metadata.placeName && (
+                                <>{e.metadata.placeName} (roll #{e.metadata.rollNumber})</>
+                              )}
+                              {e.event_type === 'road_trip_activated' && (
+                                <>{e.metadata.stopCount} stops every {e.metadata.intervalValue} {e.metadata.intervalMode === 'distance' ? 'mi' : 'min'}</>
+                              )}
+                              {e.event_type === 'drift_radius_toggled' && (
+                                <>±{e.metadata.minutes} min ({e.metadata.travelMode})</>
+                              )}
+                              {e.event_type === 'share_created' && (
+                                <>{e.metadata.method}: {e.metadata.from?.split(',')[0]} → {e.metadata.to?.split(',')[0]}</>
+                              )}
+                              {e.event_type === 'sign_in' && (
+                                <>{e.metadata.method} ({e.metadata.email})</>
+                              )}
+                              {e.event_type === 'upgrade_completed' && (
+                                <>Plan: {e.metadata.plan}</>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // ---- Users List View ----
+  const UsersTab = () => {
+    if (selectedUserId) return <UserDetailView />;
+
+    return (
+      <>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">{usersList.length} Users</h3>
+            <p className="text-xs text-gray-400">Click a user to see their activity</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={usersSearch}
+              onChange={(e) => setUsersSearch(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white w-64 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
+            <button
+              onClick={fetchUsers}
+              className="px-3 py-2 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition"
+            >
+              {usersLoading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+        </div>
+
+        {/* User table */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">User</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Plan</th>
+                <th className="text-center px-4 py-3 font-semibold text-gray-600">Events</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Last Active</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Joined</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((u) => (
+                <tr
+                  key={u.id}
+                  onClick={() => fetchUserDetail(u.id)}
+                  className="border-b border-gray-100 hover:bg-teal-50/40 cursor-pointer transition-colors"
+                >
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      {u.avatar_url ? (
+                        <img src={u.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-xs font-bold">
+                          {(u.display_name || u.email || '?')[0].toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-medium text-gray-900">{u.display_name || 'No name'}</div>
+                        <div className="text-xs text-gray-400">{u.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      u.plan === 'premium' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {(u.plan || 'free').toUpperCase()}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="font-medium text-gray-900">{u.eventCount}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">
+                    {u.lastActive ? (
+                      <>
+                        {new Date(u.lastActive).toLocaleDateString()}{' '}
+                        <span className="text-gray-300">{new Date(u.lastActive).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        {u.lastEventType && (
+                          <span className="ml-1">{EVENT_ICONS[u.lastEventType] || ''}</span>
+                        )}
+                      </>
+                    ) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-gray-400 text-xs">
+                    {new Date(u.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {filteredUsers.length === 0 && !usersLoading && (
+            <div className="text-center py-8 text-gray-400 text-sm">
+              {usersSearch ? 'No users match your search' : 'No users yet'}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  };
+
   // Dashboard sign-in form state (must be declared before any early returns)
   const [dashEmail, setDashEmail] = useState('');
   const [dashPassword, setDashPassword] = useState('');
@@ -1209,6 +1560,7 @@ export default function AdminDashboard() {
     { id: 'overview', label: '📊 Overview' },
     { id: 'attribution', label: '🔗 Attribution' },
     { id: 'shares', label: '📤 Shares' },
+    { id: 'users', label: '👤 Users' },
     { id: 'features', label: '🎛️ Features' },
   ];
 
@@ -1291,6 +1643,7 @@ export default function AdminDashboard() {
             {activeTab === 'overview' && <OverviewTab />}
             {activeTab === 'attribution' && <AttributionTab />}
             {activeTab === 'shares' && <SharesTab />}
+            {activeTab === 'users' && <UsersTab />}
             {activeTab === 'features' && <FeaturesTab />}
           </>
         )}

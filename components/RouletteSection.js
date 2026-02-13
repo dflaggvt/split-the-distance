@@ -6,6 +6,7 @@ import { useFeatures } from './FeatureProvider';
 import { useGatedAction } from './FeatureGate';
 import { searchNearby, CATEGORIES } from '@/lib/places';
 import { trackEvent, logOutboundClick } from '@/lib/analytics';
+import { logUserEvent } from '@/lib/userEvents';
 
 const ALL_CATEGORY_KEYS = Object.keys(CATEGORIES);
 const CATEGORY_EMOJIS = ALL_CATEGORY_KEYS.map(k => CATEGORIES[k].emoji);
@@ -170,8 +171,16 @@ export default function RouletteSection({ midpoint, onPlaceClick }) {
         place_category: pick.category,
         roll_number: rollCount + 1,
       });
+      // Per-user event
+      if (user?.id) {
+        logUserEvent(user.id, 'roulette_spin', {
+          placeName: pick.name,
+          category: pick.category,
+          rollNumber: rollCount + 1,
+        });
+      }
     }, SHUFFLE_DURATION);
-  }, [pickRandom, onPlaceClick, rollCount]);
+  }, [pickRandom, onPlaceClick, rollCount, user]);
 
   // Handle "Surprise Me" or "Spin Again" tap
   const handleSpin = useCallback(async () => {

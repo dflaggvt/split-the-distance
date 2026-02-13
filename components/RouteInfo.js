@@ -5,6 +5,8 @@ import { formatDistance, formatDuration, copyToClipboard } from '@/lib/utils';
 import { logShare, logOutboundClick } from '@/lib/analytics';
 import { reverseGeocode } from '@/lib/geocoding';
 import { useGatedAction } from './FeatureGate';
+import { useAuth } from './AuthProvider';
+import { logUserEvent } from '@/lib/userEvents';
 
 const SHARE_METHODS = [
   { id: 'copy', label: 'Copy Link', icon: '📋', color: 'text-gray-600' },
@@ -51,6 +53,7 @@ export default function RouteInfo({
   onActivateRoadTrip,
   onExitRoadTrip,
 }) {
+  const { user } = useAuth();
   const modeLabels = TRAVEL_MODE_LABELS[travelMode] || TRAVEL_MODE_LABELS.DRIVING;
   const [showCopied, setShowCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -272,6 +275,10 @@ export default function RouteInfo({
       toLat: toLocation?.lat || null,
       toLng: toLocation?.lon || null,
     });
+    // Per-user event
+    if (user?.id) {
+      logUserEvent(user.id, 'share_created', { method, from: fromName, to: toName });
+    }
 
     const encodedUrl = encodeURIComponent(shareUrl);
     const encodedText = encodeURIComponent(shareText);

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { onAuthStateChange, upsertUserProfile, fetchUserProfile, signOut as authSignOut } from '@/lib/auth';
+import { logUserEvent } from '@/lib/userEvents';
 
 const AuthContext = createContext({
   user: null,
@@ -33,6 +34,13 @@ export function AuthProvider({ children }) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           const upserted = await upsertUserProfile(currentUser);
           setProfile(upserted);
+          // Track sign-in event (fire-and-forget)
+          if (event === 'SIGNED_IN') {
+            logUserEvent(currentUser.id, 'sign_in', {
+              method: currentUser.app_metadata?.provider || 'unknown',
+              email: currentUser.email,
+            });
+          }
         } else {
           // Just fetch existing profile
           const existing = await fetchUserProfile(currentUser.id);
