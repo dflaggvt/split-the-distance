@@ -11,8 +11,8 @@ import SignInModal from './SignInModal';
 import PricingModal from './PricingModal';
 import AccountModal from './AccountModal';
 import { useAuth } from './AuthProvider';
-import { searchLocations } from '@/lib/geocoding';
-import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint, getMultiLocationMidpoint } from '@/lib/routing';
+import { searchLocations, reverseGeocode } from '@/lib/geocoding';
+import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint, getMultiLocationMidpoint, calculateStopPoints } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
 import { logSearch, logPlaceClick, checkInternalUser, trackEvent, getSharedRouteData } from '@/lib/analytics';
 import { saveSearch } from '@/lib/searchHistory';
@@ -69,6 +69,13 @@ export default function AppClient() {
   const [placesCache, setPlacesCache] = useState({}); // Cache: { category: [places] }
   const routeCacheRef = useRef({}); // Cache: { "lat,lon|lat,lon|MODE": routeData }
   const [driftRadius, setDriftRadius] = useState(null); // null | { minutes, polygon, bbox, ... }
+  // Road Trip Mode state
+  const [roadTripStops, setRoadTripStops] = useState(null); // null | Array<StopPoint>
+  const [roadTripInterval, setRoadTripInterval] = useState(null); // { value, mode } e.g. { value: 90, mode: 'time' }
+  const [activeStopIndex, setActiveStopIndex] = useState(0);
+  const [stopPlaces, setStopPlaces] = useState({}); // { [stopIndex]: Place[] }
+  const [stopFilters, setStopFilters] = useState({}); // { [stopIndex]: string[] }
+  const [stopPlacesLoading, setStopPlacesLoading] = useState({});
   const [loading, setLoading] = useState(false);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [activePlaceId, setActivePlaceId] = useState(null);
@@ -208,9 +215,13 @@ export default function AppClient() {
     const validExtras = extraLocations.filter(el => el.value.trim());
     const isMulti = validExtras.length > 0;
 
-    // Clear route cache for new search
+    // Clear route cache and road trip state for new search
     routeCacheRef.current = {};
     setDriftRadius(null);
+    setRoadTripStops(null);
+    setRoadTripInterval(null);
+    setStopPlaces({});
+    setStopFilters({});
 
     // Track search button click
     trackEvent('search_clicked', {
@@ -442,6 +453,87 @@ export default function AppClient() {
     const result = generateDriftCircle(midpoint, { minutes, travelMode });
     setDriftRadius(result);
   }, [midpoint, travelMode, driftRadius]);
+
+  // ---- Handle road trip activation ----
+  const handleActivateRoadTrip = useCallback(async (interval) => {
+    if (!route) return;
+
+    const leg = route.allRoutes?.[selectedRouteIndex]?.leg;
+    if (!leg) return;
+
+    const stops = calculateStopPoints(leg, interval);
+    if (stops.length === 0) {
+      showToast('This route is too short for stops at that interval.');
+      return;
+    }
+
+    // Reverse geocode each stop for a city label (fire in parallel)
+    const labelPromises = stops.map(stop =>
+      reverseGeocode(stop.lat, stop.lon).catch(() => null)
+    );
+    const labels = await Promise.all(labelPromises);
+    const stopsWithLabels = stops.map((stop, i) => ({
+      ...stop,
+      label: labels[i] || `Stop ${stop.index}`,
+    }));
+
+    setRoadTripStops(stopsWithLabels);
+    setRoadTripInterval(interval);
+    setActiveStopIndex(0);
+    setStopPlaces({});
+    setStopFilters({});
+    setStopPlacesLoading({});
+
+    trackEvent('road_trip_activated', {
+      interval_value: interval.value,
+      interval_mode: interval.mode,
+      stop_count: stopsWithLabels.length,
+      route_duration: route.totalDuration,
+      route_distance: route.totalDistance,
+    });
+  }, [route, selectedRouteIndex, showToast]);
+
+  const handleExitRoadTrip = useCallback(() => {
+    setRoadTripStops(null);
+    setRoadTripInterval(null);
+    setActiveStopIndex(0);
+    setStopPlaces({});
+    setStopFilters({});
+    setStopPlacesLoading({});
+  }, []);
+
+  // ---- Handle per-stop category toggle ----
+  const handleStopFilterToggle = useCallback(async (stopIndex, category) => {
+    const stop = roadTripStops?.[stopIndex];
+    if (!stop) return;
+
+    // Toggle the filter for this stop
+    setStopFilters(prev => {
+      const current = prev[stopIndex] || [];
+      const next = current.includes(category)
+        ? current.filter(c => c !== category)
+        : [...current, category];
+      return { ...prev, [stopIndex]: next };
+    });
+
+    // Check if we already have places for this stop + category cached
+    const cacheKey = `${stopIndex}|${category}`;
+    if (stopPlaces[cacheKey]) return; // Already cached
+
+    // Fetch places near this stop
+    setStopPlacesLoading(prev => ({ ...prev, [stopIndex]: true }));
+    try {
+      const results = await searchNearby(
+        { lat: stop.lat, lon: stop.lon },
+        [category]
+      );
+      setStopPlaces(prev => ({ ...prev, [cacheKey]: results }));
+    } catch (err) {
+      console.error(`[Road Trip] Place search error for stop ${stopIndex}:`, err);
+    } finally {
+      setStopPlacesLoading(prev => ({ ...prev, [stopIndex]: false }));
+    }
+  }, [roadTripStops, stopPlaces]);
 
   // ---- Handle swap ----
   const handleSwap = useCallback(() => {
@@ -839,6 +931,16 @@ export default function AppClient() {
           multiResult={multiResult}
           driftRadius={driftRadius}
           onDriftRadiusChange={handleDriftRadiusChange}
+          roadTripStops={roadTripStops}
+          roadTripInterval={roadTripInterval}
+          activeStopIndex={activeStopIndex}
+          onActiveStopIndexChange={setActiveStopIndex}
+          stopPlaces={stopPlaces}
+          stopFilters={stopFilters}
+          stopPlacesLoading={stopPlacesLoading}
+          onStopFilterToggle={handleStopFilterToggle}
+          onActivateRoadTrip={handleActivateRoadTrip}
+          onExitRoadTrip={handleExitRoadTrip}
         />
 
         {/* Map Container */}
@@ -859,6 +961,9 @@ export default function AppClient() {
             extraLocations={extraLocations.filter(el => el.location).map(el => el.location)}
             multiResult={multiResult}
             driftRadius={driftRadius}
+            roadTripStops={roadTripStops}
+            activeStopIndex={activeStopIndex}
+            onActiveStopIndexChange={setActiveStopIndex}
           />
 
           {/* Mobile panel toggle */}

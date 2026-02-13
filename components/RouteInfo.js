@@ -22,6 +22,18 @@ const TRAVEL_MODE_LABELS = {
   TRANSIT: { time: 'Transit Time', each: 'Each Travels' },
 };
 
+const STOP_INTERVAL_OPTIONS = {
+  time: [
+    { value: 60, label: '60 min' },
+    { value: 90, label: '90 min' },
+    { value: 120, label: '2 hr' },
+  ],
+  distance: [
+    { value: 50, label: '50 mi' },
+    { value: 100, label: '100 mi' },
+  ],
+};
+
 export default function RouteInfo({ 
   route, 
   fromName, 
@@ -35,6 +47,9 @@ export default function RouteInfo({
   multiResult = null,
   driftRadius = null,
   onDriftRadiusChange,
+  roadTripStops = null,
+  onActivateRoadTrip,
+  onExitRoadTrip,
 }) {
   const modeLabels = TRAVEL_MODE_LABELS[travelMode] || TRAVEL_MODE_LABELS.DRIVING;
   const [showCopied, setShowCopied] = useState(false);
@@ -45,8 +60,99 @@ export default function RouteInfo({
   const shareGate = useGatedAction('share');
   const routeOptionsGate = useGatedAction('alternative_routes');
   const driftGate = useGatedAction('drift_radius');
+  const roadTripGate = useGatedAction('incremental_stops');
+  const [stopIntervalMode, setStopIntervalMode] = useState('time'); // 'time' | 'distance'
+  const [showIntervalPicker, setShowIntervalPicker] = useState(false);
 
   const DRIFT_OPTIONS = [5, 10, 15];
+
+  // Route qualifies for road trip mode if > 2 hours or > 100 miles
+  const routeDuration = route?.totalDuration || 0;
+  const routeDistance = route?.totalDistance || 0;
+  const qualifiesForRoadTrip = routeDuration > 7200 || routeDistance > 160934; // 2h or 100mi
+
+  const handleIntervalSelect = (interval, mode) => {
+    setShowIntervalPicker(false);
+    onActivateRoadTrip?.({ value: interval, mode });
+  };
+
+  const renderRoadTripButton = () => {
+    if (!qualifiesForRoadTrip || multiResult) return null;
+
+    // If already in road trip mode, show "Back to Midpoint" button
+    if (roadTripStops) {
+      return (
+        <button
+          onClick={onExitRoadTrip}
+          className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-gray-300 text-[13px] font-semibold text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-all"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          Back to Midpoint
+        </button>
+      );
+    }
+
+    return (
+      <div className="mt-3">
+        <button
+          onClick={() => roadTripGate.gate(() => setShowIntervalPicker(!showIntervalPicker))}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 border-dashed border-teal-300 bg-teal-50/50 text-[13px] font-semibold text-teal-700 hover:bg-teal-50 hover:border-teal-400 transition-all"
+        >
+          <span className="text-base">🛣️</span>
+          Plan Stops Along Route
+          {!roadTripGate.allowed && roadTripGate.reason === 'upgrade_required' && (
+            <span className="text-[9px] font-bold text-purple-600 bg-purple-100 px-1 py-0.5 rounded-full">PRO</span>
+          )}
+          {!roadTripGate.allowed && roadTripGate.reason === 'login_required' && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          )}
+        </button>
+
+        {/* Interval picker (shown after clicking Plan Stops) */}
+        {showIntervalPicker && (
+          <div className="mt-2 p-3 bg-white border border-gray-200 rounded-lg shadow-sm animate-fadeInUp">
+            {/* Mode toggle: Time vs Distance */}
+            <div className="flex gap-1 mb-3">
+              {[
+                { mode: 'time', label: 'By Time', icon: '⏱' },
+                { mode: 'distance', label: 'By Distance', icon: '📏' },
+              ].map(({ mode, label, icon }) => (
+                <button
+                  key={mode}
+                  onClick={() => setStopIntervalMode(mode)}
+                  className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                    stopIntervalMode === mode
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {icon} {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Interval pills */}
+            <div className="flex gap-1.5">
+              {STOP_INTERVAL_OPTIONS[stopIntervalMode].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => handleIntervalSelect(value, stopIntervalMode)}
+                  className="flex-1 py-2 rounded-lg text-[13px] font-semibold bg-gray-50 text-gray-700 hover:bg-teal-50 hover:text-teal-700 border border-gray-200 hover:border-teal-300 transition-all"
+                >
+                  Every {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderDriftRadiusToggle = () => (
     <div className="mt-2 pt-2 border-t border-gray-100">
@@ -501,6 +607,9 @@ export default function RouteInfo({
           )}
         </div>
       )}
+
+      {/* Road Trip Mode button */}
+      {renderRoadTripButton()}
     </div>
   );
 }

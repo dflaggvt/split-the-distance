@@ -69,6 +69,18 @@ const MID_PIN_URL = pinSvg('#ef4444', '★', 34, 46);
 const EXTRA_PIN_COLORS = ['#8b5cf6', '#3b82f6', '#ec4899'];
 const EXTRA_PIN_LABELS = ['C', 'D', 'E'];
 
+// Road trip stop pin: numbered green circle
+const STOP_COLORS = ['#059669', '#0d9488', '#0891b2', '#2563eb', '#7c3aed', '#db2777', '#ea580c'];
+
+function stopPinSvg(number, color, active = false) {
+  const size = active ? 36 : 28;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="white" stroke-width="2.5"/>
+    <text x="${size/2}" y="${size/2 + 4.5}" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-size="${active ? 15 : 12}" font-weight="bold">${number}</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 export default function MapView({
   from,
   to,
@@ -82,6 +94,9 @@ export default function MapView({
   extraLocations = [],
   multiResult = null,
   driftRadius = null,
+  roadTripStops = null,
+  activeStopIndex = 0,
+  onActiveStopIndexChange,
 }) {
   const mapRef = useRef(null);
   const [activeInfoWindow, setActiveInfoWindow] = useState(null);
@@ -154,6 +169,21 @@ export default function MapView({
     []
   );
 
+  // Road trip stop icons
+  const stopIcons = useMemo(() => {
+    if (!roadTripStops) return [];
+    return roadTripStops.map((stop, idx) => {
+      const color = STOP_COLORS[idx % STOP_COLORS.length];
+      const active = idx === activeStopIndex;
+      const size = active ? 36 : 28;
+      return {
+        url: stopPinSvg(stop.index, color, active),
+        scaledSize: new google.maps.Size(size, size),
+        anchor: new google.maps.Point(size / 2, size / 2),
+      };
+    });
+  }, [roadTripStops, activeStopIndex]);
+
   // POI icons keyed by emoji
   const poiIcons = useMemo(() => {
     const icons = {};
@@ -172,7 +202,7 @@ export default function MapView({
     return icons;
   }, [places]);
 
-  // Fit bounds when route / multi-result changes
+  // Fit bounds when route / multi-result / road trip stops change
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -190,8 +220,14 @@ export default function MapView({
       const leg = route.directionsResult.routes[0].legs[0];
       bounds.extend(leg.start_location);
       bounds.extend(leg.end_location);
-      if (midpoint) {
+      if (midpoint && !roadTripStops) {
         bounds.extend(new google.maps.LatLng(midpoint.lat, midpoint.lon));
+      }
+      // Include all road trip stops in bounds
+      if (roadTripStops) {
+        roadTripStops.forEach(stop => {
+          bounds.extend(new google.maps.LatLng(stop.lat, stop.lon));
+        });
       }
     } else {
       return; // nothing to fit
@@ -203,7 +239,7 @@ export default function MapView({
       bottom: 50,
       left: window.innerWidth > 768 ? 60 : 20,
     });
-  }, [route, midpoint, multiResult, from, to, extraLocations]);
+  }, [route, midpoint, multiResult, from, to, extraLocations, roadTripStops]);
 
   // Zoom to midpoint area when places load
   const prevPlacesCount = useRef(0);
@@ -227,6 +263,18 @@ export default function MapView({
     }
     prevPlacesCount.current = places.length;
   }, [places, midpoint, route]);
+
+  // Pan to active road trip stop
+  useEffect(() => {
+    if (!mapRef.current || !roadTripStops || activeStopIndex == null) return;
+    const stop = roadTripStops[activeStopIndex];
+    if (stop) {
+      mapRef.current.panTo({ lat: stop.lat, lng: stop.lon });
+      if (mapRef.current.getZoom() < 10) {
+        mapRef.current.setZoom(10);
+      }
+    }
+  }, [activeStopIndex, roadTripStops]);
 
   // Pan to active place
   useEffect(() => {
@@ -339,8 +387,8 @@ export default function MapView({
         />
       ))}
 
-      {/* Midpoint marker */}
-      {midpoint && (route || multiResult) && (
+      {/* Midpoint marker — hidden in road trip mode */}
+      {midpoint && (route || multiResult) && !roadTripStops && (
         <MarkerF
           position={{ lat: midpoint.lat, lng: midpoint.lon || midpoint.lng }}
           icon={midIcon}
@@ -354,6 +402,18 @@ export default function MapView({
           }
         />
       )}
+
+      {/* Road trip stop markers */}
+      {roadTripStops?.map((stop, idx) => (
+        <MarkerF
+          key={`stop-${stop.index}`}
+          position={{ lat: stop.lat, lng: stop.lon }}
+          icon={stopIcons[idx]}
+          zIndex={idx === activeStopIndex ? 300 : 150}
+          title={`Stop ${stop.index}: ${stop.label || ''}`}
+          onClick={() => onActiveStopIndexChange?.(idx)}
+        />
+      ))}
 
       {/* POI markers */}
       {places.map((place) => (

@@ -7,6 +7,7 @@ import FilterChips from './FilterChips';
 import PlacesList from './PlacesList';
 import ComingSoonSection from './ComingSoonSection';
 import RouletteSection from './RouletteSection';
+import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
 import FeatureGate, { useGatedAction } from './FeatureGate';
 
@@ -49,6 +50,16 @@ export default function SearchPanel({
   multiResult,
   driftRadius,
   onDriftRadiusChange,
+  roadTripStops,
+  roadTripInterval,
+  activeStopIndex,
+  onActiveStopIndexChange,
+  stopPlaces,
+  stopFilters,
+  stopPlacesLoading,
+  onStopFilterToggle,
+  onActivateRoadTrip,
+  onExitRoadTrip,
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
@@ -362,26 +373,51 @@ export default function SearchPanel({
               multiResult={multiResult}
               driftRadius={driftRadius}
               onDriftRadiusChange={onDriftRadiusChange}
+              roadTripStops={roadTripStops}
+              onActivateRoadTrip={onActivateRoadTrip}
+              onExitRoadTrip={onExitRoadTrip}
             />
-            <FilterChips
-              activeFilters={activeFilters}
-              onToggle={onFilterToggle}
-              localOnly={localOnly}
-              onLocalOnlyToggle={onLocalOnlyToggle}
-            />
-            <PlacesList
-              places={localOnly ? places.filter(p => !p.brand) : places}
-              loading={placesLoading}
-              activePlaceId={activePlaceId}
-              onPlaceClick={onPlaceClick}
-              activeFilters={activeFilters}
-            />
-            <FeatureGate feature="roulette">
-              <RouletteSection
-                midpoint={midpoint}
+            {/* Show road trip itinerary OR normal results */}
+            {roadTripStops ? (
+              <RoadTripItinerary
+                stops={roadTripStops}
+                interval={roadTripInterval}
+                fromName={fromValue}
+                toName={toValue}
+                route={route}
+                stopPlaces={stopPlaces}
+                stopFilters={stopFilters}
+                stopPlacesLoading={stopPlacesLoading}
+                activeStopIndex={activeStopIndex}
+                onActiveStopIndexChange={onActiveStopIndexChange}
+                onStopFilterToggle={onStopFilterToggle}
                 onPlaceClick={onPlaceClick}
+                activePlaceId={activePlaceId}
+                onExitRoadTrip={onExitRoadTrip}
               />
-            </FeatureGate>
+            ) : (
+              <>
+                <FilterChips
+                  activeFilters={activeFilters}
+                  onToggle={onFilterToggle}
+                  localOnly={localOnly}
+                  onLocalOnlyToggle={onLocalOnlyToggle}
+                />
+                <PlacesList
+                  places={localOnly ? places.filter(p => !p.brand) : places}
+                  loading={placesLoading}
+                  activePlaceId={activePlaceId}
+                  onPlaceClick={onPlaceClick}
+                  activeFilters={activeFilters}
+                />
+                <FeatureGate feature="roulette">
+                  <RouletteSection
+                    midpoint={midpoint}
+                    onPlaceClick={onPlaceClick}
+                  />
+                </FeatureGate>
+              </>
+            )}
             {/* Coming Soon features teaser */}
             <ComingSoonSection show={true} />
           </div>
