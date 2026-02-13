@@ -461,7 +461,7 @@ export default function AppClient() {
     const leg = route.allRoutes?.[selectedRouteIndex]?.leg;
     if (!leg) return;
 
-    const stops = calculateStopPoints(leg, interval);
+    const stops = calculateStopPoints(leg, { interval: interval.value, mode: interval.mode });
     if (stops.length === 0) {
       showToast('This route is too short for stops at that interval.');
       return;
