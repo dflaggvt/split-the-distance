@@ -34,12 +34,18 @@ export function AuthProvider({ children }) {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           const upserted = await upsertUserProfile(currentUser);
           setProfile(upserted);
-          // Track sign-in event (fire-and-forget)
+          // Track sign-in event (fire-and-forget, once per browser session)
           if (event === 'SIGNED_IN') {
-            logUserEvent(currentUser.id, 'sign_in', {
-              method: currentUser.app_metadata?.provider || 'unknown',
-              email: currentUser.email,
-            });
+            try {
+              const alreadyLogged = sessionStorage.getItem('std_signin_logged');
+              if (!alreadyLogged) {
+                logUserEvent(currentUser.id, 'sign_in', {
+                  method: currentUser.app_metadata?.provider || 'unknown',
+                  email: currentUser.email,
+                });
+                sessionStorage.setItem('std_signin_logged', '1');
+              }
+            } catch {}
           }
         } else {
           // Just fetch existing profile
