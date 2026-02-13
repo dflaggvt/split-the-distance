@@ -10,7 +10,9 @@ import AuthButton from './AuthButton';
 import SignInModal from './SignInModal';
 import PricingModal from './PricingModal';
 import AccountModal from './AccountModal';
+import WelcomeModal from './WelcomeModal';
 import { useAuth } from './AuthProvider';
+import { useFeatures } from './FeatureProvider';
 import { searchLocations, reverseGeocode } from '@/lib/geocoding';
 import { getRoute, calculateTimeMidpoint, calculateDistanceMidpoint, getMultiLocationMidpoint, calculateStopPoints } from '@/lib/routing';
 import { searchNearby } from '@/lib/places';
@@ -43,6 +45,7 @@ function computeMidpoint(leg, mode) {
 export default function AppClient() {
   const searchParams = useSearchParams();
   const { refreshProfile, user, isLoggedIn, plan } = useAuth();
+  const { openPricingModal } = useFeatures();
 
   // Load Google Maps
   const { isLoaded } = useJsApiLoader({
@@ -91,6 +94,10 @@ export default function AppClient() {
     setIsInternal(checkInternalUser());
   }, []);
 
+  // ---- Welcome Modal (signup / upgrade walkthrough) ----
+  const [welcomeModalType, setWelcomeModalType] = useState(null); // 'signup' | 'upgrade' | null
+  const prevLoggedIn = useRef(false);
+
   // ---- Handle Stripe redirect (upgrade success/cancel) ----
   const [upgradeStatus, setUpgradeStatus] = useState(null); // 'success' | 'cancelled' | null
   useEffect(() => {
@@ -99,6 +106,8 @@ export default function AppClient() {
 
     if (status === 'success') {
       setUpgradeStatus('success');
+      // Show upgrade walkthrough modal
+      setWelcomeModalType('upgrade');
       // Refresh profile to pick up the new plan from DB
       refreshProfile();
     } else if (status === 'cancelled') {
@@ -110,11 +119,29 @@ export default function AppClient() {
     url.searchParams.delete('upgrade');
     window.history.replaceState({}, '', url.pathname + (url.search || ''));
 
-    // Auto-dismiss after 8 seconds
+    // Auto-dismiss upgrade banner after 8 seconds (if they close the modal first)
     const dismissTimer = setTimeout(() => setUpgradeStatus(null), 8000);
     return () => clearTimeout(dismissTimer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ---- Show signup walkthrough when user first signs in ----
+  useEffect(() => {
+    // Detect transition from anonymous to logged-in
+    if (isLoggedIn && !prevLoggedIn.current) {
+      // Only show if user hasn't seen the welcome modal before
+      const hasSeenWelcome = localStorage.getItem('std_welcome_seen');
+      if (!hasSeenWelcome) {
+        // Small delay to let sign-in modal close first
+        const timer = setTimeout(() => {
+          setWelcomeModalType('signup');
+          localStorage.setItem('std_welcome_seen', '1');
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    }
+    prevLoggedIn.current = isLoggedIn;
+  }, [isLoggedIn]);
 
   // ---- Toast ----
   const showToast = useCallback((message) => {
@@ -994,8 +1021,21 @@ export default function AppClient() {
       <PricingModal />
       <AccountModal />
 
-      {/* Upgrade status banner */}
-      {upgradeStatus === 'success' && (
+      {/* Welcome Walkthrough Modal */}
+      {welcomeModalType && (
+        <WelcomeModal
+          type={welcomeModalType}
+          onClose={() => setWelcomeModalType(null)}
+          onUpgrade={() => {
+            setWelcomeModalType(null);
+            // Small delay so the welcome modal unmounts before pricing opens
+            setTimeout(() => openPricingModal(), 200);
+          }}
+        />
+      )}
+
+      {/* Upgrade status banner (hidden when welcome modal is open) */}
+      {upgradeStatus === 'success' && !welcomeModalType && (
         <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-md animate-slideUp">
           <div className="mx-4 bg-emerald-50 border border-emerald-200 rounded-xl shadow-lg px-5 py-4 flex items-start gap-3">
             <span className="text-2xl leading-none mt-0.5">&#x2705;</span>

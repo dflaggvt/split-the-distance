@@ -5,12 +5,29 @@ import { useAuth } from './AuthProvider';
 import { useFeatures } from './FeatureProvider';
 import { getSession } from '@/lib/auth';
 
-/**
- * PricingModal — 3-column plan comparison with Stripe Checkout redirect.
- * Triggered by showUpgrade() from useFeature(), plan badge in header, or "See all plans" link.
- */
+// Curated feature lists with user-friendly descriptions
+const FREE_FEATURES = [
+  { emoji: '📍', label: 'Midpoint Search', desc: 'Find the perfect halfway point between two locations' },
+  { emoji: '🚗', label: 'Drive, Bike, or Walk', desc: 'Choose your travel mode for accurate midpoints' },
+  { emoji: '📏', label: 'Time or Distance', desc: 'Toggle between drive-time and distance-based splits' },
+  { emoji: '🗂️', label: 'Discover Places', desc: 'Browse food, coffee, parks, and more at your midpoint' },
+  { emoji: '🔀', label: 'Route Options', desc: 'Compare alternate routes and pick the best one' },
+  { emoji: '🔗', label: 'Share Results', desc: 'Send your midpoint to anyone with a link' },
+  { emoji: '👥', label: 'Group Search (3)', desc: 'Find the meeting point for 3 people' },
+  { emoji: '🎲', label: 'Midpoint Roulette', desc: "Can't decide? Let us pick a random spot" },
+  { emoji: '🕐', label: 'Search History', desc: 'Re-run your last 10 searches with one tap' },
+];
+
+const PREMIUM_FEATURES = [
+  { emoji: '🎯', label: 'Drift Radius', desc: 'See a fairness zone, not just a single point' },
+  { emoji: '👥', label: 'Group Search (4-5)', desc: 'Find the optimal spot for up to 5 people' },
+  { emoji: '🛣️', label: 'Road Trip Stops', desc: 'Plan stops along your route at regular intervals' },
+  { emoji: '🎰', label: 'Unlimited Roulette', desc: 'Unlimited random picks with infinite re-rolls' },
+  { emoji: '📚', label: 'Unlimited History', desc: 'Keep your full search history forever' },
+];
+
 export default function PricingModal() {
-  const { pricingModalOpen, closePricingModal, featuresByTier, openSignIn } = useFeatures();
+  const { pricingModalOpen, closePricingModal, openSignIn } = useFeatures();
   const { isLoggedIn, plan } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,7 +36,6 @@ export default function PricingModal() {
 
   const handleUpgrade = async (priceType) => {
     if (!isLoggedIn) {
-      // Must sign in first — close pricing modal and open sign-in modal
       closePricingModal();
       openSignIn();
       return;
@@ -28,7 +44,6 @@ export default function PricingModal() {
     setLoading(true);
     setError('');
     try {
-      // Get current session token to authenticate the checkout request
       const session = await getSession();
       if (!session?.access_token) {
         setError('Session expired. Please sign out and sign back in.');
@@ -58,13 +73,6 @@ export default function PricingModal() {
       setLoading(false);
     }
   };
-
-  // Combine anonymous + free features for the "Free" column
-  const freeFeatures = [
-    ...(featuresByTier.anonymous || []),
-    ...(featuresByTier.free || []),
-  ];
-  const premiumFeatures = featuresByTier.premium || [];
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -106,21 +114,14 @@ export default function PricingModal() {
               )}
             </div>
 
-            <ul className="space-y-2">
-              {freeFeatures.map((f) => (
-                <li key={f.key} className="flex items-start gap-2 text-sm">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span className="text-gray-700">
-                    {f.emoji} {f.label}
-                    {f.status === 'coming_soon' && (
-                      <span className="ml-1 text-[10px] font-bold text-amber-700 bg-amber-100 px-1 py-0.5 rounded-full">SOON</span>
-                    )}
-                    {f.tier === 'free' && (
-                      <span className="ml-1 text-[10px] text-gray-400">(sign in)</span>
-                    )}
-                  </span>
+            <ul className="space-y-3">
+              {FREE_FEATURES.map((f) => (
+                <li key={f.label} className="flex items-start gap-2.5">
+                  <span className="text-base shrink-0 mt-0.5">{f.emoji}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 leading-tight">{f.label}</p>
+                    <p className="text-[11px] text-gray-400 leading-snug">{f.desc}</p>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -128,7 +129,7 @@ export default function PricingModal() {
             {!isLoggedIn && (
               <button
                 onClick={() => { closePricingModal(); openSignIn(); }}
-                className="w-full mt-4 py-2.5 px-4 text-sm font-semibold text-teal-700 bg-teal-100 rounded-lg cursor-pointer transition-colors hover:bg-teal-200"
+                className="w-full mt-5 py-2.5 px-4 text-sm font-semibold text-teal-700 bg-teal-100 rounded-lg cursor-pointer transition-colors hover:bg-teal-200"
               >
                 Sign In — It&apos;s Free
               </button>
@@ -151,27 +152,23 @@ export default function PricingModal() {
               )}
             </div>
 
-            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+            <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
               Everything in Free, plus:
             </div>
-            <ul className="space-y-2">
-              {premiumFeatures.map((f) => (
-                <li key={f.key} className="flex items-start gap-2 text-sm">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span className="text-gray-700">
-                    {f.emoji} {f.label}
-                    {f.status === 'coming_soon' && (
-                      <span className="ml-1 text-[10px] font-bold text-amber-700 bg-amber-100 px-1 py-0.5 rounded-full">SOON</span>
-                    )}
-                  </span>
+            <ul className="space-y-3">
+              {PREMIUM_FEATURES.map((f) => (
+                <li key={f.label} className="flex items-start gap-2.5">
+                  <span className="text-base shrink-0 mt-0.5">{f.emoji}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-800 leading-tight">{f.label}</p>
+                    <p className="text-[11px] text-gray-400 leading-snug">{f.desc}</p>
+                  </div>
                 </li>
               ))}
             </ul>
 
             {plan !== 'premium' && (
-              <div className="flex flex-col gap-2 mt-4">
+              <div className="flex flex-col gap-2 mt-5">
                 <button
                   onClick={() => handleUpgrade('monthly')}
                   disabled={loading}
