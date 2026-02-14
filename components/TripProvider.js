@@ -147,9 +147,12 @@ export default function TripProvider({ tripId, children }) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'trip_messages', filter: `trip_id=eq.${tripId}` },
         (payload) => {
-          // Append new messages in real-time (no full refetch needed)
+          // Append new messages in real-time (deduplicate in case of optimistic add)
           if (payload.new) {
-            setMessages(prev => [...prev, payload.new]);
+            setMessages(prev => {
+              if (prev.some(m => m.id === payload.new.id)) return prev;
+              return [...prev, payload.new];
+            });
           }
         }
       )
@@ -160,7 +163,17 @@ export default function TripProvider({ tripId, children }) {
           fetchLiveStatus(tripId).then(setLiveStatus).catch(console.error);
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Realtime] Subscribed to trip:${tripId}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`[Realtime] Channel error for trip:${tripId}:`, err);
+        } else if (status === 'TIMED_OUT') {
+          console.warn(`[Realtime] Subscription timed out for trip:${tripId}`);
+        } else {
+          console.log(`[Realtime] Status: ${status}`);
+        }
+      });
 
     channelRef.current = channel;
 
@@ -200,6 +213,24 @@ export default function TripProvider({ tripId, children }) {
     };
   }, [tripId]);
 
+  // ---- Granular refetch callbacks (used by components after writes) ----
+  const refetchTrip = useCallback(() => fetchTrip(tripId).then(setTrip).catch(console.error), [tripId]);
+  const refetchMembers = useCallback(() => fetchTripMembers(tripId).then(setMembers).catch(console.error), [tripId]);
+  const refetchDateOptions = useCallback(() => fetchDateOptions(tripId).then(setDateOptions).catch(console.error), [tripId]);
+  const refetchLocations = useCallback(() => fetchTripLocations(tripId).then(setLocations).catch(console.error), [tripId]);
+  const refetchStops = useCallback(() => fetchTripStops(tripId).then(setStops).catch(console.error), [tripId]);
+  const refetchMessages = useCallback(() => fetchTripMessages(tripId).then(setMessages).catch(console.error), [tripId]);
+  const refetchLiveStatus = useCallback(() => fetchLiveStatus(tripId).then(setLiveStatus).catch(console.error), [tripId]);
+
+  // Append a single message (for optimistic chat updates)
+  const appendMessage = useCallback((msg) => {
+    setMessages(prev => {
+      // Deduplicate by id in case Realtime also fires
+      if (prev.some(m => m.id === msg.id)) return prev;
+      return [...prev, msg];
+    });
+  }, []);
+
   // Broadcast own position to other members (ephemeral, no DB write)
   const broadcastPosition = useCallback((positionData) => {
     if (broadcastRef.current) {
@@ -222,10 +253,18 @@ export default function TripProvider({ tripId, children }) {
     liveStatus,
     livePositions,
     broadcastPosition,
+    appendMessage,
     myMembership,
     loading,
     error,
     reload: loadTrip,
+    refetchTrip,
+    refetchMembers,
+    refetchDateOptions,
+    refetchLocations,
+    refetchStops,
+    refetchMessages,
+    refetchLiveStatus,
     tripId,
   };
 

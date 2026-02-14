@@ -39,7 +39,7 @@ const mapOptions = {
 };
 
 export default function TripLive() {
-  const { trip, setTrip, members, liveStatus, livePositions, broadcastPosition, myMembership, tripId, locations, reload } = useTripContext();
+  const { trip, setTrip, members, liveStatus, livePositions, broadcastPosition, myMembership, tripId, locations, refetchTrip, refetchLiveStatus } = useTripContext();
   const { user } = useAuth();
   const [sharing, setSharing] = useState(false);
   const [myPosition, setMyPosition] = useState(null);
@@ -72,7 +72,8 @@ export default function TripLive() {
     try {
       const updated = await startTrip(tripId);
       setTrip(updated);
-      reload();
+      refetchTrip();
+      refetchLiveStatus();
     } catch (err) {
       console.error('Failed to start trip:', err);
     }
@@ -86,6 +87,7 @@ export default function TripLive() {
       const updated = await completeTrip(tripId);
       setTrip(updated);
       stopWatching();
+      refetchTrip();
     } catch (err) {
       console.error('Failed to complete trip:', err);
     }
@@ -259,7 +261,7 @@ export default function TripLive() {
     try {
       await markArrived(tripId, myMembership.id, myMembership.display_name);
       stopWatching();
-      reload();
+      refetchLiveStatus();
     } catch (err) {
       console.error('Failed to mark arrived:', err);
     }

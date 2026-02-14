@@ -16,7 +16,7 @@ import { useTripContext } from './TripProvider';
 import { sendTripMessage } from '@/lib/trips';
 
 export default function TripChat() {
-  const { messages, members, myMembership, tripId } = useTripContext();
+  const { messages, members, myMembership, tripId, appendMessage } = useTripContext();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState(null);
@@ -51,7 +51,8 @@ export default function TripChat() {
     setSendError(null);
     setInput('');
     try {
-      await sendTripMessage(tripId, myMembership.id, text);
+      const sent = await sendTripMessage(tripId, myMembership.id, text);
+      if (sent) appendMessage(sent);
     } catch (err) {
       console.error('Failed to send message:', err);
       setInput(text); // Restore on failure

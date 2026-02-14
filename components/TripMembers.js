@@ -23,7 +23,7 @@ const STATUS_COLORS = {
 };
 
 export default function TripMembers() {
-  const { members, myMembership, trip, reload } = useTripContext();
+  const { members, myMembership, trip, refetchMembers } = useTripContext();
   const { user } = useAuth();
   const [editingOrigin, setEditingOrigin] = useState(false);
   const [originSearch, setOriginSearch] = useState('');
@@ -42,7 +42,7 @@ export default function TripMembers() {
       });
       setEditingOrigin(false);
       setOriginSearch('');
-      reload();
+      refetchMembers();
     } catch (err) {
       console.error('Failed to set origin:', err);
     }

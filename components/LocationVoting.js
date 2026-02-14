@@ -25,7 +25,7 @@ const VOTE_STYLES = {
 };
 
 export default function LocationVoting() {
-  const { trip, setTrip, locations, members, myMembership, tripId } = useTripContext();
+  const { trip, setTrip, locations, members, myMembership, tripId, refetchLocations, refetchTrip } = useTripContext();
   const [searchValue, setSearchValue] = useState('');
   const [proposing, setProposing] = useState(false);
   const [findingMidpoint, setFindingMidpoint] = useState(false);
@@ -56,6 +56,7 @@ export default function LocationVoting() {
         placeId: place.placeId || null,
       });
       setSearchValue('');
+      refetchLocations();
     } catch (err) {
       console.error('Failed to propose location:', err);
     }
@@ -68,11 +69,11 @@ export default function LocationVoting() {
     const myVote = getMyVote(locationId);
     try {
       if (myVote === vote) {
-        // Toggle off
         await removeLocationVote(locationId, myMembership.id);
       } else {
         await voteLocation(locationId, myMembership.id, vote);
       }
+      refetchLocations();
     } catch (err) {
       console.error('Failed to vote:', err);
     }
@@ -82,6 +83,7 @@ export default function LocationVoting() {
   const handleDelete = async (locationId) => {
     try {
       await deleteLocation(locationId);
+      refetchLocations();
     } catch (err) {
       console.error('Failed to delete location:', err);
     }
@@ -196,6 +198,7 @@ export default function LocationVoting() {
           isMidpoint: true,
           notes: `Optimized for equal drive time. Max drive: ${Math.round(result.maxDrive / 60)} min`,
         });
+        refetchLocations();
       }
     } catch (err) {
       console.error('Failed to find midpoint:', err);
@@ -210,6 +213,7 @@ export default function LocationVoting() {
     try {
       const updated = await confirmTripLocation(tripId, locationId);
       setTrip(updated);
+      refetchLocations();
     } catch (err) {
       console.error('Failed to confirm location:', err);
     }

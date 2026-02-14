@@ -29,7 +29,7 @@ const CATEGORY_OPTIONS = Object.entries(CATEGORIES).map(([key, val]) => ({
 }));
 
 export default function TripItinerary() {
-  const { trip, stops, locations, members, myMembership, tripId } = useTripContext();
+  const { trip, stops, locations, members, myMembership, tripId, refetchStops } = useTripContext();
   const [searchValue, setSearchValue] = useState('');
   const [adding, setAdding] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
@@ -69,6 +69,7 @@ export default function TripItinerary() {
         sortOrder: dayStops.length,
       });
       setSearchValue('');
+      refetchStops();
     } catch (err) {
       console.error('Failed to add stop:', err);
     }
@@ -90,6 +91,7 @@ export default function TripItinerary() {
         dayNumber: selectedDay,
         sortOrder: dayStops.length,
       });
+      refetchStops();
     } catch (err) {
       console.error('Failed to add POI stop:', err);
     }
@@ -127,6 +129,7 @@ export default function TripItinerary() {
   const handleDelete = async (stopId) => {
     try {
       await deleteTripStop(stopId);
+      refetchStops();
     } catch (err) {
       console.error('Failed to delete stop:', err);
     }
@@ -138,6 +141,7 @@ export default function TripItinerary() {
       await updateTripStop(stopId, { notes: editNotes.trim() || null });
       setEditingStop(null);
       setEditNotes('');
+      refetchStops();
     } catch (err) {
       console.error('Failed to update notes:', err);
     }

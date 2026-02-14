@@ -19,7 +19,7 @@ const VOTE_COLORS = {
 };
 
 export default function DateVoting() {
-  const { trip, setTrip, dateOptions, members, myMembership, tripId } = useTripContext();
+  const { trip, setTrip, dateOptions, members, myMembership, tripId, refetchDateOptions, refetchTrip } = useTripContext();
   const [selectedDate, setSelectedDate] = useState(null);
   const [label, setLabel] = useState('');
   const [proposing, setProposing] = useState(false);
@@ -41,6 +41,7 @@ export default function DateVoting() {
       });
       setSelectedDate(null);
       setLabel('');
+      refetchDateOptions();
     } catch (err) {
       console.error('Failed to propose date:', err);
     }
@@ -52,6 +53,7 @@ export default function DateVoting() {
     if (!myMembership) return;
     try {
       await voteDateOption(dateOptionId, myMembership.id, vote);
+      refetchDateOptions();
     } catch (err) {
       console.error('Failed to vote:', err);
     }
@@ -61,6 +63,7 @@ export default function DateVoting() {
   const handleDelete = async (dateOptionId) => {
     try {
       await deleteDateOption(dateOptionId);
+      refetchDateOptions();
     } catch (err) {
       console.error('Failed to delete date:', err);
     }
@@ -72,6 +75,7 @@ export default function DateVoting() {
     try {
       const updated = await confirmTripDate(tripId, dateStr);
       setTrip(updated);
+      refetchDateOptions();
     } catch (err) {
       console.error('Failed to confirm date:', err);
     }
