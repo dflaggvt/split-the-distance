@@ -2,30 +2,42 @@
 
 /**
  * /trips/[tripId] — Trip detail page with guided workflow.
- * Progress: Pick Dates → Choose Location → Build Itinerary
- * Tabs: Dates, Locations, Itinerary, Chat, Live, Members
+ *
+ * Tabs: Guests/Members | Dates | Locations | Options | Itinerary | Chat | Live
+ *
+ * Progress:
+ *   1. Build Guest List
+ *   2. Pick Dates
+ *   3. Choose Location (criteria + vote)
+ *   4. Save Options
+ *   5. Build Itinerary
+ *   6. Send Invites (when ready)
  */
 
 import { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';
+import GuestList from '@/components/GuestList';
 import DateVoting from '@/components/DateVoting';
+import LocationCriteria from '@/components/LocationCriteria';
 import LocationVoting from '@/components/LocationVoting';
+import TripOptions from '@/components/TripOptions';
 import TripItinerary from '@/components/TripItinerary';
 import TripChat from '@/components/TripChat';
 import TripLive from '@/components/TripLive';
-import TripMembers from '@/components/TripMembers';
 import TripInvite from '@/components/TripInvite';
+import { updateTrip } from '@/lib/trips';
 import Link from 'next/link';
 
 const TABS = [
+  { id: 'guests', label: 'Guests', icon: '👥' },
   { id: 'dates', label: 'Dates', icon: '📅' },
   { id: 'locations', label: 'Locations', icon: '📍' },
+  { id: 'options', label: 'Options', icon: '⭐' },
   { id: 'itinerary', label: 'Itinerary', icon: '📋' },
   { id: 'chat', label: 'Chat', icon: '💬' },
   { id: 'live', label: 'Live', icon: '🚗' },
-  { id: 'members', label: 'Members', icon: '👥' },
 ];
 
 const STATUS_BADGE = {
@@ -37,24 +49,32 @@ const STATUS_BADGE = {
 };
 
 // ---- Determine the smart default tab based on trip progress ----
-function getDefaultTab(trip, dateOptions, locations, stops) {
-  if (!trip) return 'dates';
+function getDefaultTab(trip) {
+  if (!trip) return 'guests';
   if (trip.status === 'active') return 'live';
   if (trip.status === 'completed') return 'itinerary';
   if (trip.confirmed_location_id) return 'itinerary';
   if (trip.confirmed_date) return 'locations';
-  return 'dates';
+  if (trip.invites_sent_at) return 'dates';
+  return 'guests';
 }
 
 // ---- Progress stepper component ----
-function TripProgress({ trip, dateOptions, onNavigate }) {
+function TripProgress({ trip, options, onNavigate }) {
   const steps = [
+    {
+      id: 'guests',
+      label: 'Guest List',
+      description: 'Add people to invite',
+      done: !!trip?.invites_sent_at,
+      active: !trip?.invites_sent_at,
+    },
     {
       id: 'dates',
       label: 'Pick Dates',
       description: 'Propose & vote on dates',
       done: !!trip?.confirmed_date,
-      active: !trip?.confirmed_date,
+      active: !!trip?.invites_sent_at && !trip?.confirmed_date,
     },
     {
       id: 'locations',
@@ -64,8 +84,15 @@ function TripProgress({ trip, dateOptions, onNavigate }) {
       active: !!trip?.confirmed_date && !trip?.confirmed_location_id,
     },
     {
+      id: 'options',
+      label: 'Save Options',
+      description: 'Lodging, POI, Food',
+      done: (options?.length || 0) > 0,
+      active: !!trip?.confirmed_location_id,
+    },
+    {
       id: 'itinerary',
-      label: 'Build Itinerary',
+      label: 'Itinerary',
       description: 'Add stops & activities',
       done: trip?.status === 'active' || trip?.status === 'completed',
       active: !!trip?.confirmed_location_id && trip?.status !== 'active' && trip?.status !== 'completed',
@@ -76,8 +103,8 @@ function TripProgress({ trip, dateOptions, onNavigate }) {
   if (trip?.status === 'active' || trip?.status === 'completed') return null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
-      <div className="flex items-center justify-between">
+    <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 overflow-x-auto">
+      <div className="flex items-center justify-between min-w-max">
         {steps.map((step, idx) => (
           <div key={step.id} className="flex items-center flex-1">
             <button
@@ -123,20 +150,54 @@ function TripProgress({ trip, dateOptions, onNavigate }) {
   );
 }
 
+// ---- Voting toggle for host ----
+function VotingToggle({ trip, permissions, refetchTrip }) {
+  const [toggling, setToggling] = useState(false);
+
+  if (!permissions.isHost) return null;
+
+  const handleToggle = async () => {
+    setToggling(true);
+    try {
+      await updateTrip(trip.id, { voting_open: !trip.voting_open });
+      refetchTrip();
+    } catch (err) {
+      console.error('Failed to toggle voting:', err);
+    }
+    setToggling(false);
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      disabled={toggling}
+      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
+        trip.voting_open
+          ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+          : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
+      }`}
+      title={trip.voting_open ? 'Voting is open for all members' : 'Voting is closed for free members'}
+    >
+      {trip.voting_open ? '🗳️ Voting Open' : '🔒 Voting Closed'}
+    </button>
+  );
+}
+
 function TripDetail() {
-  const { trip, members, dateOptions, locations, stops, messages, loading, error } = useTripContext();
+  const { trip, members, dateOptions, locations, stops, messages, options, permissions, loading, error, refetchTrip } = useTripContext();
 
   // Smart default tab based on trip progress
   const defaultTab = useMemo(
-    () => getDefaultTab(trip, dateOptions, locations, stops),
-    // Only compute once when trip loads (not on every state change)
+    () => getDefaultTab(trip),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [trip?.confirmed_date, trip?.confirmed_location_id, trip?.status]
+    [trip?.confirmed_date, trip?.confirmed_location_id, trip?.status, trip?.invites_sent_at]
   );
   const [activeTab, setActiveTab] = useState(null);
   const currentTab = activeTab || defaultTab;
 
   const [showInvite, setShowInvite] = useState(false);
+  // Track whether to show LocationCriteria or LocationVoting
+  const [showLocationCriteria, setShowLocationCriteria] = useState(false);
 
   if (loading) {
     return (
@@ -176,17 +237,27 @@ function TripDetail() {
     );
   }
 
+  const invitesSent = !!trip.invites_sent_at;
   const joinedMembers = members.filter(m => m.status === 'joined');
   const badge = STATUS_BADGE[trip.status] || STATUS_BADGE.planning;
 
-  // Tab completion states for visual indicators
+  // Dynamically relabel "Guests" to "Members" after invites are sent
+  const displayTabs = TABS.map(tab => {
+    if (tab.id === 'guests' && invitesSent) {
+      return { ...tab, label: 'Members' };
+    }
+    return tab;
+  });
+
+  // Tab state indicators
   const tabState = {
+    guests: invitesSent ? 'done' : 'active',
     dates: trip?.confirmed_date ? 'done' : 'active',
     locations: trip?.confirmed_location_id ? 'done' : trip?.confirmed_date ? 'active' : 'locked',
+    options: options.length > 0 ? 'active' : trip?.confirmed_location_id ? 'active' : 'locked',
     itinerary: stops.length > 0 ? 'active' : trip?.confirmed_location_id ? 'active' : 'locked',
     chat: 'active',
     live: trip?.status === 'active' ? 'active' : 'locked',
-    members: 'active',
   };
 
   return (
@@ -213,23 +284,26 @@ function TripDetail() {
                 )}
               </div>
             </div>
-            <button
-              onClick={() => setShowInvite(true)}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="8.5" cy="7" r="4" />
-                <line x1="20" y1="8" x2="20" y2="14" />
-                <line x1="23" y1="11" x2="17" y2="11" />
-              </svg>
-              Invite
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <VotingToggle trip={trip} permissions={permissions} refetchTrip={refetchTrip} />
+              <button
+                onClick={() => setShowInvite(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <line x1="20" y1="8" x2="20" y2="14" />
+                  <line x1="23" y1="11" x2="17" y2="11" />
+                </svg>
+                Invite
+              </button>
+            </div>
           </div>
 
           {/* Tabs */}
           <div className="flex gap-1 -mb-px overflow-x-auto">
-            {TABS.map((tab) => {
+            {displayTabs.map((tab) => {
               const isLiveActive = tab.id === 'live' && trip?.status === 'active';
               const state = tabState[tab.id];
               const isDone = state === 'done';
@@ -243,8 +317,7 @@ function TripDetail() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  {/* Show checkmark for completed workflow steps */}
-                  {isDone && (tab.id === 'dates' || tab.id === 'locations') ? (
+                  {isDone && (tab.id === 'dates' || tab.id === 'locations' || tab.id === 'guests') ? (
                     <span className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                         <polyline points="20 6 9 17 4 12" />
@@ -260,11 +333,14 @@ function TripDetail() {
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
                     </span>
                   )}
-                  {tab.id === 'members' && (
+                  {tab.id === 'guests' && (
                     <span className="text-xs text-gray-400 ml-0.5">({joinedMembers.length})</span>
                   )}
                   {tab.id === 'locations' && locations.length > 0 && (
                     <span className="text-xs text-gray-400 ml-0.5">({locations.length})</span>
+                  )}
+                  {tab.id === 'options' && options.length > 0 && (
+                    <span className="text-xs text-gray-400 ml-0.5">({options.length})</span>
                   )}
                   {tab.id === 'itinerary' && stops.length > 0 && (
                     <span className="text-xs text-gray-400 ml-0.5">({stops.length})</span>
@@ -282,14 +358,47 @@ function TripDetail() {
       {/* Tab Content */}
       <main className="max-w-3xl mx-auto px-5 py-6">
         {/* Progress stepper (only during planning) */}
-        <TripProgress trip={trip} dateOptions={dateOptions} onNavigate={setActiveTab} />
+        <TripProgress trip={trip} options={options} onNavigate={setActiveTab} />
 
+        {currentTab === 'guests' && <GuestList />}
         {currentTab === 'dates' && <DateVoting />}
-        {currentTab === 'locations' && <LocationVoting />}
+        {currentTab === 'locations' && (
+          <div className="space-y-6">
+            {/* Location criteria selector (host can configure or change) */}
+            {permissions.isHost && (
+              <div>
+                {showLocationCriteria ? (
+                  <>
+                    <LocationCriteria />
+                    <button
+                      onClick={() => setShowLocationCriteria(false)}
+                      className="mt-2 text-xs text-gray-400 hover:text-gray-600 transition"
+                    >
+                      Hide criteria settings
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowLocationCriteria(true)}
+                    className="text-xs text-teal-600 hover:text-teal-700 font-medium"
+                  >
+                    {trip.location_mode ? 'Change location strategy' : 'Set location strategy'}
+                  </button>
+                )}
+              </div>
+            )}
+            {/* Non-host: read-only criteria */}
+            {!permissions.isHost && (
+              <LocationCriteria />
+            )}
+            {/* Location voting */}
+            <LocationVoting />
+          </div>
+        )}
+        {currentTab === 'options' && <TripOptions />}
         {currentTab === 'itinerary' && <TripItinerary />}
         {currentTab === 'chat' && <TripChat />}
         {currentTab === 'live' && <TripLive />}
-        {currentTab === 'members' && <TripMembers />}
       </main>
 
       {/* Invite modal */}

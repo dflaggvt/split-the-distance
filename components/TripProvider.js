@@ -6,8 +6,10 @@
  * and real-time updates via Postgres Changes subscriptions.
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from './AuthProvider';
+import { computePermissions } from '@/lib/permissions';
 import {
   fetchTrip,
   fetchTripMembers,
@@ -16,6 +18,7 @@ import {
   fetchTripStops,
   fetchTripMessages,
   fetchLiveStatus,
+  fetchTripOptions,
   getMyMembership,
 } from '@/lib/trips';
 
@@ -28,6 +31,7 @@ export function useTripContext() {
 }
 
 export default function TripProvider({ tripId, children }) {
+  const { plan: userPlan } = useAuth();
   const [trip, setTrip] = useState(null);
   const [members, setMembers] = useState([]);
   const [dateOptions, setDateOptions] = useState([]);
@@ -36,11 +40,22 @@ export default function TripProvider({ tripId, children }) {
   const [messages, setMessages] = useState([]);
   const [liveStatus, setLiveStatus] = useState([]);
   const [livePositions, setLivePositions] = useState({});
+  const [options, setOptions] = useState([]);
   const [myMembership, setMyMembership] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const channelRef = useRef(null);
   const broadcastRef = useRef(null);
+
+  // ---- Compute member permissions ----
+  const permissions = useMemo(() => {
+    if (!myMembership) return computePermissions('member', 'anonymous', false);
+    return computePermissions(
+      myMembership.role,
+      userPlan || 'free',
+      trip?.voting_open || false,
+    );
+  }, [myMembership, userPlan, trip?.voting_open]);
 
   // ---- Initial data fetch ----
   const loadTrip = useCallback(async () => {
@@ -48,7 +63,7 @@ export default function TripProvider({ tripId, children }) {
     setLoading(true);
     setError(null);
     try {
-      const [tripData, membersData, dateData, locationData, stopsData, messagesData, liveData, membership] = await Promise.all([
+      const [tripData, membersData, dateData, locationData, stopsData, messagesData, liveData, optionsData, membership] = await Promise.all([
         fetchTrip(tripId),
         fetchTripMembers(tripId),
         fetchDateOptions(tripId),
@@ -56,6 +71,7 @@ export default function TripProvider({ tripId, children }) {
         fetchTripStops(tripId),
         fetchTripMessages(tripId),
         fetchLiveStatus(tripId),
+        fetchTripOptions(tripId),
         getMyMembership(tripId),
       ]);
       setTrip(tripData);
@@ -65,6 +81,7 @@ export default function TripProvider({ tripId, children }) {
       setStops(stopsData);
       setMessages(messagesData);
       setLiveStatus(liveData);
+      setOptions(optionsData);
       setMyMembership(membership);
     } catch (err) {
       console.error('Failed to load trip:', err);
@@ -163,6 +180,20 @@ export default function TripProvider({ tripId, children }) {
           fetchLiveStatus(tripId).then(setLiveStatus).catch(console.error);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_saved_options', filter: `trip_id=eq.${tripId}` },
+        () => {
+          fetchTripOptions(tripId).then(setOptions).catch(console.error);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_option_votes' },
+        () => {
+          fetchTripOptions(tripId).then(setOptions).catch(console.error);
+        }
+      )
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           console.log(`[Realtime] Subscribed to trip:${tripId}`);
@@ -221,6 +252,7 @@ export default function TripProvider({ tripId, children }) {
   const refetchStops = useCallback(() => fetchTripStops(tripId).then(setStops).catch(console.error), [tripId]);
   const refetchMessages = useCallback(() => fetchTripMessages(tripId).then(setMessages).catch(console.error), [tripId]);
   const refetchLiveStatus = useCallback(() => fetchLiveStatus(tripId).then(setLiveStatus).catch(console.error), [tripId]);
+  const refetchOptions = useCallback(() => fetchTripOptions(tripId).then(setOptions).catch(console.error), [tripId]);
 
   // Append a single message (for optimistic chat updates)
   const appendMessage = useCallback((msg) => {
@@ -252,6 +284,8 @@ export default function TripProvider({ tripId, children }) {
     messages,
     liveStatus,
     livePositions,
+    options,
+    permissions,
     broadcastPosition,
     appendMessage,
     myMembership,
@@ -265,6 +299,7 @@ export default function TripProvider({ tripId, children }) {
     refetchStops,
     refetchMessages,
     refetchLiveStatus,
+    refetchOptions,
     tripId,
   };
 

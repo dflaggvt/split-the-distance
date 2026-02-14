@@ -2,6 +2,7 @@
 
 /**
  * DateVoting — Date proposal + voting UI for Collaborative Group Trips.
+ * Supports both specific date proposals and date range proposals.
  * Uses react-day-picker for calendar and Supabase Realtime for live updates.
  */
 
@@ -19,27 +20,45 @@ const VOTE_COLORS = {
 };
 
 export default function DateVoting() {
-  const { trip, setTrip, dateOptions, members, myMembership, tripId, refetchDateOptions, refetchTrip } = useTripContext();
+  const { trip, setTrip, dateOptions, members, myMembership, tripId, permissions, refetchDateOptions, refetchTrip } = useTripContext();
   const [selectedDate, setSelectedDate] = useState(null);
+  const [dateRange, setDateRange] = useState({ from: null, to: null });
+  const [proposalMode, setProposalMode] = useState('specific'); // 'specific' | 'range'
   const [label, setLabel] = useState('');
   const [proposing, setProposing] = useState(false);
   const [confirming, setConfirming] = useState(null);
 
   const isCreator = myMembership?.role === 'creator';
 
-  // Dates that already have proposals
+  // Dates that already have proposals (for calendar highlighting)
   const proposedDates = dateOptions.map(o => parseISO(o.date_start));
 
-  // ---- Propose a date ----
+  // ---- Propose a date (single or range) ----
   const handlePropose = async () => {
-    if (!selectedDate || !myMembership) return;
+    if (!myMembership) return;
+
+    if (proposalMode === 'range') {
+      if (!dateRange.from || !dateRange.to) return;
+    } else {
+      if (!selectedDate) return;
+    }
+
     setProposing(true);
     try {
-      await proposeDate(tripId, myMembership.id, {
-        dateStart: format(selectedDate, 'yyyy-MM-dd'),
-        label: label.trim() || null,
-      });
-      setSelectedDate(null);
+      if (proposalMode === 'range') {
+        await proposeDate(tripId, myMembership.id, {
+          dateStart: format(dateRange.from, 'yyyy-MM-dd'),
+          dateEnd: format(dateRange.to, 'yyyy-MM-dd'),
+          label: label.trim() || null,
+        });
+        setDateRange({ from: null, to: null });
+      } else {
+        await proposeDate(tripId, myMembership.id, {
+          dateStart: format(selectedDate, 'yyyy-MM-dd'),
+          label: label.trim() || null,
+        });
+        setSelectedDate(null);
+      }
       setLabel('');
       refetchDateOptions();
     } catch (err) {
@@ -76,6 +95,7 @@ export default function DateVoting() {
       const updated = await confirmTripDate(tripId, dateStr);
       setTrip(updated);
       refetchDateOptions();
+      refetchTrip();
     } catch (err) {
       console.error('Failed to confirm date:', err);
     }
@@ -98,7 +118,17 @@ export default function DateVoting() {
     return myVote?.vote || null;
   };
 
-  // ---- Calendar modifiers for proposed dates ----
+  // ---- Format a date option for display (handles ranges) ----
+  const formatDateOption = (option) => {
+    if (!option?.date_start) return 'Unknown date';
+    const start = format(parseISO(option.date_start), 'EEE, MMM d, yyyy');
+    if (option.date_end && option.date_end !== option.date_start) {
+      return `${format(parseISO(option.date_start), 'MMM d')} — ${format(parseISO(option.date_end), 'MMM d, yyyy')}`;
+    }
+    return start;
+  };
+
+  // ---- Calendar modifiers ----
   const modifiers = {
     proposed: proposedDates,
     confirmed: trip?.confirmed_date ? [parseISO(trip.confirmed_date.split('T')[0])] : [],
@@ -108,6 +138,9 @@ export default function DateVoting() {
     proposed: 'rdp-day_proposed',
     confirmed: 'rdp-day_confirmed',
   };
+
+  const canPropose = permissions.canProposeDates;
+  const canVoteOnDates = permissions.canVote;
 
   return (
     <div>
@@ -128,39 +161,110 @@ export default function DateVoting() {
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Calendar for proposing dates */}
-        {!trip?.confirmed_date && (
+        {!trip?.confirmed_date && canPropose && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="font-semibold text-gray-900 mb-3">Propose a Date</h3>
-            <DayPicker
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              modifiers={modifiers}
-              modifiersClassNames={modifiersClassNames}
-              disabled={{ before: new Date() }}
-              className="mx-auto"
-            />
-            {selectedDate && (
-              <div className="mt-4 space-y-3">
-                <div className="text-sm text-gray-600">
-                  Selected: <strong>{format(selectedDate, 'EEEE, MMM d, yyyy')}</strong>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Label (optional, e.g. 'Memorial Day Weekend')"
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+
+            {/* Mode toggle */}
+            <div className="flex gap-2 mb-4">
+              <button
+                onClick={() => setProposalMode('specific')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition ${
+                  proposalMode === 'specific'
+                    ? 'bg-teal-50 border-teal-300 text-teal-700'
+                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                Specific Date
+              </button>
+              <button
+                onClick={() => setProposalMode('range')}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-medium border transition ${
+                  proposalMode === 'range'
+                    ? 'bg-teal-50 border-teal-300 text-teal-700'
+                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                Date Range
+              </button>
+            </div>
+
+            {proposalMode === 'specific' ? (
+              <>
+                <DayPicker
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  modifiers={modifiers}
+                  modifiersClassNames={modifiersClassNames}
+                  disabled={{ before: new Date() }}
+                  className="mx-auto"
                 />
-                <button
-                  onClick={handlePropose}
-                  disabled={proposing}
-                  className="w-full py-2 px-4 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition disabled:opacity-50"
-                >
-                  {proposing ? 'Proposing...' : 'Propose This Date'}
-                </button>
-              </div>
+                {selectedDate && (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-sm text-gray-600">
+                      Selected: <strong>{format(selectedDate, 'EEEE, MMM d, yyyy')}</strong>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Label (optional, e.g. 'Memorial Day Weekend')"
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    <button
+                      onClick={handlePropose}
+                      disabled={proposing}
+                      className="w-full py-2 px-4 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition disabled:opacity-50"
+                    >
+                      {proposing ? 'Proposing...' : 'Propose This Date'}
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <DayPicker
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => setDateRange(range || { from: null, to: null })}
+                  modifiers={modifiers}
+                  modifiersClassNames={modifiersClassNames}
+                  disabled={{ before: new Date() }}
+                  className="mx-auto"
+                />
+                {dateRange.from && dateRange.to && (
+                  <div className="mt-4 space-y-3">
+                    <div className="text-sm text-gray-600">
+                      Range: <strong>{format(dateRange.from, 'MMM d')} — {format(dateRange.to, 'MMM d, yyyy')}</strong>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Label (optional, e.g. 'Spring Break Window')"
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    <button
+                      onClick={handlePropose}
+                      disabled={proposing}
+                      className="w-full py-2 px-4 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition disabled:opacity-50"
+                    >
+                      {proposing ? 'Proposing...' : 'Propose This Range'}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
+          </div>
+        )}
+
+        {/* Upgrade prompt for free users */}
+        {!trip?.confirmed_date && !canPropose && myMembership && (
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-5 flex flex-col items-center justify-center text-center">
+            <div className="text-2xl mb-2">🔒</div>
+            <p className="text-sm text-gray-600 font-medium mb-1">Upgrade to propose dates</p>
+            <p className="text-xs text-gray-400">Premium members can propose dates and collaborate fully.</p>
           </div>
         )}
 
@@ -171,7 +275,8 @@ export default function DateVoting() {
               <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
                 <div className="text-3xl mb-2">📅</div>
                 <div className="text-gray-500 text-sm">
-                  No dates proposed yet. Use the calendar to suggest when to meet.
+                  No dates proposed yet.{' '}
+                  {canPropose ? 'Use the calendar to suggest when to meet.' : 'Waiting for proposals.'}
                 </div>
               </div>
             ) : (
@@ -179,6 +284,7 @@ export default function DateVoting() {
                 const summary = getVoteSummary(option);
                 const myVote = getMyVote(option);
                 const dateStr = option.date_start;
+                const isRange = option.date_end && option.date_end !== option.date_start;
                 const proposer = members.find(m => m.id === option.proposed_by);
 
                 return (
@@ -186,17 +292,21 @@ export default function DateVoting() {
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <div className="font-semibold text-gray-900">
-                          {format(parseISO(dateStr), 'EEEE, MMM d, yyyy')}
+                          {formatDateOption(option)}
                         </div>
+                        {isRange && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded font-medium">
+                            Range
+                          </span>
+                        )}
                         {option.label && (
-                          <div className="text-xs text-gray-500">{option.label}</div>
+                          <div className="text-xs text-gray-500 mt-0.5">{option.label}</div>
                         )}
                         <div className="text-xs text-gray-400 mt-0.5">
                           Proposed by {proposer?.display_name || 'Unknown'}
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {/* Vote summary badges */}
                         {Object.entries(summary).map(([vote, count]) => (
                           count > 0 && (
                             <span
@@ -211,7 +321,7 @@ export default function DateVoting() {
                     </div>
 
                     {/* Voting buttons */}
-                    {!trip?.confirmed_date && myMembership && (
+                    {!trip?.confirmed_date && myMembership && canVoteOnDates && (
                       <div className="flex items-center gap-2">
                         {['yes', 'maybe', 'no'].map((vote) => {
                           const isActive = myVote === vote;
@@ -242,7 +352,7 @@ export default function DateVoting() {
                           </button>
                         )}
 
-                        {/* Delete button (proposer or creator) */}
+                        {/* Delete button */}
                         {(isCreator || (myMembership && option.proposed_by === myMembership.id)) && (
                           <button
                             onClick={() => handleDelete(option.id)}
@@ -252,6 +362,11 @@ export default function DateVoting() {
                           </button>
                         )}
                       </div>
+                    )}
+
+                    {/* Voting disabled message for free users */}
+                    {!trip?.confirmed_date && myMembership && !canVoteOnDates && (
+                      <p className="text-xs text-gray-400 italic">Voting is currently closed.</p>
                     )}
 
                     {/* Per-member vote breakdown */}

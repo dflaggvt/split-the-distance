@@ -29,7 +29,7 @@ const CATEGORY_OPTIONS = Object.entries(CATEGORIES).map(([key, val]) => ({
 }));
 
 export default function TripItinerary() {
-  const { trip, stops, locations, members, myMembership, tripId, refetchStops } = useTripContext();
+  const { trip, stops, locations, members, myMembership, tripId, permissions, refetchStops } = useTripContext();
   const [searchValue, setSearchValue] = useState('');
   const [adding, setAdding] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
@@ -210,7 +210,8 @@ export default function TripItinerary() {
           </div>
         </div>
 
-        {/* Add stop via search */}
+        {/* Add stop via search (requires permission) */}
+        {permissions.canAddStops ? (
         <div className="relative">
           <LocationInput
             value={searchValue}
@@ -229,6 +230,11 @@ export default function TripItinerary() {
             </div>
           )}
         </div>
+        ) : (
+          <div className="p-3 bg-gray-50 rounded-lg text-xs text-gray-500 text-center">
+            Upgrade to Premium to add stops to the itinerary.
+          </div>
+        )}
 
         {/* POI Search toggle */}
         <button
@@ -284,9 +290,9 @@ export default function TripItinerary() {
                     </div>
                     <button
                       onClick={() => handleAddPoi(poi)}
-                      disabled={alreadyAdded}
+                      disabled={alreadyAdded || !permissions.canAddStops}
                       className={`shrink-0 ml-2 px-2.5 py-1 text-xs font-medium rounded-lg transition ${
-                        alreadyAdded
+                        alreadyAdded || !permissions.canAddStops
                           ? 'bg-gray-100 text-gray-400 cursor-default'
                           : 'bg-teal-600 text-white hover:bg-teal-700'
                       }`}

@@ -25,7 +25,7 @@ const VOTE_STYLES = {
 };
 
 export default function LocationVoting() {
-  const { trip, setTrip, locations, members, myMembership, tripId, refetchLocations, refetchTrip } = useTripContext();
+  const { trip, setTrip, locations, members, myMembership, tripId, permissions, refetchLocations, refetchTrip } = useTripContext();
   const [searchValue, setSearchValue] = useState('');
   const [proposing, setProposing] = useState(false);
   const [findingMidpoint, setFindingMidpoint] = useState(false);
@@ -36,12 +36,23 @@ export default function LocationVoting() {
   const isCreator = myMembership?.role === 'creator';
   const confirmedLocation = locations.find(l => l.is_confirmed);
   const joinedMembers = members.filter(m => m.status === 'joined');
-  const membersWithOrigins = useMemo(
-    () => joinedMembers.filter(m => m.origin_lat && m.origin_lng),
-    // Stable dependency: only recompute when the member list changes
+  const locationMode = trip?.location_mode || 'fairest_all';
+  const locationCriteria = trip?.location_criteria;
+
+  // Filter members based on location mode
+  const membersWithOrigins = useMemo(() => {
+    const allWithOrigins = joinedMembers.filter(m => m.origin_lat && m.origin_lng);
+    if (locationMode === 'fairest_selected' && locationCriteria?.member_ids?.length > 0) {
+      return allWithOrigins.filter(m => locationCriteria.member_ids.includes(m.id));
+    }
+    return allWithOrigins;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify(members.map(m => ({ id: m.id, lat: m.origin_lat, lng: m.origin_lng, s: m.status })))]
-  );
+  }, [JSON.stringify(members.map(m => ({ id: m.id, lat: m.origin_lat, lng: m.origin_lng, s: m.status }))), locationMode, locationCriteria]);
+
+  // Whether to show the midpoint button (not for specific mode)
+  const showMidpoint = locationMode !== 'specific';
+  const canPropose = permissions.canProposeLocations;
+  const canVoteOnLocations = permissions.canVote;
 
   // ---- Propose a location from search ----
   const handleLocationSelect = async (place) => {
@@ -152,13 +163,22 @@ export default function LocationVoting() {
 
   // ---- Find group midpoint ----
   const handleFindMidpoint = async () => {
-    if (membersWithOrigins.length < 2) {
-      setMidpointError('At least 2 members need to set their starting location first.');
-      return;
-    }
     if (!window.google?.maps) {
       setMidpointError('Google Maps is still loading. Please try again.');
       return;
+    }
+
+    // For custom endpoints mode, use the stored endpoints
+    if (locationMode === 'fairest_custom') {
+      if (!locationCriteria?.endpoints?.[0] || !locationCriteria?.endpoints?.[1]) {
+        setMidpointError('Both custom endpoints need to be set. Update your location criteria.');
+        return;
+      }
+    } else {
+      if (membersWithOrigins.length < 2) {
+        setMidpointError('At least 2 members need to set their starting location first.');
+        return;
+      }
     }
 
     setFindingMidpoint(true);
@@ -168,11 +188,20 @@ export default function LocationVoting() {
       // Dynamic import to avoid loading routing.js until needed
       const { getMultiLocationMidpoint } = await import('@/lib/routing');
 
-      const locs = membersWithOrigins.map(m => ({
-        lat: m.origin_lat,
-        lon: m.origin_lng,
-        name: m.origin_name || m.display_name,
-      }));
+      let locs;
+      if (locationMode === 'fairest_custom') {
+        locs = locationCriteria.endpoints.map((ep, i) => ({
+          lat: ep.lat,
+          lon: ep.lng,
+          name: ep.name || `Point ${i + 1}`,
+        }));
+      } else {
+        locs = membersWithOrigins.map(m => ({
+          lat: m.origin_lat,
+          lon: m.origin_lng,
+          name: m.origin_name || m.display_name,
+        }));
+      }
 
       const result = await getMultiLocationMidpoint(locs, { mode: 'time', travelMode: 'DRIVING' });
 
@@ -272,67 +301,86 @@ export default function LocationVoting() {
       {/* Propose location + find midpoint controls */}
       {!confirmedLocation && (
         <div className="space-y-3 mb-6">
-          {/* Search to propose */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <h3 className="font-semibold text-gray-900 mb-3">Suggest a Location</h3>
-            <div className="relative">
-              <LocationInput
-                value={searchValue}
-                onChange={setSearchValue}
-                onSelect={handleLocationSelect}
-                onClear={() => setSearchValue('')}
-                placeholder="Search for a place..."
-                variant="from"
-              />
-              {proposing && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <svg className="animate-spin h-4 w-4 text-teal-600" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Find midpoint button */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900 text-sm">Find Group Midpoint</h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Auto-calculate the optimal meeting point for all members.
-                  {membersWithOrigins.length < 2 && (
-                    <span className="text-amber-600 ml-1">
-                      ({membersWithOrigins.length}/{joinedMembers.length} members have set origins)
-                    </span>
-                  )}
-                </p>
-              </div>
-              <button
-                onClick={handleFindMidpoint}
-                disabled={findingMidpoint || membersWithOrigins.length < 2}
-                className="shrink-0 px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {findingMidpoint ? (
-                  <span className="flex items-center gap-1.5">
-                    <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+          {/* Search to propose (only for members with propose permission) */}
+          {canPropose && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">Suggest a Location</h3>
+              <div className="relative">
+                <LocationInput
+                  value={searchValue}
+                  onChange={setSearchValue}
+                  onSelect={handleLocationSelect}
+                  onClear={() => setSearchValue('')}
+                  placeholder="Search for a place..."
+                  variant="from"
+                />
+                {proposing && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <svg className="animate-spin h-4 w-4 text-teal-600" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    Calculating...
-                  </span>
-                ) : (
-                  '🎯 Find Midpoint'
+                  </div>
                 )}
-              </button>
-            </div>
-            {midpointError && (
-              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-                {midpointError}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Upgrade prompt for free users */}
+          {!canPropose && myMembership && (
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-5 text-center">
+              <div className="text-2xl mb-2">🔒</div>
+              <p className="text-sm text-gray-600 font-medium">Upgrade to propose locations</p>
+              <p className="text-xs text-gray-400 mt-1">Premium members can suggest locations and collaborate fully.</p>
+            </div>
+          )}
+
+          {/* Find midpoint button (hidden in specific mode) */}
+          {showMidpoint && canPropose && (
+            <div className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm">
+                    {locationMode === 'fairest_custom' ? 'Find Midpoint Between Points' : 'Find Group Midpoint'}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {locationMode === 'fairest_custom'
+                      ? 'Calculate the optimal meeting point between your two chosen locations.'
+                      : locationMode === 'fairest_selected'
+                        ? `Calculate the midpoint for ${membersWithOrigins.length} selected member${membersWithOrigins.length !== 1 ? 's' : ''}.`
+                        : 'Auto-calculate the optimal meeting point for all members.'}
+                    {locationMode !== 'fairest_custom' && membersWithOrigins.length < 2 && (
+                      <span className="text-amber-600 ml-1">
+                        ({membersWithOrigins.length}/{joinedMembers.length} members have set origins)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <button
+                  onClick={handleFindMidpoint}
+                  disabled={findingMidpoint || (locationMode !== 'fairest_custom' && membersWithOrigins.length < 2)}
+                  className="shrink-0 px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {findingMidpoint ? (
+                    <span className="flex items-center gap-1.5">
+                      <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Calculating...
+                    </span>
+                  ) : (
+                    '🎯 Find Midpoint'
+                  )}
+                </button>
+              </div>
+              {midpointError && (
+                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                  {midpointError}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -448,28 +496,34 @@ export default function LocationVoting() {
                   {!confirmedLocation && myMembership && (
                     <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
                       {/* Vote up */}
-                      <button
-                        onClick={() => handleVote(location.id, 'up')}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                          myVote === 'up'
-                            ? VOTE_STYLES.up.active
-                            : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-green-50 hover:border-green-200'
-                        }`}
-                      >
-                        👍 Like
-                      </button>
+                      {canVoteOnLocations ? (
+                        <>
+                          <button
+                            onClick={() => handleVote(location.id, 'up')}
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                              myVote === 'up'
+                                ? VOTE_STYLES.up.active
+                                : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-green-50 hover:border-green-200'
+                            }`}
+                          >
+                            👍 Like
+                          </button>
 
-                      {/* Vote down */}
-                      <button
-                        onClick={() => handleVote(location.id, 'down')}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
-                          myVote === 'down'
-                            ? VOTE_STYLES.down.active
-                            : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-red-50 hover:border-red-200'
-                        }`}
-                      >
-                        👎 Nah
-                      </button>
+                          {/* Vote down */}
+                          <button
+                            onClick={() => handleVote(location.id, 'down')}
+                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                              myVote === 'down'
+                                ? VOTE_STYLES.down.active
+                                : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-red-50 hover:border-red-200'
+                            }`}
+                          >
+                            👎 Nah
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">Voting is currently closed.</span>
+                      )}
 
                       <div className="flex-1" />
 

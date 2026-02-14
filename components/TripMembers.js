@@ -19,6 +19,7 @@ const ROLE_BADGE = {
 const STATUS_COLORS = {
   joined: 'text-green-600',
   invited: 'text-amber-600',
+  pending: 'text-gray-400',
   declined: 'text-red-500',
 };
 
