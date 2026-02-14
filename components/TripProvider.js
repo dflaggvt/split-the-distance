@@ -12,6 +12,7 @@ import {
   fetchTrip,
   fetchTripMembers,
   fetchDateOptions,
+  fetchTripLocations,
   getMyMembership,
 } from '@/lib/trips';
 
@@ -27,6 +28,7 @@ export default function TripProvider({ tripId, children }) {
   const [trip, setTrip] = useState(null);
   const [members, setMembers] = useState([]);
   const [dateOptions, setDateOptions] = useState([]);
+  const [locations, setLocations] = useState([]);
   const [myMembership, setMyMembership] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -38,15 +40,17 @@ export default function TripProvider({ tripId, children }) {
     setLoading(true);
     setError(null);
     try {
-      const [tripData, membersData, dateData, membership] = await Promise.all([
+      const [tripData, membersData, dateData, locationData, membership] = await Promise.all([
         fetchTrip(tripId),
         fetchTripMembers(tripId),
         fetchDateOptions(tripId),
+        fetchTripLocations(tripId),
         getMyMembership(tripId),
       ]);
       setTrip(tripData);
       setMembers(membersData);
       setDateOptions(dateData);
+      setLocations(locationData);
       setMyMembership(membership);
     } catch (err) {
       console.error('Failed to load trip:', err);
@@ -84,9 +88,30 @@ export default function TripProvider({ tripId, children }) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'trip_date_votes' },
-        (payload) => {
+        () => {
           // Refetch date options when votes change
           fetchDateOptions(tripId).then(setDateOptions).catch(console.error);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_locations', filter: `trip_id=eq.${tripId}` },
+        () => {
+          fetchTripLocations(tripId).then(setLocations).catch(console.error);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_location_votes' },
+        () => {
+          fetchTripLocations(tripId).then(setLocations).catch(console.error);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_location_distances' },
+        () => {
+          fetchTripLocations(tripId).then(setLocations).catch(console.error);
         }
       )
       .subscribe();
@@ -106,6 +131,7 @@ export default function TripProvider({ tripId, children }) {
     setTrip,
     members,
     dateOptions,
+    locations,
     myMembership,
     loading,
     error,

@@ -11,17 +11,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';
 import DateVoting from '@/components/DateVoting';
+import LocationVoting from '@/components/LocationVoting';
 import TripMembers from '@/components/TripMembers';
 import TripInvite from '@/components/TripInvite';
 import Link from 'next/link';
 
 const TABS = [
   { id: 'dates', label: 'Dates', icon: '📅' },
+  { id: 'locations', label: 'Locations', icon: '📍' },
   { id: 'members', label: 'Members', icon: '👥' },
 ];
 
 function TripDetail() {
-  const { trip, members, myMembership, loading, error } = useTripContext();
+  const { trip, members, locations, myMembership, loading, error } = useTripContext();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dates');
   const [showInvite, setShowInvite] = useState(false);
@@ -132,6 +134,9 @@ function TripDetail() {
                 {tab.id === 'members' && (
                   <span className="text-xs text-gray-400 ml-0.5">({joinedMembers.length})</span>
                 )}
+                {tab.id === 'locations' && locations.length > 0 && (
+                  <span className="text-xs text-gray-400 ml-0.5">({locations.length})</span>
+                )}
               </button>
             ))}
           </div>
@@ -141,6 +146,7 @@ function TripDetail() {
       {/* Tab Content */}
       <main className="max-w-3xl mx-auto px-5 py-6">
         {activeTab === 'dates' && <DateVoting />}
+        {activeTab === 'locations' && <LocationVoting />}
         {activeTab === 'members' && <TripMembers />}
       </main>
 
