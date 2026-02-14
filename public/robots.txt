@@ -5,3 +5,4 @@ Disallow: /d4shb0ard-7x9k
 
 # Sitemap
 Sitemap: https://www.splitthedistance.com/sitemap.xml
+# Next.js App Router generates sitemap.xml dynamically from app/sitemap.js

@@ -60,7 +60,7 @@ export default function AuthButton() {
         {avatarUrl ? (
           <img
             src={avatarUrl}
-            alt=""
+            alt={`${displayName}'s avatar`}
             className="w-7 h-7 rounded-full object-cover"
             referrerPolicy="no-referrer"
           />

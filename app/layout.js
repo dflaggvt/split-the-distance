@@ -24,19 +24,28 @@ export const metadata = {
   description:
     'Find the perfect meeting point between two locations based on actual drive time. Discover restaurants, cafes, parks, and more at the midpoint.',
   openGraph: {
-    title: 'Split The Distance',
+    title: 'Split The Distance — Find Your Halfway Point',
     description:
       'Find the perfect halfway point between two locations. Discover restaurants, cafes, and more at the midpoint.',
+    url: 'https://splitthedistance.com',
     type: 'website',
     siteName: 'Split The Distance',
-    images: [{ url: '/logo.png', width: 1024, height: 1024, alt: 'Split The Distance logo' }],
+    locale: 'en_US',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Split The Distance — Find the perfect meeting point between two locations',
+      },
+    ],
   },
   twitter: {
-    card: 'summary',
-    title: 'Split The Distance',
+    card: 'summary_large_image',
+    title: 'Split The Distance — Find Your Halfway Point',
     description:
       'Find the perfect halfway point between two locations based on drive time.',
-    images: ['/logo.png'],
+    images: ['/og-image.png'],
   },
   icons: {
     icon: '/logo.svg',
@@ -44,10 +53,47 @@ export const metadata = {
   },
 };
 
+// JSON-LD structured data for SEO
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebApplication',
+      name: 'Split The Distance',
+      url: 'https://splitthedistance.com',
+      description:
+        'Find the perfect meeting point between two locations based on actual drive time. Discover restaurants, cafes, parks, and more at the midpoint.',
+      applicationCategory: 'TravelApplication',
+      operatingSystem: 'Any',
+      browserRequirements: 'Requires a modern web browser',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+    },
+    {
+      '@type': 'Organization',
+      name: 'Split The Distance',
+      url: 'https://splitthedistance.com',
+      logo: 'https://splitthedistance.com/logo.png',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        email: 'support@splitthedistance.com',
+        contactType: 'customer support',
+      },
+    },
+  ],
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={inter.variable}>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         {/* Google Tag Manager - only on production */}
         <Script id="gtm-script" strategy="afterInteractive">
           {`(function(){

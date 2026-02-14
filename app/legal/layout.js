@@ -11,7 +11,7 @@ export default function LegalLayout({ children }) {
       <header className="border-b border-gray-200 bg-white sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-gray-900 font-semibold text-lg hover:opacity-80 transition">
-            <img src="/logo.png" alt="" width="24" height="24" />
+            <img src="/logo.png" alt="Split The Distance" width="24" height="24" />
             Split The Distance
           </Link>
           <nav className="flex items-center gap-6 text-sm">
