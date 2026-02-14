@@ -2,8 +2,7 @@
 
 /**
  * /trips/[tripId] — Trip detail page with tabs.
- * Phase 1 tabs: Dates, Members
- * Future phases will add: Locations, Itinerary, Chat, Live
+ * Tabs: Dates, Locations, Itinerary, Chat, Members
  */
 
 import { useState, useCallback } from 'react';
@@ -12,6 +11,8 @@ import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';
 import DateVoting from '@/components/DateVoting';
 import LocationVoting from '@/components/LocationVoting';
+import TripItinerary from '@/components/TripItinerary';
+import TripChat from '@/components/TripChat';
 import TripMembers from '@/components/TripMembers';
 import TripInvite from '@/components/TripInvite';
 import Link from 'next/link';
@@ -19,11 +20,13 @@ import Link from 'next/link';
 const TABS = [
   { id: 'dates', label: 'Dates', icon: '📅' },
   { id: 'locations', label: 'Locations', icon: '📍' },
+  { id: 'itinerary', label: 'Itinerary', icon: '📋' },
+  { id: 'chat', label: 'Chat', icon: '💬' },
   { id: 'members', label: 'Members', icon: '👥' },
 ];
 
 function TripDetail() {
-  const { trip, members, locations, myMembership, loading, error } = useTripContext();
+  const { trip, members, locations, stops, messages, myMembership, loading, error } = useTripContext();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dates');
   const [showInvite, setShowInvite] = useState(false);
@@ -137,6 +140,12 @@ function TripDetail() {
                 {tab.id === 'locations' && locations.length > 0 && (
                   <span className="text-xs text-gray-400 ml-0.5">({locations.length})</span>
                 )}
+                {tab.id === 'itinerary' && stops.length > 0 && (
+                  <span className="text-xs text-gray-400 ml-0.5">({stops.length})</span>
+                )}
+                {tab.id === 'chat' && messages.length > 0 && (
+                  <span className="text-xs text-gray-400 ml-0.5">({messages.length})</span>
+                )}
               </button>
             ))}
           </div>
@@ -147,6 +156,8 @@ function TripDetail() {
       <main className="max-w-3xl mx-auto px-5 py-6">
         {activeTab === 'dates' && <DateVoting />}
         {activeTab === 'locations' && <LocationVoting />}
+        {activeTab === 'itinerary' && <TripItinerary />}
+        {activeTab === 'chat' && <TripChat />}
         {activeTab === 'members' && <TripMembers />}
       </main>
 

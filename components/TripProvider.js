@@ -13,6 +13,8 @@ import {
   fetchTripMembers,
   fetchDateOptions,
   fetchTripLocations,
+  fetchTripStops,
+  fetchTripMessages,
   getMyMembership,
 } from '@/lib/trips';
 
@@ -29,6 +31,8 @@ export default function TripProvider({ tripId, children }) {
   const [members, setMembers] = useState([]);
   const [dateOptions, setDateOptions] = useState([]);
   const [locations, setLocations] = useState([]);
+  const [stops, setStops] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [myMembership, setMyMembership] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,17 +44,21 @@ export default function TripProvider({ tripId, children }) {
     setLoading(true);
     setError(null);
     try {
-      const [tripData, membersData, dateData, locationData, membership] = await Promise.all([
+      const [tripData, membersData, dateData, locationData, stopsData, messagesData, membership] = await Promise.all([
         fetchTrip(tripId),
         fetchTripMembers(tripId),
         fetchDateOptions(tripId),
         fetchTripLocations(tripId),
+        fetchTripStops(tripId),
+        fetchTripMessages(tripId),
         getMyMembership(tripId),
       ]);
       setTrip(tripData);
       setMembers(membersData);
       setDateOptions(dateData);
       setLocations(locationData);
+      setStops(stopsData);
+      setMessages(messagesData);
       setMyMembership(membership);
     } catch (err) {
       console.error('Failed to load trip:', err);
@@ -114,6 +122,23 @@ export default function TripProvider({ tripId, children }) {
           fetchTripLocations(tripId).then(setLocations).catch(console.error);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_stops', filter: `trip_id=eq.${tripId}` },
+        () => {
+          fetchTripStops(tripId).then(setStops).catch(console.error);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'trip_messages', filter: `trip_id=eq.${tripId}` },
+        (payload) => {
+          // Append new messages in real-time (no full refetch needed)
+          if (payload.new) {
+            setMessages(prev => [...prev, payload.new]);
+          }
+        }
+      )
       .subscribe();
 
     channelRef.current = channel;
@@ -132,6 +157,8 @@ export default function TripProvider({ tripId, children }) {
     members,
     dateOptions,
     locations,
+    stops,
+    messages,
     myMembership,
     loading,
     error,
