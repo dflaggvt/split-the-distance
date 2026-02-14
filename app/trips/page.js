@@ -19,7 +19,7 @@ const STATUS_BADGE = {
 };
 
 export default function TripsPage() {
-  const { user, isLoggedIn, loading: authLoading } = useAuth();
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 

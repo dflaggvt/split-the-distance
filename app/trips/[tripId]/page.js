@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';
 import DateVoting from '@/components/DateVoting';
@@ -18,20 +18,26 @@ import TripMembers from '@/components/TripMembers';
 import TripInvite from '@/components/TripInvite';
 import Link from 'next/link';
 
-function TripDetail() {
-  const { trip, members, locations, stops, messages, liveStatus, myMembership, loading, error } = useTripContext();
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('dates');
+const TABS = [
+  { id: 'dates', label: 'Dates', icon: '📅' },
+  { id: 'locations', label: 'Locations', icon: '📍' },
+  { id: 'itinerary', label: 'Itinerary', icon: '📋' },
+  { id: 'chat', label: 'Chat', icon: '💬' },
+  { id: 'live', label: 'Live', icon: '🚗' },
+  { id: 'members', label: 'Members', icon: '👥' },
+];
 
-  // Dynamic tabs based on trip status
-  const tabs = [
-    { id: 'dates', label: 'Dates', icon: '📅' },
-    { id: 'locations', label: 'Locations', icon: '📍' },
-    { id: 'itinerary', label: 'Itinerary', icon: '📋' },
-    { id: 'chat', label: 'Chat', icon: '💬' },
-    { id: 'live', label: 'Live', icon: '🚗' },
-    { id: 'members', label: 'Members', icon: '👥' },
-  ];
+const STATUS_BADGE = {
+  planning: { label: 'Planning', className: 'bg-blue-100 text-blue-700' },
+  confirmed: { label: 'Confirmed', className: 'bg-green-100 text-green-700' },
+  active: { label: 'Active', className: 'bg-amber-100 text-amber-700' },
+  completed: { label: 'Completed', className: 'bg-gray-100 text-gray-600' },
+  canceled: { label: 'Canceled', className: 'bg-red-100 text-red-600' },
+};
+
+function TripDetail() {
+  const { trip, members, locations, stops, messages, loading, error } = useTripContext();
+  const [activeTab, setActiveTab] = useState('dates');
   const [showInvite, setShowInvite] = useState(false);
 
   if (loading) {
@@ -72,17 +78,7 @@ function TripDetail() {
     );
   }
 
-  const isCreator = trip.creator_id === user?.id;
   const joinedMembers = members.filter(m => m.status === 'joined');
-
-  const STATUS_BADGE = {
-    planning: { label: 'Planning', className: 'bg-blue-100 text-blue-700' },
-    confirmed: { label: 'Confirmed', className: 'bg-green-100 text-green-700' },
-    active: { label: 'Active', className: 'bg-amber-100 text-amber-700' },
-    completed: { label: 'Completed', className: 'bg-gray-100 text-gray-600' },
-    canceled: { label: 'Canceled', className: 'bg-red-100 text-red-600' },
-  };
-
   const badge = STATUS_BADGE[trip.status] || STATUS_BADGE.planning;
 
   return (
@@ -125,7 +121,7 @@ function TripDetail() {
 
           {/* Tabs */}
           <div className="flex gap-1 -mb-px overflow-x-auto">
-            {tabs.map((tab) => {
+            {TABS.map((tab) => {
               // Show Live tab with a pulse dot when trip is active
               const isLiveActive = tab.id === 'live' && trip?.status === 'active';
               return (
@@ -189,7 +185,25 @@ function TripDetail() {
 
 export default function TripDetailPage() {
   const { tripId } = useParams();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white border-b border-gray-200">
+          <div className="max-w-3xl mx-auto px-5 py-4">
+            <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
+          </div>
+        </header>
+        <main className="max-w-3xl mx-auto px-5 py-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-8 animate-pulse">
+            <div className="h-4 w-64 bg-gray-200 rounded mb-3" />
+            <div className="h-4 w-40 bg-gray-100 rounded" />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (

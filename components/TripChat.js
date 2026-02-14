@@ -11,22 +11,29 @@
  * - Real-time via Supabase Postgres Changes (handled by TripProvider)
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useTripContext } from './TripProvider';
-import { useAuth } from './AuthProvider';
 import { sendTripMessage } from '@/lib/trips';
 
 export default function TripChat() {
   const { messages, members, myMembership, tripId } = useTripContext();
-  const { user } = useAuth();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom only if user is near the bottom (not scrolled up reading history)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = scrollContainerRef.current;
+    if (!container) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    if (isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   // Focus input on mount
@@ -76,23 +83,25 @@ export default function TripChat() {
     return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
   };
 
-  // Group messages by date for date separators
-  const groupedMessages = [];
-  let lastDate = null;
-
-  messages.forEach((msg) => {
-    const msgDate = new Date(msg.created_at).toDateString();
-    if (msgDate !== lastDate) {
-      groupedMessages.push({ type: 'date-separator', date: msgDate, id: `sep-${msgDate}` });
-      lastDate = msgDate;
-    }
-    groupedMessages.push(msg);
-  });
+  // Group messages by date for date separators (memoized)
+  const groupedMessages = useMemo(() => {
+    const grouped = [];
+    let lastDate = null;
+    messages.forEach((msg) => {
+      const msgDate = new Date(msg.created_at).toDateString();
+      if (msgDate !== lastDate) {
+        grouped.push({ type: 'date-separator', date: msgDate, id: `sep-${msgDate}` });
+        lastDate = msgDate;
+      }
+      grouped.push(msg);
+    });
+    return grouped;
+  }, [messages]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-220px)] min-h-[400px]">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-1 py-2 space-y-1">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-1 py-2 space-y-1">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { DayPicker } from 'react-day-picker';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import 'react-day-picker/style.css';
 import { useTripContext } from './TripProvider';
 import { proposeDate, voteDateOption, deleteDateOption, confirmTripDate } from '@/lib/trips';

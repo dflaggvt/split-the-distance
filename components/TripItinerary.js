@@ -29,7 +29,7 @@ const CATEGORY_OPTIONS = Object.entries(CATEGORIES).map(([key, val]) => ({
 }));
 
 export default function TripItinerary() {
-  const { trip, stops, members, myMembership, tripId } = useTripContext();
+  const { trip, stops, locations, members, myMembership, tripId } = useTripContext();
   const [searchValue, setSearchValue] = useState('');
   const [adding, setAdding] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
@@ -41,8 +41,9 @@ export default function TripItinerary() {
   const [editNotes, setEditNotes] = useState('');
 
   const isCreator = myMembership?.role === 'creator';
-  const confirmedLocation = trip?.confirmed_location_id
-    ? { lat: trip.midpoint_lat, lng: trip.midpoint_lng }
+  const confirmedLoc = locations?.find(l => l.id === trip?.confirmed_location_id);
+  const confirmedLocation = confirmedLoc
+    ? { lat: confirmedLoc.lat, lng: confirmedLoc.lng }
     : null;
 
   // Group stops by day

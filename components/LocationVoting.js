@@ -9,7 +9,6 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTripContext } from './TripProvider';
-import { useAuth } from './AuthProvider';
 import LocationInput from './LocationInput';
 import {
   proposeLocation,
@@ -27,7 +26,6 @@ const VOTE_STYLES = {
 
 export default function LocationVoting() {
   const { trip, setTrip, locations, members, myMembership, tripId } = useTripContext();
-  const { user } = useAuth();
   const [searchValue, setSearchValue] = useState('');
   const [proposing, setProposing] = useState(false);
   const [findingMidpoint, setFindingMidpoint] = useState(false);
@@ -133,16 +131,21 @@ export default function LocationVoting() {
     setCalculatingDistances(null);
   }, [membersWithOrigins]);
 
-  // ---- Auto-calculate distances for new locations ----
+  // ---- Auto-calculate distances for new locations (sequential, not concurrent) ----
   useEffect(() => {
     if (!window.google?.maps || membersWithOrigins.length === 0) return;
 
-    locations.forEach(loc => {
+    // Find the first location that needs distances and isn't already calculating
+    const needsCalc = locations.find(loc => {
       const hasDistances = loc.trip_location_distances?.length >= membersWithOrigins.length;
-      if (!hasDistances && calculatingDistances !== loc.id) {
-        calculateDistances(loc);
-      }
+      return !hasDistances && calculatingDistances !== loc.id;
     });
+
+    // Only calculate one at a time — the next one will fire when this effect re-runs
+    // after calculatingDistances returns to null
+    if (needsCalc && !calculatingDistances) {
+      calculateDistances(needsCalc);
+    }
   }, [locations, membersWithOrigins, calculateDistances, calculatingDistances]);
 
   // ---- Find group midpoint ----

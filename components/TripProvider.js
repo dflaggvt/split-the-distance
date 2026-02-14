@@ -85,6 +85,14 @@ export default function TripProvider({ tripId, children }) {
       .channel(`trip:${tripId}`)
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'trips', filter: `id=eq.${tripId}` },
+        () => {
+          // Refetch trip when status, confirmed_date, confirmed_location, etc. change
+          fetchTrip(tripId).then(setTrip).catch(console.error);
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'trip_members', filter: `trip_id=eq.${tripId}` },
         () => {
           // Refetch members on any change
