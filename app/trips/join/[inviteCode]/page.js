@@ -10,6 +10,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { useFeatures } from '@/components/FeatureProvider';
 import { fetchTripByInviteCode, joinTrip } from '@/lib/trips';
+import SignInModal from '@/components/SignInModal';
 import Link from 'next/link';
 
 export default function JoinTripPage() {
@@ -36,17 +37,20 @@ export default function JoinTripPage() {
       .finally(() => setLoading(false));
   }, [inviteCode]);
 
-  // Auto-join if user is already logged in and hasn't joined yet
+  // Auto-join once the user is logged in (handles both already-member and fresh sign-in)
   useEffect(() => {
     if (!isLoggedIn || !trip || joined || joining) return;
-    // Check if already a member
+    // Already a member? Just redirect.
     const existing = trip.trip_members?.find(m => m.user_id === user?.id);
     if (existing) {
       setJoined(true);
-      // Redirect to trip page
       setTimeout(() => router.push(`/trips/${trip.id}`), 1500);
+      return;
     }
-  }, [isLoggedIn, trip, user, joined, joining, router]);
+    // Just signed in — auto-join the trip
+    handleJoin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, trip, user, joined, joining]);
 
   const handleJoin = async () => {
     if (!isLoggedIn) {
@@ -116,6 +120,7 @@ export default function JoinTripPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <SignInModal />
       <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-md w-full text-center">
         {/* Trip info */}
         <div className="text-4xl mb-4">🗺️</div>
