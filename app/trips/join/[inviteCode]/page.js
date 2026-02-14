@@ -2,10 +2,19 @@
 
 /**
  * /trips/join/[inviteCode] — Join a trip via invite link.
- * Shows trip preview, login prompt, and join button.
+ *
+ * Flow:
+ *   1. Anonymous user clicks invite link → sees trip preview + "Sign In to Join"
+ *   2. User signs in (email or Google OAuth) → auto-joins and lands on the trip page
+ *   3. Already-logged-in user → sees trip preview + "Join This Trip" button
+ *   4. Already a member → redirected straight to the trip page
+ *
+ * For Google OAuth (which requires a full-page redirect), the join intent is
+ * persisted in sessionStorage so we can skip the preview on return and show
+ * a minimal "Joining…" spinner instead.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { useFeatures } from '@/components/FeatureProvider';
@@ -13,18 +22,42 @@ import { fetchTripByInviteCode, joinTrip } from '@/lib/trips';
 import SignInModal from '@/components/SignInModal';
 import Link from 'next/link';
 
+const PENDING_JOIN_KEY = 'std_pending_join';
+
 export default function JoinTripPage() {
   const { inviteCode } = useParams();
   const router = useRouter();
-  const { user, profile, isLoggedIn } = useAuth();
+  const { user, profile, isLoggedIn, loading: authLoading } = useAuth();
   const { openSignIn } = useFeatures();
+
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState(null);
   const [joined, setJoined] = useState(false);
 
-  // Load trip preview
+  // True when returning from an OAuth redirect with a stored join intent
+  const [pendingJoin, setPendingJoin] = useState(false);
+  // Tracks in-session intent (user clicked "Sign In to Join" then signed in via modal)
+  const joinIntended = useRef(false);
+
+  // ── On mount: check sessionStorage for a pending join from OAuth redirect ──
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(PENDING_JOIN_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.inviteCode === inviteCode) {
+          setPendingJoin(true);
+        } else {
+          // Stale intent for a different trip — clear it
+          sessionStorage.removeItem(PENDING_JOIN_KEY);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [inviteCode]);
+
+  // ── Load trip preview ──
   useEffect(() => {
     if (!inviteCode) return;
     setLoading(true);
@@ -37,53 +70,89 @@ export default function JoinTripPage() {
       .finally(() => setLoading(false));
   }, [inviteCode]);
 
-  // Auto-join once the user is logged in (handles both already-member and fresh sign-in)
-  useEffect(() => {
-    if (!isLoggedIn || !trip || joined || joining) return;
-    // Already a member? Just redirect.
-    const existing = trip.trip_members?.find(m => m.user_id === user?.id);
-    if (existing) {
-      setJoined(true);
-      setTimeout(() => router.push(`/trips/${trip.id}`), 1500);
-      return;
-    }
-    // Just signed in — auto-join the trip
-    handleJoin();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, trip, user, joined, joining]);
+  // ── Helpers ──
+  const clearPendingJoin = useCallback(() => {
+    try { sessionStorage.removeItem(PENDING_JOIN_KEY); } catch { /* ignore */ }
+    setPendingJoin(false);
+    joinIntended.current = false;
+  }, []);
 
-  const handleJoin = async () => {
-    if (!isLoggedIn) {
-      openSignIn();
-      return;
-    }
-
+  const performJoin = useCallback(async () => {
+    if (!trip || !user) return;
     setJoining(true);
     setError(null);
     try {
-      const result = await joinTrip(trip.id, {
+      await joinTrip(trip.id, {
         userId: user.id,
         displayName: profile?.display_name || user?.email?.split('@')[0] || 'Member',
         email: user?.email,
       });
-
-      if (result === null) {
-        // Already a member
-        setJoined(true);
-      } else {
-        setJoined(true);
-      }
-
-      // Navigate to trip
-      setTimeout(() => router.push(`/trips/${trip.id}`), 1000);
+      setJoined(true);
+      clearPendingJoin();
+      // Navigate immediately — no artificial delay
+      router.push(`/trips/${trip.id}`);
     } catch (err) {
       console.error('Failed to join trip:', err);
       setError(err.message || 'Failed to join. Please try again.');
       setJoining(false);
+      clearPendingJoin();
     }
+  }, [trip, user, profile, router, clearPendingJoin]);
+
+  // ── Auto-join when conditions are met ──
+  useEffect(() => {
+    if (authLoading || loading || !trip || !isLoggedIn || joined || joining) return;
+
+    // Already a member → redirect straight to the trip
+    const existing = trip.trip_members?.find(m => m.user_id === user?.id);
+    if (existing) {
+      setJoined(true);
+      clearPendingJoin();
+      router.push(`/trips/${trip.id}`);
+      return;
+    }
+
+    // User expressed join intent (clicked button then signed in, or returning from OAuth)
+    if (pendingJoin || joinIntended.current) {
+      performJoin();
+    }
+  }, [authLoading, loading, isLoggedIn, trip, user, joined, joining, pendingJoin, performJoin, clearPendingJoin, router]);
+
+  // ── Button handler ──
+  const handleJoin = () => {
+    if (!isLoggedIn) {
+      // Store intent so we can auto-join after OAuth redirect
+      joinIntended.current = true;
+      try {
+        sessionStorage.setItem(PENDING_JOIN_KEY, JSON.stringify({ inviteCode }));
+      } catch { /* ignore */ }
+      openSignIn();
+      return;
+    }
+    performJoin();
   };
 
-  if (loading) {
+  // ─────────────────────────── Render ───────────────────────────
+
+  // Returning from OAuth → minimal spinner (no re-showing the full preview)
+  if (pendingJoin && (authLoading || loading || joining) && !error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <SignInModal />
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-xs w-full">
+          <svg className="animate-spin h-8 w-8 text-teal-600 mx-auto mb-4" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Joining trip...</h2>
+          <p className="text-sm text-gray-500">Just a moment</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Initial load
+  if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center animate-pulse">
@@ -95,6 +164,7 @@ export default function JoinTripPage() {
     );
   }
 
+  // Trip not found
   if (!trip) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -143,21 +213,14 @@ export default function JoinTripPage() {
           </span>
         </div>
 
-        {/* Status messages */}
-        {joined ? (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-xl mb-4">
-            <div className="text-green-600 font-semibold flex items-center justify-center gap-2">
-              <span>✓</span>
-              <span>You&apos;re in! Redirecting to the trip...</span>
-            </div>
-          </div>
-        ) : error ? (
+        {/* Error */}
+        {error && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 mb-4">
             {error}
           </div>
-        ) : null}
+        )}
 
-        {/* Join button */}
+        {/* Join / Joining button */}
         {!joined && (
           <button
             onClick={handleJoin}
