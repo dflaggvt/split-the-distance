@@ -1,11 +1,12 @@
 'use client';
 
 /**
- * /trips/[tripId] — Trip detail page with tabs.
+ * /trips/[tripId] — Trip detail page with guided workflow.
+ * Progress: Pick Dates → Choose Location → Build Itinerary
  * Tabs: Dates, Locations, Itinerary, Chat, Live, Members
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';
@@ -35,9 +36,106 @@ const STATUS_BADGE = {
   canceled: { label: 'Canceled', className: 'bg-red-100 text-red-600' },
 };
 
+// ---- Determine the smart default tab based on trip progress ----
+function getDefaultTab(trip, dateOptions, locations, stops) {
+  if (!trip) return 'dates';
+  if (trip.status === 'active') return 'live';
+  if (trip.status === 'completed') return 'itinerary';
+  if (trip.confirmed_location_id) return 'itinerary';
+  if (trip.confirmed_date) return 'locations';
+  return 'dates';
+}
+
+// ---- Progress stepper component ----
+function TripProgress({ trip, dateOptions, onNavigate }) {
+  const steps = [
+    {
+      id: 'dates',
+      label: 'Pick Dates',
+      description: 'Propose & vote on dates',
+      done: !!trip?.confirmed_date,
+      active: !trip?.confirmed_date,
+    },
+    {
+      id: 'locations',
+      label: 'Choose Location',
+      description: 'Vote on a meeting point',
+      done: !!trip?.confirmed_location_id,
+      active: !!trip?.confirmed_date && !trip?.confirmed_location_id,
+    },
+    {
+      id: 'itinerary',
+      label: 'Build Itinerary',
+      description: 'Add stops & activities',
+      done: trip?.status === 'active' || trip?.status === 'completed',
+      active: !!trip?.confirmed_location_id && trip?.status !== 'active' && trip?.status !== 'completed',
+    },
+  ];
+
+  // Don't show stepper once trip is active/completed
+  if (trip?.status === 'active' || trip?.status === 'completed') return null;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+      <div className="flex items-center justify-between">
+        {steps.map((step, idx) => (
+          <div key={step.id} className="flex items-center flex-1">
+            <button
+              onClick={() => onNavigate(step.id)}
+              className="flex items-center gap-2 group"
+            >
+              {/* Step circle */}
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition ${
+                step.done
+                  ? 'bg-green-500 text-white'
+                  : step.active
+                    ? 'bg-teal-600 text-white ring-2 ring-teal-200'
+                    : 'bg-gray-200 text-gray-400'
+              }`}>
+                {step.done ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                ) : (
+                  idx + 1
+                )}
+              </div>
+              {/* Step text */}
+              <div className="text-left">
+                <div className={`text-xs font-semibold leading-tight ${
+                  step.done ? 'text-green-700' : step.active ? 'text-teal-700' : 'text-gray-400'
+                }`}>
+                  {step.label}
+                </div>
+                <div className="text-[10px] text-gray-400 leading-tight hidden sm:block">
+                  {step.description}
+                </div>
+              </div>
+            </button>
+            {/* Connector line */}
+            {idx < steps.length - 1 && (
+              <div className={`flex-1 h-px mx-3 ${step.done ? 'bg-green-300' : 'bg-gray-200'}`} />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TripDetail() {
-  const { trip, members, locations, stops, messages, loading, error } = useTripContext();
-  const [activeTab, setActiveTab] = useState('dates');
+  const { trip, members, dateOptions, locations, stops, messages, loading, error } = useTripContext();
+
+  // Smart default tab based on trip progress
+  const defaultTab = useMemo(
+    () => getDefaultTab(trip, dateOptions, locations, stops),
+    // Only compute once when trip loads (not on every state change)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [trip?.confirmed_date, trip?.confirmed_location_id, trip?.status]
+  );
+  const [activeTab, setActiveTab] = useState(null);
+  const currentTab = activeTab || defaultTab;
+
   const [showInvite, setShowInvite] = useState(false);
 
   if (loading) {
@@ -81,6 +179,16 @@ function TripDetail() {
   const joinedMembers = members.filter(m => m.status === 'joined');
   const badge = STATUS_BADGE[trip.status] || STATUS_BADGE.planning;
 
+  // Tab completion states for visual indicators
+  const tabState = {
+    dates: trip?.confirmed_date ? 'done' : 'active',
+    locations: trip?.confirmed_location_id ? 'done' : trip?.confirmed_date ? 'active' : 'locked',
+    itinerary: stops.length > 0 ? 'active' : trip?.confirmed_location_id ? 'active' : 'locked',
+    chat: 'active',
+    live: trip?.status === 'active' ? 'active' : 'locked',
+    members: 'active',
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -122,19 +230,29 @@ function TripDetail() {
           {/* Tabs */}
           <div className="flex gap-1 -mb-px overflow-x-auto">
             {TABS.map((tab) => {
-              // Show Live tab with a pulse dot when trip is active
               const isLiveActive = tab.id === 'live' && trip?.status === 'active';
+              const state = tabState[tab.id];
+              const isDone = state === 'done';
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors whitespace-nowrap shrink-0 ${
-                    activeTab === tab.id
+                    currentTab === tab.id
                       ? 'border-teal-500 text-teal-700 bg-teal-50/50'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  <span>{tab.icon}</span>
+                  {/* Show checkmark for completed workflow steps */}
+                  {isDone && (tab.id === 'dates' || tab.id === 'locations') ? (
+                    <span className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </span>
+                  ) : (
+                    <span>{tab.icon}</span>
+                  )}
                   {tab.label}
                   {isLiveActive && (
                     <span className="relative flex h-2 w-2">
@@ -163,12 +281,15 @@ function TripDetail() {
 
       {/* Tab Content */}
       <main className="max-w-3xl mx-auto px-5 py-6">
-        {activeTab === 'dates' && <DateVoting />}
-        {activeTab === 'locations' && <LocationVoting />}
-        {activeTab === 'itinerary' && <TripItinerary />}
-        {activeTab === 'chat' && <TripChat />}
-        {activeTab === 'live' && <TripLive />}
-        {activeTab === 'members' && <TripMembers />}
+        {/* Progress stepper (only during planning) */}
+        <TripProgress trip={trip} dateOptions={dateOptions} onNavigate={setActiveTab} />
+
+        {currentTab === 'dates' && <DateVoting />}
+        {currentTab === 'locations' && <LocationVoting />}
+        {currentTab === 'itinerary' && <TripItinerary />}
+        {currentTab === 'chat' && <TripChat />}
+        {currentTab === 'live' && <TripLive />}
+        {currentTab === 'members' && <TripMembers />}
       </main>
 
       {/* Invite modal */}

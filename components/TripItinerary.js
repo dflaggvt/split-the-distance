@@ -159,6 +159,22 @@ export default function TripItinerary() {
     );
   };
 
+  // If no confirmed location, show a guidance message instead of the builder
+  if (!confirmedLocation) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+        <div className="text-3xl mb-3">📍</div>
+        <h3 className="text-base font-semibold text-gray-900 mb-1">Confirm a meeting location first</h3>
+        <p className="text-sm text-gray-500 mb-4 max-w-sm mx-auto">
+          Once your group votes and confirms a meeting point, you can start adding stops and activities to your itinerary.
+        </p>
+        <div className="text-xs text-gray-400">
+          Head to the <strong className="text-teal-600">Locations</strong> tab to propose and vote on where to meet.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Day selector + Add stop */}
@@ -294,10 +310,11 @@ export default function TripItinerary() {
             </div>
 
             {dayStops.length === 0 ? (
-              <div className="bg-white rounded-xl border border-dashed border-gray-300 p-6 text-center">
-                <div className="text-2xl mb-1">📋</div>
-                <p className="text-xs text-gray-400">No stops yet for Day {day}. Search or find nearby places above.</p>
-              </div>
+              stops.length > 0 ? (
+                <div className="bg-white rounded-xl border border-dashed border-gray-300 p-4 text-center">
+                  <p className="text-xs text-gray-400">No stops for Day {day} yet. Search or find nearby places above.</p>
+                </div>
+              ) : null /* Global empty state shown below */
             ) : (
               <div className="space-y-2">
                 {dayStops.map((stop, idx) => {
@@ -413,12 +430,10 @@ export default function TripItinerary() {
       })}
 
       {stops.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <div className="text-3xl mb-2">📋</div>
-          <div className="text-gray-500 text-sm mb-1">No stops in the itinerary yet.</div>
-          <div className="text-gray-400 text-xs">
-            Search for places or browse nearby POIs to build your trip itinerary.
-          </div>
+        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-6 text-center">
+          <div className="text-2xl mb-1">📋</div>
+          <p className="text-sm text-gray-500 mb-1">No stops yet. Search for a place above or browse nearby POIs.</p>
+          <p className="text-xs text-gray-400">Tip: Use &quot;Find nearby places&quot; to discover restaurants, cafes, and attractions near your meeting point.</p>
         </div>
       )}
     </div>

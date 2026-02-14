@@ -19,6 +19,7 @@ export default function TripChat() {
   const { messages, members, myMembership, tripId } = useTripContext();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState(null);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const inputRef = useRef(null);
@@ -47,12 +48,16 @@ export default function TripChat() {
     if (!text || !myMembership || sending) return;
 
     setSending(true);
+    setSendError(null);
     setInput('');
     try {
       await sendTripMessage(tripId, myMembership.id, text);
     } catch (err) {
       console.error('Failed to send message:', err);
       setInput(text); // Restore on failure
+      setSendError('Message failed to send. Please try again.');
+      // Auto-dismiss error after 5 seconds
+      setTimeout(() => setSendError(null), 5000);
     }
     setSending(false);
     inputRef.current?.focus();
@@ -170,8 +175,20 @@ export default function TripChat() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Error feedback */}
+      {sendError && (
+        <div className="shrink-0 px-3 py-2 bg-red-50 border-t border-red-200">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-red-600 font-medium">{sendError}</span>
+            <button onClick={() => setSendError(null)} className="text-red-400 hover:text-red-600 text-xs ml-2">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Input area */}
-      {myMembership && (
+      {myMembership ? (
         <div className="shrink-0 border-t border-gray-200 bg-white p-3">
           <form onSubmit={handleSend} className="flex items-center gap-2">
             <input
@@ -201,6 +218,10 @@ export default function TripChat() {
               )}
             </button>
           </form>
+        </div>
+      ) : (
+        <div className="shrink-0 border-t border-gray-200 bg-gray-50 p-3 text-center">
+          <span className="text-xs text-gray-400">Join this trip to send messages.</span>
         </div>
       )}
     </div>

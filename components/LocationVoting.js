@@ -239,6 +239,16 @@ export default function LocationVoting() {
 
   return (
     <div>
+      {/* Hint: confirm dates first */}
+      {!trip?.confirmed_date && !confirmedLocation && locations.length === 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2">
+          <span className="text-blue-500 text-sm mt-0.5">💡</span>
+          <div className="text-xs text-blue-700">
+            <strong>Tip:</strong> You can start proposing locations anytime, but consider confirming a date first so everyone knows when the trip is happening.
+          </div>
+        </div>
+      )}
+
       {/* Confirmed location banner */}
       {confirmedLocation && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl">
