@@ -43,6 +43,7 @@ export default function AdminDashboard() {
   const [geoStats, setGeoStats] = useState([]);
   const [returnVisitors, setReturnVisitors] = useState([]);
   const [categoryStats, setCategoryStats] = useState([]);
+  const [userGrowthData, setUserGrowthData] = useState([]);
   const [cacheStats, setCacheStats] = useState({ uniqueRoutes: 0, repeatSearches: 0, repeatRate: 0 });
   const [repeatRoutes, setRepeatRoutes] = useState([]);
   // Attribution tab state
@@ -309,6 +310,28 @@ export default function AdminDashboard() {
         .limit(10);
       setRecentSearches(recentData || []);
 
+      // ==================== USER GROWTH ====================
+      const { data: allProfiles } = await supabase
+        .from('user_profiles')
+        .select('created_at')
+        .order('created_at', { ascending: true });
+
+      if (allProfiles) {
+        const byDay = {};
+        allProfiles.forEach(p => {
+          const day = new Date(p.created_at).toISOString().split('T')[0];
+          byDay[day] = (byDay[day] || 0) + 1;
+        });
+        let cumulative = 0;
+        const growth = Object.entries(byDay)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([date, count]) => {
+            cumulative += count;
+            return { date: date.substring(5), newUsers: count, totalUsers: cumulative };
+          });
+        setUserGrowthData(growth);
+      }
+
       // ==================== SHARES DATA ====================
       // Share funnel
       const { count: totalShares } = await supabase
@@ -425,7 +448,8 @@ export default function AdminDashboard() {
   // ==================== TAB: OVERVIEW ====================
   const OverviewTab = () => (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        <StatCard icon="👤" label="Total Users" value={userGrowthData.length > 0 ? userGrowthData[userGrowthData.length - 1].totalUsers : 0} tooltip="Registered users (all time)." />
         <StatCard icon="👥" label="Sessions" value={stats?.sessions} prevValue={prevStats?.sessions} tooltip="Unique visits to the site." />
         <StatCard icon="🔍" label="Searches" value={stats?.externalSearches} prevValue={prevStats?.externalSearches} tooltip="Midpoint searches performed." />
         <StatCard icon="📍" label="Place Clicks" value={stats?.placeClicks} prevValue={prevStats?.placeClicks} tooltip="Clicks on place cards." />
@@ -453,6 +477,28 @@ export default function AdminDashboard() {
           <span>Clicks → Outbound: {stats?.placeClicks > 0 ? `${((stats?.outboundClicks / stats?.placeClicks) * 100).toFixed(0)}%` : '—'}</span>
         </div>
       </div>
+
+      {/* Users Over Time */}
+      {userGrowthData.length > 1 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+          <h2 className="font-semibold text-gray-900 mb-4">👥 Users Over Time</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={userGrowthData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} />
+              <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
+              <Tooltip />
+              <Bar dataKey="totalUsers" fill="#0d9488" radius={[4, 4, 0, 0]} name="Total Users" />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-teal-600 rounded-sm inline-block"></span> Cumulative Users</span>
+            {userGrowthData.length > 0 && (
+              <span>Latest: <strong className="text-gray-700">{userGrowthData[userGrowthData.length - 1].totalUsers}</strong> users</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Cache Efficiency */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
