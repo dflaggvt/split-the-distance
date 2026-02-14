@@ -91,6 +91,16 @@ export default function AuthButton() {
             <div className="text-xs text-gray-500 truncate">{user?.email}</div>
           </div>
 
+          {/* My Trips */}
+          <a
+            href="/trips"
+            onClick={() => setMenuOpen(false)}
+            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-[13px] text-gray-700 hover:bg-gray-50 transition-colors no-underline"
+          >
+            <span>🗺️</span>
+            <span className="font-medium">My Trips</span>
+          </a>
+
           {/* Account settings */}
           <button
             onClick={() => { setMenuOpen(false); openAccountModal(); }}

@@ -1,0 +1,148 @@
+'use client';
+
+/**
+ * /trips/new — Create a new trip.
+ */
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/AuthProvider';
+import { createTrip } from '@/lib/trips';
+import Link from 'next/link';
+
+export default function NewTripPage() {
+  const { user, profile, isLoggedIn } = useAuth();
+  const router = useRouter();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState(null);
+
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center max-w-md">
+          <div className="text-4xl mb-3">🗺️</div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Sign in to create a trip</h2>
+          <p className="text-sm text-gray-500">
+            You need to be signed in to create a collaborative trip.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+
+    setCreating(true);
+    setError(null);
+    try {
+      const trip = await createTrip({
+        title: title.trim(),
+        description: description.trim() || null,
+        creatorId: user.id,
+        displayName: profile?.display_name || user?.email?.split('@')[0] || 'Creator',
+        email: user?.email,
+      });
+      router.push(`/trips/${trip.id}`);
+    } catch (err) {
+      console.error('Failed to create trip:', err);
+      setError(err.message || 'Something went wrong. Please try again.');
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="max-w-2xl mx-auto px-5 py-4 flex items-center gap-3">
+          <Link href="/trips" className="text-gray-400 hover:text-gray-600 transition no-underline">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </Link>
+          <h1 className="text-xl font-bold text-gray-900">Create a Trip</h1>
+        </div>
+      </header>
+
+      {/* Form */}
+      <main className="max-w-2xl mx-auto px-5 py-8">
+        <form onSubmit={handleCreate} className="bg-white rounded-2xl border border-gray-200 p-6 space-y-5">
+          <div>
+            <label htmlFor="title" className="block text-sm font-semibold text-gray-900 mb-1.5">
+              Trip Name <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Spring Weekend Getaway"
+              maxLength={100}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              required
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label htmlFor="description" className="block text-sm font-semibold text-gray-900 mb-1.5">
+              Description <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What's this trip about? Where are you thinking of going?"
+              rows={3}
+              maxLength={500}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-gray-400">
+              You can invite others after creating the trip.
+            </p>
+            <button
+              type="submit"
+              disabled={!title.trim() || creating}
+              className="px-6 py-2.5 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {creating ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Creating...
+                </span>
+              ) : (
+                'Create Trip'
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* Tips */}
+        <div className="mt-6 bg-teal-50 border border-teal-100 rounded-xl p-5">
+          <h3 className="font-semibold text-teal-800 text-sm mb-2">How it works</h3>
+          <ol className="text-sm text-teal-700 space-y-1.5 list-decimal list-inside">
+            <li>Create your trip and share the invite link</li>
+            <li>Members propose and vote on dates</li>
+            <li>Confirm the best date and find your meeting point</li>
+          </ol>
+        </div>
+      </main>
+    </div>
+  );
+}

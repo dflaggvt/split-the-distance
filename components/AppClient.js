@@ -975,6 +975,14 @@ export default function AppClient() {
             >
               How It Works
             </a>
+            {isLoggedIn && (
+              <a
+                href="/trips"
+                className="hidden md:block text-sm font-medium text-gray-500 no-underline hover:text-teal-600 transition-colors duration-200"
+              >
+                My Trips
+              </a>
+            )}
             <AuthButton />
           </nav>
         </div>
