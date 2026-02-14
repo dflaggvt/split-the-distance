@@ -7,7 +7,7 @@
  * Reuses LocationInput for place search and lib/routing.js for midpoint calculation.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useTripContext } from './TripProvider';
 import { useAuth } from './AuthProvider';
 import LocationInput from './LocationInput';
@@ -38,7 +38,12 @@ export default function LocationVoting() {
   const isCreator = myMembership?.role === 'creator';
   const confirmedLocation = locations.find(l => l.is_confirmed);
   const joinedMembers = members.filter(m => m.status === 'joined');
-  const membersWithOrigins = joinedMembers.filter(m => m.origin_lat && m.origin_lng);
+  const membersWithOrigins = useMemo(
+    () => joinedMembers.filter(m => m.origin_lat && m.origin_lng),
+    // Stable dependency: only recompute when the member list changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(members.map(m => ({ id: m.id, lat: m.origin_lat, lng: m.origin_lng, s: m.status })))]
+  );
 
   // ---- Propose a location from search ----
   const handleLocationSelect = async (place) => {

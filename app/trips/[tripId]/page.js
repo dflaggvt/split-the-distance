@@ -5,7 +5,7 @@
  * Tabs: Dates, Locations, Itinerary, Chat, Live, Members
  */
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';

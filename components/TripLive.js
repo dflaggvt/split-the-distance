@@ -21,7 +21,6 @@ import {
   markArrived,
   startTrip,
   completeTrip,
-  sendSystemMessage,
 } from '@/lib/trips';
 
 const POSITION_INTERVAL = 10_000; // 10 seconds between position updates
@@ -54,6 +53,7 @@ export default function TripLive() {
   const watchIdRef = useRef(null);
   const etaTimerRef = useRef(null);
   const mapRef = useRef(null);
+  const myPositionRef = useRef(null);
 
   const isCreator = trip?.creator_id === user?.id;
   const isActive = trip?.status === 'active';
@@ -152,6 +152,7 @@ export default function TripLive() {
           accuracy: pos.coords.accuracy,
         };
         setMyPosition(newPos);
+        myPositionRef.current = newPos;
 
         // Broadcast ephemeral position to all members
         if (myMembership) {
@@ -198,19 +199,22 @@ export default function TripLive() {
     }
   }, [myMembership, tripId]);
 
-  // ---- Periodic ETA + DB position save ----
+  // ---- Periodic ETA + DB position save (uses ref to avoid re-trigger on each position update) ----
   useEffect(() => {
-    if (!sharing || !myPosition || !myMembership || !tripId) return;
+    if (!sharing || !myMembership || !tripId) return;
 
     const savePosition = async () => {
-      const eta = await calculateEta(myPosition);
+      const pos = myPositionRef.current;
+      if (!pos) return;
+
+      const eta = await calculateEta(pos);
       try {
         await updateLivePosition(tripId, myMembership.id, {
-          lat: myPosition.lat,
-          lng: myPosition.lng,
-          heading: myPosition.heading,
-          speed: myPosition.speed,
-          accuracy: myPosition.accuracy,
+          lat: pos.lat,
+          lng: pos.lng,
+          heading: pos.heading,
+          speed: pos.speed,
+          accuracy: pos.accuracy,
           etaSeconds: eta?.etaSeconds,
           etaText: eta?.etaText,
           distanceRemainingMeters: eta?.distanceRemainingMeters,
@@ -219,10 +223,10 @@ export default function TripLive() {
         // Broadcast with ETA
         broadcastPosition({
           memberId: myMembership.id,
-          lat: myPosition.lat,
-          lng: myPosition.lng,
-          heading: myPosition.heading,
-          speed: myPosition.speed,
+          lat: pos.lat,
+          lng: pos.lng,
+          heading: pos.heading,
+          speed: pos.speed,
           etaText: eta?.etaText,
           etaSeconds: eta?.etaSeconds,
           arrived: myArrived,
@@ -242,7 +246,7 @@ export default function TripLive() {
         etaTimerRef.current = null;
       }
     };
-  }, [sharing, myPosition, myMembership, tripId, calculateEta, broadcastPosition, myArrived]);
+  }, [sharing, myMembership, tripId, calculateEta, broadcastPosition, myArrived]);
 
   // ---- Cleanup on unmount ----
   useEffect(() => {

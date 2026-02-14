@@ -11,12 +11,25 @@ import { createTrip } from '@/lib/trips';
 import Link from 'next/link';
 
 export default function NewTripPage() {
-  const { user, profile, isLoggedIn } = useAuth();
+  const { user, profile, isLoggedIn, loading: authLoading } = useAuth();
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Show loading skeleton while auth is resolving
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 text-center animate-pulse">
+          <div className="w-16 h-16 bg-gray-200 rounded-full mx-auto mb-4" />
+          <div className="h-5 w-48 bg-gray-200 rounded mx-auto mb-2" />
+          <div className="h-4 w-32 bg-gray-100 rounded mx-auto" />
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (
@@ -42,7 +55,6 @@ export default function NewTripPage() {
       const trip = await createTrip({
         title: title.trim(),
         description: description.trim() || null,
-        creatorId: user.id,
         displayName: profile?.display_name || user?.email?.split('@')[0] || 'Creator',
         email: user?.email,
       });
