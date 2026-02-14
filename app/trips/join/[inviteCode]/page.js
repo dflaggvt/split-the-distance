@@ -83,7 +83,6 @@ export default function JoinTripPage() {
     setError(null);
     try {
       await joinTrip(trip.id, {
-        userId: user.id,
         displayName: profile?.display_name || user?.email?.split('@')[0] || 'Member',
         email: user?.email,
       });
