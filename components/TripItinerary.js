@@ -12,7 +12,6 @@ import {
   addTripStop,
   updateTripStop,
   deleteTripStop,
-  sendSystemMessage,
 } from '@/lib/trips';
 import { searchNearby, CATEGORIES } from '@/lib/places';
 

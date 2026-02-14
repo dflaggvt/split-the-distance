@@ -23,7 +23,6 @@ import {
   completeTrip,
 } from '@/lib/trips';
 
-const POSITION_INTERVAL = 10_000; // 10 seconds between position updates
 const ETA_INTERVAL = 60_000; // 60 seconds between ETA recalculations
 const STALE_THRESHOLD = 120_000; // 2 min = stale position
 
