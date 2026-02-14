@@ -2,7 +2,7 @@
 
 /**
  * /trips/[tripId] — Trip detail page with tabs.
- * Tabs: Dates, Locations, Itinerary, Chat, Members
+ * Tabs: Dates, Locations, Itinerary, Chat, Live, Members
  */
 
 import { useState, useCallback } from 'react';
@@ -13,22 +13,25 @@ import DateVoting from '@/components/DateVoting';
 import LocationVoting from '@/components/LocationVoting';
 import TripItinerary from '@/components/TripItinerary';
 import TripChat from '@/components/TripChat';
+import TripLive from '@/components/TripLive';
 import TripMembers from '@/components/TripMembers';
 import TripInvite from '@/components/TripInvite';
 import Link from 'next/link';
 
-const TABS = [
-  { id: 'dates', label: 'Dates', icon: '📅' },
-  { id: 'locations', label: 'Locations', icon: '📍' },
-  { id: 'itinerary', label: 'Itinerary', icon: '📋' },
-  { id: 'chat', label: 'Chat', icon: '💬' },
-  { id: 'members', label: 'Members', icon: '👥' },
-];
-
 function TripDetail() {
-  const { trip, members, locations, stops, messages, myMembership, loading, error } = useTripContext();
+  const { trip, members, locations, stops, messages, liveStatus, myMembership, loading, error } = useTripContext();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dates');
+
+  // Dynamic tabs based on trip status
+  const tabs = [
+    { id: 'dates', label: 'Dates', icon: '📅' },
+    { id: 'locations', label: 'Locations', icon: '📍' },
+    { id: 'itinerary', label: 'Itinerary', icon: '📋' },
+    { id: 'chat', label: 'Chat', icon: '💬' },
+    { id: 'live', label: 'Live', icon: '🚗' },
+    { id: 'members', label: 'Members', icon: '👥' },
+  ];
   const [showInvite, setShowInvite] = useState(false);
 
   if (loading) {
@@ -121,33 +124,43 @@ function TripDetail() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 -mb-px">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-teal-500 text-teal-700 bg-teal-50/50'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <span>{tab.icon}</span>
-                {tab.label}
-                {tab.id === 'members' && (
-                  <span className="text-xs text-gray-400 ml-0.5">({joinedMembers.length})</span>
-                )}
-                {tab.id === 'locations' && locations.length > 0 && (
-                  <span className="text-xs text-gray-400 ml-0.5">({locations.length})</span>
-                )}
-                {tab.id === 'itinerary' && stops.length > 0 && (
-                  <span className="text-xs text-gray-400 ml-0.5">({stops.length})</span>
-                )}
-                {tab.id === 'chat' && messages.length > 0 && (
-                  <span className="text-xs text-gray-400 ml-0.5">({messages.length})</span>
-                )}
-              </button>
-            ))}
+          <div className="flex gap-1 -mb-px overflow-x-auto">
+            {tabs.map((tab) => {
+              // Show Live tab with a pulse dot when trip is active
+              const isLiveActive = tab.id === 'live' && trip?.status === 'active';
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors whitespace-nowrap shrink-0 ${
+                    activeTab === tab.id
+                      ? 'border-teal-500 text-teal-700 bg-teal-50/50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>{tab.icon}</span>
+                  {tab.label}
+                  {isLiveActive && (
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                    </span>
+                  )}
+                  {tab.id === 'members' && (
+                    <span className="text-xs text-gray-400 ml-0.5">({joinedMembers.length})</span>
+                  )}
+                  {tab.id === 'locations' && locations.length > 0 && (
+                    <span className="text-xs text-gray-400 ml-0.5">({locations.length})</span>
+                  )}
+                  {tab.id === 'itinerary' && stops.length > 0 && (
+                    <span className="text-xs text-gray-400 ml-0.5">({stops.length})</span>
+                  )}
+                  {tab.id === 'chat' && messages.length > 0 && (
+                    <span className="text-xs text-gray-400 ml-0.5">({messages.length})</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
@@ -158,6 +171,7 @@ function TripDetail() {
         {activeTab === 'locations' && <LocationVoting />}
         {activeTab === 'itinerary' && <TripItinerary />}
         {activeTab === 'chat' && <TripChat />}
+        {activeTab === 'live' && <TripLive />}
         {activeTab === 'members' && <TripMembers />}
       </main>
 

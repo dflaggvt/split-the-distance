@@ -15,6 +15,7 @@ import {
   fetchTripLocations,
   fetchTripStops,
   fetchTripMessages,
+  fetchLiveStatus,
   getMyMembership,
 } from '@/lib/trips';
 
@@ -33,10 +34,13 @@ export default function TripProvider({ tripId, children }) {
   const [locations, setLocations] = useState([]);
   const [stops, setStops] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [liveStatus, setLiveStatus] = useState([]);
+  const [livePositions, setLivePositions] = useState({});
   const [myMembership, setMyMembership] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const channelRef = useRef(null);
+  const broadcastRef = useRef(null);
 
   // ---- Initial data fetch ----
   const loadTrip = useCallback(async () => {
@@ -44,13 +48,14 @@ export default function TripProvider({ tripId, children }) {
     setLoading(true);
     setError(null);
     try {
-      const [tripData, membersData, dateData, locationData, stopsData, messagesData, membership] = await Promise.all([
+      const [tripData, membersData, dateData, locationData, stopsData, messagesData, liveData, membership] = await Promise.all([
         fetchTrip(tripId),
         fetchTripMembers(tripId),
         fetchDateOptions(tripId),
         fetchTripLocations(tripId),
         fetchTripStops(tripId),
         fetchTripMessages(tripId),
+        fetchLiveStatus(tripId),
         getMyMembership(tripId),
       ]);
       setTrip(tripData);
@@ -59,6 +64,7 @@ export default function TripProvider({ tripId, children }) {
       setLocations(locationData);
       setStops(stopsData);
       setMessages(messagesData);
+      setLiveStatus(liveData);
       setMyMembership(membership);
     } catch (err) {
       console.error('Failed to load trip:', err);
@@ -139,17 +145,63 @@ export default function TripProvider({ tripId, children }) {
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_live_status', filter: `trip_id=eq.${tripId}` },
+        () => {
+          fetchLiveStatus(tripId).then(setLiveStatus).catch(console.error);
+        }
+      )
       .subscribe();
 
     channelRef.current = channel;
+
+    // ---- Broadcast channel for ephemeral live position pings ----
+    const broadcast = supabase
+      .channel(`trip-live:${tripId}`)
+      .on('broadcast', { event: 'position' }, ({ payload }) => {
+        if (payload?.memberId) {
+          setLivePositions(prev => ({
+            ...prev,
+            [payload.memberId]: {
+              lat: payload.lat,
+              lng: payload.lng,
+              heading: payload.heading,
+              speed: payload.speed,
+              etaText: payload.etaText,
+              etaSeconds: payload.etaSeconds,
+              arrived: payload.arrived,
+              timestamp: Date.now(),
+            },
+          }));
+        }
+      })
+      .subscribe();
+
+    broadcastRef.current = broadcast;
 
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
+      if (broadcastRef.current) {
+        supabase.removeChannel(broadcastRef.current);
+        broadcastRef.current = null;
+      }
     };
   }, [tripId]);
+
+  // Broadcast own position to other members (ephemeral, no DB write)
+  const broadcastPosition = useCallback((positionData) => {
+    if (broadcastRef.current) {
+      broadcastRef.current.send({
+        type: 'broadcast',
+        event: 'position',
+        payload: positionData,
+      });
+    }
+  }, []);
 
   const value = {
     trip,
@@ -159,6 +211,9 @@ export default function TripProvider({ tripId, children }) {
     locations,
     stops,
     messages,
+    liveStatus,
+    livePositions,
+    broadcastPosition,
     myMembership,
     loading,
     error,
