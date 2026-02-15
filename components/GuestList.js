@@ -94,6 +94,7 @@ export default function GuestList() {
   const handleSendInvites = async () => {
     setSending(true);
     setError(null);
+    const guestsWithEmail = pendingGuests.filter(g => g.email);
     try {
       // 1. Flip database status (pending → invited, set invites_sent_at)
       await sendInvites(tripId);
