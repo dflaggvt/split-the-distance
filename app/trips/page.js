@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { fetchMyTrips, fetchArchivedTrips, restoreTrip, permanentlyDeleteTrip } from '@/lib/trips';
+import { fetchMyTrips, fetchArchivedTrips, archiveTrip, restoreTrip, permanentlyDeleteTrip } from '@/lib/trips';
 import Link from 'next/link';
 
 const STATUS_BADGE = {
@@ -25,6 +25,9 @@ export default function TripsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingArchived, setLoadingArchived] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkAction, setBulkAction] = useState(false);
 
   const loadTrips = () => {
     setLoading(true);
@@ -69,6 +72,43 @@ export default function TripsPage() {
     }
   };
 
+  // ---- Multi-select helpers ----
+  const toggleSelect = (tripId) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(tripId)) next.delete(tripId);
+      else next.add(tripId);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selected.size === trips.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(trips.map(t => t.id)));
+    }
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+  };
+
+  const handleBulkArchive = async () => {
+    if (selected.size === 0) return;
+    setBulkAction(true);
+    try {
+      await Promise.all([...selected].map(id => archiveTrip(id)));
+      exitSelectMode();
+      loadTrips();
+      loadArchived();
+    } catch (err) {
+      console.error('Bulk archive failed:', err);
+    }
+    setBulkAction(false);
+  };
+
   // Show loading skeleton while auth is resolving
   if (authLoading) {
     return (
@@ -110,16 +150,35 @@ export default function TripsPage() {
             </Link>
             <h1 className="text-xl font-bold text-gray-900">My Trips</h1>
           </div>
-          <Link
-            href="/trips/new"
-            className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition no-underline"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            New Trip
-          </Link>
+          <div className="flex items-center gap-2">
+            {trips.length > 0 && !selectMode && (
+              <button
+                onClick={() => setSelectMode(true)}
+                className="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+              >
+                Select
+              </button>
+            )}
+            {selectMode ? (
+              <button
+                onClick={exitSelectMode}
+                className="px-3 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+              >
+                Cancel
+              </button>
+            ) : (
+              <Link
+                href="/trips/new"
+                className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition no-underline"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                New Trip
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
@@ -150,18 +209,63 @@ export default function TripsPage() {
           </div>
         ) : (
           <>
+          {/* Select-all row when in select mode */}
+          {selectMode && (
+            <div className="flex items-center gap-3 mb-3 px-1">
+              <button
+                onClick={selectAll}
+                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition"
+              >
+                <span className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                  selected.size === trips.length && trips.length > 0
+                    ? 'bg-teal-600 border-teal-600'
+                    : 'border-gray-300 hover:border-teal-400'
+                }`}>
+                  {selected.size === trips.length && trips.length > 0 && (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </span>
+                {selected.size === trips.length ? 'Deselect all' : 'Select all'}
+              </button>
+              {selected.size > 0 && (
+                <span className="text-sm text-gray-400">
+                  {selected.size} selected
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="space-y-3">
             {trips.map((trip) => {
               const badge = STATUS_BADGE[trip.status] || STATUS_BADGE.planning;
               const memberCount = trip.trip_members?.filter(m => m.status === 'joined').length || 0;
+              const isSelected = selected.has(trip.id);
 
-              return (
-                <Link
-                  key={trip.id}
-                  href={`/trips/${trip.id}`}
-                  className="block bg-white rounded-xl border border-gray-200 p-5 hover:border-teal-300 hover:shadow-sm transition-all no-underline group"
-                >
-                  <div className="flex items-start justify-between">
+              const cardContent = (
+                <div className="flex items-start gap-3">
+                  {/* Checkbox (only in select mode) */}
+                  {selectMode && (
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleSelect(trip.id); }}
+                      className="mt-0.5 shrink-0"
+                    >
+                      <span className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                        isSelected
+                          ? 'bg-teal-600 border-teal-600'
+                          : 'border-gray-300 hover:border-teal-400'
+                      }`}>
+                        {isSelected && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </span>
+                    </button>
+                  )}
+
+                  <div className="flex-1 min-w-0 flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-gray-900 truncate group-hover:text-teal-700 transition-colors">
@@ -195,14 +299,74 @@ export default function TripsPage() {
                         )}
                       </div>
                     </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-300 group-hover:text-teal-500 transition-colors shrink-0 ml-3 mt-1">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
+                    {!selectMode && (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-gray-300 group-hover:text-teal-500 transition-colors shrink-0 ml-3 mt-1">
+                        <path d="M9 18l6-6-6-6" />
+                      </svg>
+                    )}
                   </div>
+                </div>
+              );
+
+              return selectMode ? (
+                <div
+                  key={trip.id}
+                  onClick={() => toggleSelect(trip.id)}
+                  className={`bg-white rounded-xl border p-5 cursor-pointer transition-all group ${
+                    isSelected
+                      ? 'border-teal-400 ring-2 ring-teal-100'
+                      : 'border-gray-200 hover:border-teal-300 hover:shadow-sm'
+                  }`}
+                >
+                  {cardContent}
+                </div>
+              ) : (
+                <Link
+                  key={trip.id}
+                  href={`/trips/${trip.id}`}
+                  className="block bg-white rounded-xl border border-gray-200 p-5 hover:border-teal-300 hover:shadow-sm transition-all no-underline group"
+                >
+                  {cardContent}
                 </Link>
               );
             })}
           </div>
+
+          {/* Floating action bar when items are selected */}
+          {selectMode && selected.size > 0 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200">
+              <div className="flex items-center gap-3 bg-gray-900 text-white rounded-2xl shadow-2xl px-5 py-3">
+                <span className="text-sm font-medium">
+                  {selected.size} trip{selected.size !== 1 ? 's' : ''}
+                </span>
+                <div className="w-px h-5 bg-gray-700" />
+                <button
+                  onClick={handleBulkArchive}
+                  disabled={bulkAction}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-red-500/20 text-red-300 hover:bg-red-500/30 hover:text-red-200 rounded-lg transition disabled:opacity-50"
+                >
+                  {bulkAction ? (
+                    <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  )}
+                  Archive
+                </button>
+                <button
+                  onClick={exitSelectMode}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-400 hover:text-white rounded-lg transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           </>
         )}
 
