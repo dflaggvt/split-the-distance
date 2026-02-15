@@ -54,7 +54,7 @@ export async function POST(request) {
     // ---- Fetch trip details ----
     const { data: trip, error: tripErr } = await supabase
       .from('trips')
-      .select('id, title, description, invite_code, created_by')
+      .select('id, title, description, invite_code, creator_id')
       .eq('id', tripId)
       .single();
 
@@ -63,7 +63,7 @@ export async function POST(request) {
     }
 
     // Only the creator can send invites
-    if (trip.created_by !== user.id) {
+    if (trip.creator_id !== user.id) {
       return Response.json({ error: 'Only the trip creator can send invites' }, { status: 403 });
     }
 
