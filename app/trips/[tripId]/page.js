@@ -12,10 +12,11 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useJsApiLoader } from '@react-google-maps/api';
 import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';
+import { archiveTrip } from '@/lib/trips';
 
 import TripPlan from '@/components/TripPlan';
 import GuestList from '@/components/GuestList';
@@ -46,8 +47,9 @@ function getDefaultTab(trip) {
 function TripDetail() {
   const {
     trip, members, stops, messages, locations, permissions,
-    loading, error, refetchTrip,
+    loading, error, refetchTrip, tripId,
   } = useTripContext();
+  const router = useRouter();
 
   const defaultTab = useMemo(
     () => getDefaultTab(trip),
@@ -58,8 +60,21 @@ function TripDetail() {
   const currentTab = activeTab || defaultTab;
 
   const [showInvite, setShowInvite] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   // When trip is active, allow toggling between Live and Itinerary in the Trip tab
   const [tripSubview, setTripSubview] = useState(null); // null = auto, 'live', 'itinerary'
+
+  const handleArchive = async () => {
+    if (!window.confirm('Move this trip to the archive? You can restore it later from your trips list.')) return;
+    setArchiving(true);
+    try {
+      await archiveTrip(tripId);
+      router.push('/trips');
+    } catch (err) {
+      console.error('Failed to archive trip:', err);
+      setArchiving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -245,18 +260,33 @@ function TripDetail() {
                 )}
               </div>
             </div>
-            <button
-              onClick={() => setShowInvite(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition shrink-0"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="8.5" cy="7" r="4" />
-                <line x1="20" y1="8" x2="20" y2="14" />
-                <line x1="23" y1="11" x2="17" y2="11" />
-              </svg>
-              Invite
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowInvite(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-600 text-white text-xs font-semibold rounded-lg hover:bg-teal-700 transition"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <line x1="20" y1="8" x2="20" y2="14" />
+                  <line x1="23" y1="11" x2="17" y2="11" />
+                </svg>
+                Invite
+              </button>
+              {permissions.isHost && (
+                <button
+                  onClick={handleArchive}
+                  disabled={archiving}
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                  title="Archive trip"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Tabs */}

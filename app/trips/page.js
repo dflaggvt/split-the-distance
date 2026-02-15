@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { fetchMyTrips } from '@/lib/trips';
+import { fetchMyTrips, fetchArchivedTrips, restoreTrip, permanentlyDeleteTrip } from '@/lib/trips';
 import Link from 'next/link';
 
 const STATUS_BADGE = {
@@ -21,17 +21,53 @@ const STATUS_BADGE = {
 export default function TripsPage() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const [trips, setTrips] = useState([]);
+  const [archivedTrips, setArchivedTrips] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingArchived, setLoadingArchived] = useState(false);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!isLoggedIn) { setLoading(false); return; }
+  const loadTrips = () => {
     setLoading(true);
     fetchMyTrips()
       .then(setTrips)
       .catch((err) => console.error('Failed to load trips:', err))
       .finally(() => setLoading(false));
+  };
+
+  const loadArchived = () => {
+    setLoadingArchived(true);
+    fetchArchivedTrips()
+      .then(setArchivedTrips)
+      .catch((err) => console.error('Failed to load archived trips:', err))
+      .finally(() => setLoadingArchived(false));
+  };
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isLoggedIn) { setLoading(false); return; }
+    loadTrips();
+    loadArchived();
   }, [isLoggedIn, authLoading]);
+
+  const handleRestore = async (tripId) => {
+    try {
+      await restoreTrip(tripId);
+      loadTrips();
+      loadArchived();
+    } catch (err) {
+      console.error('Failed to restore trip:', err);
+    }
+  };
+
+  const handlePermanentDelete = async (tripId) => {
+    if (!window.confirm('Permanently delete this trip and all its data? This cannot be undone.')) return;
+    try {
+      await permanentlyDeleteTrip(tripId);
+      loadArchived();
+    } catch (err) {
+      console.error('Failed to delete trip:', err);
+    }
+  };
 
   // Show loading skeleton while auth is resolving
   if (authLoading) {
@@ -113,6 +149,7 @@ export default function TripsPage() {
             </Link>
           </div>
         ) : (
+          <>
           <div className="space-y-3">
             {trips.map((trip) => {
               const badge = STATUS_BADGE[trip.status] || STATUS_BADGE.planning;
@@ -165,6 +202,61 @@ export default function TripsPage() {
                 </Link>
               );
             })}
+          </div>
+          </>
+        )}
+
+        {/* Archived trips — always visible regardless of active trips */}
+        {!loading && archivedTrips.length > 0 && (
+          <div className="mt-8">
+            <button
+              onClick={() => setShowArchived(!showArchived)}
+              className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition mb-3"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              Archived ({archivedTrips.length})
+              <svg
+                width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                className={`transition-transform ${showArchived ? 'rotate-180' : ''}`}
+              >
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </button>
+
+            {showArchived && (
+              <div className="space-y-2">
+                {archivedTrips.map((trip) => (
+                  <div
+                    key={trip.id}
+                    className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3 opacity-70"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium text-gray-700 truncate">{trip.title}</h3>
+                      {trip.description && (
+                        <p className="text-xs text-gray-400 truncate">{trip.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleRestore(trip.id)}
+                        className="px-2.5 py-1 text-xs font-medium text-teal-700 bg-teal-50 rounded-lg hover:bg-teal-100 transition"
+                      >
+                        Restore
+                      </button>
+                      <button
+                        onClick={() => handlePermanentDelete(trip.id)}
+                        className="px-2.5 py-1 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition"
+                      >
+                        Delete Forever
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
