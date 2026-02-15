@@ -95,15 +95,21 @@ export default function GuestList() {
     setSending(true);
     setError(null);
     const guestsWithEmail = pendingGuests.filter(g => g.email);
+    console.log('[Invites] Starting send:', { pendingCount: pendingGuests.length, withEmailCount: guestsWithEmail.length });
     try {
       // 1. Flip database status (pending → invited, set invites_sent_at)
       await sendInvites(tripId);
+      console.log('[Invites] Database status flipped successfully');
 
       // 2. Send actual emails via Resend
       if (guestsWithEmail.length > 0) {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        if (token) {
+        if (!token) {
+          console.error('[Invites] No auth token available');
+          setError('Authentication error — could not send emails. Try refreshing the page.');
+        } else {
+          console.log('[Invites] Calling /api/invites/send...');
           const res = await fetch('/api/invites/send', {
             method: 'POST',
             headers: {
@@ -113,10 +119,16 @@ export default function GuestList() {
             body: JSON.stringify({ tripId }),
           });
           const result = await res.json();
-          if (result.failed > 0) {
+          console.log('[Invites] API response:', res.status, result);
+
+          if (!res.ok) {
+            setError(result.error || `Email send failed (${res.status}). Share the invite link manually.`);
+          } else if (result.failed > 0) {
             setError(`${result.sent} email${result.sent !== 1 ? 's' : ''} sent, ${result.failed} failed. Share the invite link with those guests manually.`);
           }
         }
+      } else {
+        console.log('[Invites] No guests with email — skipping email send');
       }
 
       refetchTrip();
@@ -124,7 +136,7 @@ export default function GuestList() {
       setShowInviteLinks(true);
       setConfirming(false);
     } catch (err) {
-      console.error('Failed to send invites:', err);
+      console.error('[Invites] Failed:', err);
       setError(err.message || 'Failed to send invites');
     }
     setSending(false);
