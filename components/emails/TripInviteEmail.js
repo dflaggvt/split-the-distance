@@ -16,7 +16,14 @@ import {
   Hr,
   Preview,
   Heading,
+  Img,
+  Link,
+  Row,
+  Column,
 } from '@react-email/components';
+
+const LOGO_URL = 'https://splitthedistance.com/logo.png';
+const SITE_URL = 'https://splitthedistance.com';
 
 export default function TripInviteEmail({
   tripTitle = 'A Trip',
@@ -28,56 +35,95 @@ export default function TripInviteEmail({
     <Html>
       <Head />
       <Preview>
-        {hostName} invited you to join &quot;{tripTitle}&quot; on Split the Distance
+        {hostName} invited you to &quot;{tripTitle}&quot; — join the group on Split the Distance
       </Preview>
       <Body style={main}>
         <Container style={container}>
-          {/* Header */}
+          {/* Header with gradient + logo */}
           <Section style={header}>
-            <Text style={logo}>Split the Distance</Text>
+            <Section style={headerContent}>
+              <Img
+                src={LOGO_URL}
+                width="44"
+                height="44"
+                alt="Split the Distance"
+                style={logoImg}
+              />
+              <Text style={logoText}>Split the Distance</Text>
+            </Section>
           </Section>
 
-          {/* Content */}
+          {/* Main content */}
           <Section style={content}>
-            <Heading as="h1" style={heading}>
-              You&apos;re invited!
-            </Heading>
+            <Section style={heroSection}>
+              <Text style={heroEmoji}>🗺️</Text>
+              <Heading as="h1" style={heading}>
+                You&apos;re invited on a trip!
+              </Heading>
+            </Section>
+
             <Text style={paragraph}>
-              <strong>{hostName}</strong> has invited you to join a trip:
+              <strong style={hostNameStyle}>{hostName}</strong> wants you to join a trip they&apos;re
+              planning. You&apos;ll be able to vote on dates, suggest places, and help
+              build the itinerary together.
             </Text>
 
             {/* Trip card */}
             <Section style={tripCard}>
-              <Heading as="h2" style={tripTitle_style}>
-                {tripTitle}
-              </Heading>
-              {tripDescription && (
-                <Text style={tripDesc}>{tripDescription}</Text>
-              )}
+              <Row>
+                <Column style={tripIconCol}>
+                  <Text style={tripIcon}>✈️</Text>
+                </Column>
+                <Column style={tripDetailsCol}>
+                  <Heading as="h2" style={tripTitleStyle}>
+                    {tripTitle}
+                  </Heading>
+                  {tripDescription && (
+                    <Text style={tripDesc}>{tripDescription}</Text>
+                  )}
+                </Column>
+              </Row>
             </Section>
 
-            <Text style={paragraph}>
-              Click the button below to view the trip details and join the group.
-              You&apos;ll be able to vote on dates, locations, and help plan activities.
-            </Text>
-
+            {/* CTA button */}
             <Section style={buttonContainer}>
               <Button style={button} href={inviteUrl}>
-                View Trip & Join
+                View Trip &amp; Join
               </Button>
             </Section>
 
+            <Text style={subText}>
+              One tap and you&apos;re in. No app download required.
+            </Text>
+
+            <Hr style={divider} />
+
+            {/* Fallback link */}
             <Text style={smallText}>
               Or copy and paste this link into your browser:
             </Text>
             <Text style={linkText}>{inviteUrl}</Text>
           </Section>
 
-          <Hr style={hr} />
-
           {/* Footer */}
           <Section style={footer}>
-            <Text style={footerText}>
+            <Img
+              src={LOGO_URL}
+              width="24"
+              height="24"
+              alt="Split the Distance"
+              style={footerLogo}
+            />
+            <Text style={footerBrand}>
+              <Link href={SITE_URL} style={footerLink}>
+                Split the Distance
+              </Link>
+            </Text>
+            <Text style={footerTagline}>
+              Find your halfway point. Plan the perfect meetup.
+            </Text>
+            <Hr style={footerDivider} />
+            <Text style={footerDisclaimer}>
               This invite was sent via Split the Distance. If you don&apos;t
               recognize this invitation, you can safely ignore this email.
             </Text>
@@ -93,91 +139,148 @@ export default function TripInviteEmail({
 // ---------------------------------------------------------------------------
 
 const main = {
-  backgroundColor: '#f6f9fc',
+  backgroundColor: '#f3f4f6',
   fontFamily:
     '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif',
+  padding: '24px 0',
 };
 
 const container = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
   padding: '0',
-  maxWidth: '560px',
-  borderRadius: '12px',
+  maxWidth: '520px',
+  borderRadius: '16px',
   overflow: 'hidden',
-  border: '1px solid #e5e7eb',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
 };
 
 const header = {
-  backgroundColor: '#0d9488',
-  padding: '24px 32px',
+  background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 60%, #115e59 100%)',
+  padding: '32px 32px 28px',
   textAlign: 'center',
 };
 
-const logo = {
+const headerContent = {
+  textAlign: 'center',
+};
+
+const logoImg = {
+  margin: '0 auto 8px',
+  display: 'block',
+  borderRadius: '10px',
+};
+
+const logoText = {
   color: '#ffffff',
-  fontSize: '18px',
+  fontSize: '20px',
   fontWeight: '700',
   margin: '0',
   letterSpacing: '-0.5px',
 };
 
 const content = {
-  padding: '32px',
+  padding: '36px 32px 24px',
+};
+
+const heroSection = {
+  textAlign: 'center',
+  marginBottom: '24px',
+};
+
+const heroEmoji = {
+  fontSize: '40px',
+  margin: '0 0 8px',
+  lineHeight: '1',
 };
 
 const heading = {
   color: '#111827',
-  fontSize: '24px',
-  fontWeight: '700',
-  margin: '0 0 16px',
-  lineHeight: '1.3',
+  fontSize: '26px',
+  fontWeight: '800',
+  margin: '0',
+  lineHeight: '1.2',
 };
 
 const paragraph = {
-  color: '#374151',
+  color: '#4b5563',
   fontSize: '15px',
-  lineHeight: '1.6',
-  margin: '0 0 16px',
+  lineHeight: '1.7',
+  margin: '0 0 24px',
+};
+
+const hostNameStyle = {
+  color: '#111827',
 };
 
 const tripCard = {
   backgroundColor: '#f0fdfa',
-  border: '1px solid #99f6e4',
-  borderRadius: '8px',
-  padding: '16px 20px',
-  margin: '0 0 20px',
+  border: '2px solid #99f6e4',
+  borderRadius: '12px',
+  padding: '20px',
+  margin: '0 0 28px',
 };
 
-const tripTitle_style = {
+const tripIconCol = {
+  width: '48px',
+  verticalAlign: 'top',
+  paddingRight: '12px',
+};
+
+const tripIcon = {
+  fontSize: '28px',
+  margin: '0',
+  lineHeight: '1',
+};
+
+const tripDetailsCol = {
+  verticalAlign: 'top',
+};
+
+const tripTitleStyle = {
   color: '#0f766e',
-  fontSize: '18px',
+  fontSize: '20px',
   fontWeight: '700',
   margin: '0 0 4px',
+  lineHeight: '1.3',
 };
 
 const tripDesc = {
   color: '#5eead4',
-  fontSize: '13px',
+  fontSize: '14px',
   margin: '0',
-  lineHeight: '1.4',
+  lineHeight: '1.5',
 };
 
 const buttonContainer = {
   textAlign: 'center',
-  margin: '24px 0',
+  margin: '0 0 12px',
 };
 
 const button = {
+  background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
   backgroundColor: '#0d9488',
-  borderRadius: '8px',
+  borderRadius: '12px',
   color: '#ffffff',
-  fontSize: '15px',
-  fontWeight: '600',
+  fontSize: '16px',
+  fontWeight: '700',
   textDecoration: 'none',
   textAlign: 'center',
   display: 'inline-block',
-  padding: '12px 32px',
+  padding: '14px 48px',
+  letterSpacing: '0.3px',
+};
+
+const subText = {
+  color: '#9ca3af',
+  fontSize: '13px',
+  textAlign: 'center',
+  margin: '0 0 24px',
+};
+
+const divider = {
+  borderColor: '#f3f4f6',
+  margin: '0 0 16px',
 };
 
 const smallText = {
@@ -190,22 +293,48 @@ const linkText = {
   color: '#0d9488',
   fontSize: '12px',
   wordBreak: 'break-all',
-  margin: '0 0 16px',
-};
-
-const hr = {
-  borderColor: '#e5e7eb',
   margin: '0',
+  textDecoration: 'underline',
 };
 
 const footer = {
-  padding: '20px 32px',
+  backgroundColor: '#f9fafb',
+  padding: '24px 32px',
+  textAlign: 'center',
 };
 
-const footerText = {
+const footerLogo = {
+  margin: '0 auto 8px',
+  display: 'block',
+  opacity: '0.7',
+};
+
+const footerBrand = {
+  margin: '0 0 2px',
+  fontSize: '13px',
+  fontWeight: '600',
+};
+
+const footerLink = {
+  color: '#0d9488',
+  textDecoration: 'none',
+};
+
+const footerTagline = {
   color: '#9ca3af',
   fontSize: '12px',
+  margin: '0 0 16px',
+  fontStyle: 'italic',
+};
+
+const footerDivider = {
+  borderColor: '#e5e7eb',
+  margin: '0 0 16px',
+};
+
+const footerDisclaimer = {
+  color: '#d1d5db',
+  fontSize: '11px',
   lineHeight: '1.5',
   margin: '0',
-  textAlign: 'center',
 };
