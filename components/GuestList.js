@@ -7,16 +7,41 @@
 
 import { useState } from 'react';
 import { useTripContext } from './TripProvider';
-import { addGuest, removeGuest, sendInvites } from '@/lib/trips';
+import { useAuth } from './AuthProvider';
+import LocationInput from './LocationInput';
+import { addGuest, removeGuest, sendInvites, updateMemberOrigin } from '@/lib/trips';
 
 export default function GuestList() {
   const { trip, members, myMembership, permissions, tripId, refetchMembers, refetchTrip } = useTripContext();
+  const { user } = useAuth();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [adding, setAdding] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const [showInviteLinks, setShowInviteLinks] = useState(false);
+  // Origin setting
+  const [editingOrigin, setEditingOrigin] = useState(false);
+  const [originSearch, setOriginSearch] = useState('');
+  const [savingOrigin, setSavingOrigin] = useState(false);
+
+  const handleOriginSelect = async (place) => {
+    if (!myMembership || !place?.lat) return;
+    setSavingOrigin(true);
+    try {
+      await updateMemberOrigin(myMembership.id, {
+        lat: place.lat,
+        lng: place.lng || place.lon,
+        name: place.formattedAddress || place.name,
+      });
+      setEditingOrigin(false);
+      setOriginSearch('');
+      refetchMembers();
+    } catch (err) {
+      console.error('Failed to set origin:', err);
+    }
+    setSavingOrigin(false);
+  };
 
   const invitesSent = !!trip?.invites_sent_at;
   const isHost = permissions.isHost;
@@ -159,11 +184,36 @@ export default function GuestList() {
           <div className="space-y-2">
             {/* Creator / host always shown first */}
             {creator && (
-              <GuestRow key={creator.id} guest={creator} status="joined" isCreator />
+              <GuestRow
+                key={creator.id}
+                guest={creator}
+                status="joined"
+                isCreator
+                isMe={creator.user_id === user?.id}
+                editingOrigin={creator.user_id === user?.id ? editingOrigin : false}
+                onEditOrigin={() => setEditingOrigin(true)}
+                onCancelOrigin={() => { setEditingOrigin(false); setOriginSearch(''); }}
+                originSearch={originSearch}
+                onOriginSearchChange={setOriginSearch}
+                onOriginSelect={handleOriginSelect}
+                savingOrigin={savingOrigin}
+              />
             )}
             {/* Joined members */}
             {joinedGuests.map(g => (
-              <GuestRow key={g.id} guest={g} status="joined" />
+              <GuestRow
+                key={g.id}
+                guest={g}
+                status="joined"
+                isMe={g.user_id === user?.id}
+                editingOrigin={g.user_id === user?.id ? editingOrigin : false}
+                onEditOrigin={() => setEditingOrigin(true)}
+                onCancelOrigin={() => { setEditingOrigin(false); setOriginSearch(''); }}
+                originSearch={originSearch}
+                onOriginSearchChange={setOriginSearch}
+                onOriginSelect={handleOriginSelect}
+                savingOrigin={savingOrigin}
+              />
             ))}
             {/* Invited */}
             {invitedGuests.map(g => (
@@ -207,6 +257,22 @@ export default function GuestList() {
         </div>
       )}
 
+      {/* Hint: set your starting location */}
+      {myMembership && !myMembership.origin_name && (
+        <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-700 flex items-center gap-2">
+          <span className="shrink-0">📍</span>
+          <span>
+            <strong>Tip:</strong> Set your starting location so the group can calculate drive times and find the perfect midpoint.
+          </span>
+          <button
+            onClick={() => setEditingOrigin(true)}
+            className="shrink-0 ml-auto px-3 py-1 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition text-xs"
+          >
+            Set Location
+          </button>
+        </div>
+      )}
+
       {/* Tip for host before invites sent */}
       {isHost && !invitesSent && guests.length > 0 && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
@@ -226,7 +292,11 @@ const STATUS_BADGE = {
   declined: { label: 'Declined', className: 'bg-red-100 text-red-600' },
 };
 
-function GuestRow({ guest, status, onRemove, isCreator }) {
+function GuestRow({
+  guest, status, onRemove, isCreator, isMe,
+  editingOrigin, onEditOrigin, onCancelOrigin,
+  originSearch, onOriginSearchChange, onOriginSelect, savingOrigin,
+}) {
   const badge = STATUS_BADGE[status] || STATUS_BADGE.pending;
   const initials = (guest.display_name || guest.email || '?')
     .split(/[\s@]/)
@@ -236,48 +306,114 @@ function GuestRow({ guest, status, onRemove, isCreator }) {
     .join('');
 
   return (
-    <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition">
-      {/* Avatar */}
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-        isCreator ? 'bg-purple-100 text-purple-700' : 'bg-teal-100 text-teal-700'
-      }`}>
-        {initials}
-      </div>
+    <div className={`py-2 px-3 rounded-lg transition ${isMe ? 'bg-teal-50/40 border border-teal-100' : 'hover:bg-gray-50'}`}>
+      <div className="flex items-center gap-3">
+        {/* Avatar */}
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+          isCreator ? 'bg-purple-100 text-purple-700' : 'bg-teal-100 text-teal-700'
+        }`}>
+          {initials}
+        </div>
 
-      {/* Name + email */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {guest.display_name || 'Guest'}
-          </p>
-          {isCreator && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
-              Host
-            </span>
+        {/* Name + email + origin */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {guest.display_name || 'Guest'}
+              {isMe && <span className="text-teal-600 ml-1 text-xs">(you)</span>}
+            </p>
+            {isCreator && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
+                Host
+              </span>
+            )}
+          </div>
+          {guest.email && (
+            <p className="text-xs text-gray-400 truncate">{guest.email}</p>
+          )}
+          {/* Origin location display (for joined members) */}
+          {status === 'joined' && (
+            <div className="flex items-center gap-1 mt-0.5">
+              {guest.origin_name ? (
+                <span className="text-xs text-gray-400 flex items-center gap-1 truncate">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  {guest.origin_name}
+                </span>
+              ) : isMe ? (
+                <span className="text-xs text-amber-500">No starting location set</span>
+              ) : (
+                <span className="text-xs text-gray-300">No location set</span>
+              )}
+            </div>
           )}
         </div>
-        {guest.email && (
-          <p className="text-xs text-gray-400 truncate">{guest.email}</p>
+
+        {/* Set origin button (for current user) */}
+        {isMe && !editingOrigin && status === 'joined' && (
+          <button
+            onClick={onEditOrigin}
+            className="shrink-0 ml-2 px-2.5 py-1 text-xs font-medium text-teal-600 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100 transition"
+          >
+            {guest.origin_name ? 'Change' : 'Set Location'}
+          </button>
+        )}
+
+        {/* Status badge */}
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${badge.className}`}>
+          {badge.label}
+        </span>
+
+        {/* Remove button (only for pending, only host) */}
+        {onRemove && (
+          <button
+            onClick={onRemove}
+            className="text-gray-300 hover:text-red-500 transition"
+            title="Remove guest"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         )}
       </div>
 
-      {/* Status badge */}
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.className}`}>
-        {badge.label}
-      </span>
-
-      {/* Remove button (only for pending, only host) */}
-      {onRemove && (
-        <button
-          onClick={onRemove}
-          className="text-gray-300 hover:text-red-500 transition"
-          title="Remove guest"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+      {/* Inline origin editor */}
+      {isMe && editingOrigin && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <label className="text-xs font-medium text-gray-600 mb-1.5 block">
+            Where are you starting from?
+          </label>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 relative">
+              <LocationInput
+                value={originSearch}
+                onChange={onOriginSearchChange}
+                onSelect={onOriginSelect}
+                onClear={() => onOriginSearchChange('')}
+                placeholder="Enter your city or address..."
+                variant="from"
+              />
+              {savingOrigin && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <svg className="animate-spin h-4 w-4 text-teal-600" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={onCancelOrigin}
+              className="shrink-0 px-2.5 py-2 text-xs text-gray-400 hover:text-gray-600 transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
