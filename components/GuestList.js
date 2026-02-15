@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useTripContext } from './TripProvider';
 import { useAuth } from './AuthProvider';
 import LocationInput from './LocationInput';
+import { supabase } from '@/lib/supabase';
 import { addGuest, removeGuest, sendInvites, updateMemberOrigin } from '@/lib/trips';
 
 export default function GuestList() {
@@ -90,11 +91,40 @@ export default function GuestList() {
   };
 
   const handleSendInvites = async () => {
-    if (!window.confirm('Send invites to all guests? They will receive an invite link.')) return;
+    const guestsWithEmail = members.filter(m => m.role !== 'creator' && m.status === 'pending' && m.email);
+    const guestsWithoutEmail = members.filter(m => m.role !== 'creator' && m.status === 'pending' && !m.email);
+
+    const confirmMsg = guestsWithoutEmail.length > 0
+      ? `Send invites to ${guestsWithEmail.length} guest${guestsWithEmail.length !== 1 ? 's' : ''} with email addresses? (${guestsWithoutEmail.length} guest${guestsWithoutEmail.length !== 1 ? 's' : ''} without email will need the invite link shared manually.)`
+      : `Send invite emails to ${guestsWithEmail.length} guest${guestsWithEmail.length !== 1 ? 's' : ''}?`;
+
+    if (!window.confirm(confirmMsg)) return;
     setSending(true);
     setError(null);
     try {
+      // 1. Flip database status (pending → invited, set invites_sent_at)
       await sendInvites(tripId);
+
+      // 2. Send actual emails via Resend
+      if (guestsWithEmail.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (token) {
+          const res = await fetch('/api/invites/send', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ tripId }),
+          });
+          const result = await res.json();
+          if (result.failed > 0) {
+            setError(`${result.sent} email${result.sent !== 1 ? 's' : ''} sent, ${result.failed} failed. Share the invite link with those guests manually.`);
+          }
+        }
+      }
+
       refetchTrip();
       refetchMembers();
       setShowInviteLinks(true);
