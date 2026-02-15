@@ -1,17 +1,12 @@
 'use client';
 
 /**
- * /trips/[tripId] — Trip detail page with guided workflow.
+ * /trips/[tripId] — Trip detail page.
  *
- * Tabs: Guests/Members | Dates | Locations | Options | Itinerary | Chat | Live
+ * Tabs: Overview | Members | Dates | Locations | Options | Itinerary | Chat | Live
  *
- * Progress:
- *   1. Build Guest List
- *   2. Pick Dates
- *   3. Choose Location (criteria + vote)
- *   4. Save Options
- *   5. Build Itinerary
- *   6. Send Invites (when ready)
+ * The Overview tab is the default landing page and acts as a
+ * control panel showing status cards for each workflow area.
  */
 
 import { useState, useMemo } from 'react';
@@ -20,8 +15,7 @@ import { useJsApiLoader } from '@react-google-maps/api';
 import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';
 
-// Must be a static constant to prevent useJsApiLoader from re-loading
-const GOOGLE_MAPS_LIBRARIES = [];
+import TripOverview from '@/components/TripOverview';
 import GuestList from '@/components/GuestList';
 import DateVoting from '@/components/DateVoting';
 import LocationCriteria from '@/components/LocationCriteria';
@@ -34,8 +28,12 @@ import TripInvite from '@/components/TripInvite';
 import { updateTrip } from '@/lib/trips';
 import Link from 'next/link';
 
+// Must be a static constant to prevent useJsApiLoader from re-loading
+const GOOGLE_MAPS_LIBRARIES = [];
+
 const TABS = [
-  { id: 'guests', label: 'Guests', icon: '👥' },
+  { id: 'overview', label: 'Overview', icon: '🏠' },
+  { id: 'guests', label: 'Members', icon: '👥' },
   { id: 'dates', label: 'Dates', icon: '📅' },
   { id: 'locations', label: 'Locations', icon: '📍' },
   { id: 'options', label: 'Options', icon: '⭐' },
@@ -54,104 +52,10 @@ const STATUS_BADGE = {
 
 // ---- Determine the smart default tab based on trip progress ----
 function getDefaultTab(trip) {
-  if (!trip) return 'guests';
+  if (!trip) return 'overview';
   if (trip.status === 'active') return 'live';
   if (trip.status === 'completed') return 'itinerary';
-  if (trip.confirmed_location_id) return 'itinerary';
-  if (trip.confirmed_date) return 'locations';
-  if (trip.invites_sent_at) return 'dates';
-  return 'guests';
-}
-
-// ---- Progress stepper component ----
-function TripProgress({ trip, options, onNavigate }) {
-  const steps = [
-    {
-      id: 'guests',
-      label: 'Guest List',
-      description: 'Add people to invite',
-      done: !!trip?.invites_sent_at,
-      active: !trip?.invites_sent_at,
-    },
-    {
-      id: 'dates',
-      label: 'Pick Dates',
-      description: 'Propose & vote on dates',
-      done: !!trip?.confirmed_date,
-      active: !!trip?.invites_sent_at && !trip?.confirmed_date,
-    },
-    {
-      id: 'locations',
-      label: 'Choose Location',
-      description: 'Vote on a meeting point',
-      done: !!trip?.confirmed_location_id,
-      active: !!trip?.confirmed_date && !trip?.confirmed_location_id,
-    },
-    {
-      id: 'options',
-      label: 'Save Options',
-      description: 'Lodging, POI, Food',
-      done: (options?.length || 0) > 0,
-      active: !!trip?.confirmed_location_id,
-    },
-    {
-      id: 'itinerary',
-      label: 'Itinerary',
-      description: 'Add stops & activities',
-      done: trip?.status === 'active' || trip?.status === 'completed',
-      active: !!trip?.confirmed_location_id && trip?.status !== 'active' && trip?.status !== 'completed',
-    },
-  ];
-
-  // Don't show stepper once trip is active/completed
-  if (trip?.status === 'active' || trip?.status === 'completed') return null;
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 overflow-x-auto">
-      <div className="flex items-center justify-between min-w-max">
-        {steps.map((step, idx) => (
-          <div key={step.id} className="flex items-center flex-1">
-            <button
-              onClick={() => onNavigate(step.id)}
-              className="flex items-center gap-2 group"
-            >
-              {/* Step circle */}
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition ${
-                step.done
-                  ? 'bg-green-500 text-white'
-                  : step.active
-                    ? 'bg-teal-600 text-white ring-2 ring-teal-200'
-                    : 'bg-gray-200 text-gray-400'
-              }`}>
-                {step.done ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                ) : (
-                  idx + 1
-                )}
-              </div>
-              {/* Step text */}
-              <div className="text-left">
-                <div className={`text-xs font-semibold leading-tight ${
-                  step.done ? 'text-green-700' : step.active ? 'text-teal-700' : 'text-gray-400'
-                }`}>
-                  {step.label}
-                </div>
-                <div className="text-[10px] text-gray-400 leading-tight hidden sm:block">
-                  {step.description}
-                </div>
-              </div>
-            </button>
-            {/* Connector line */}
-            {idx < steps.length - 1 && (
-              <div className={`flex-1 h-px mx-3 ${step.done ? 'bg-green-300' : 'bg-gray-200'}`} />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return 'overview';
 }
 
 // ---- Voting toggle for host ----
@@ -241,28 +145,8 @@ function TripDetail() {
     );
   }
 
-  const invitesSent = !!trip.invites_sent_at;
   const joinedMembers = members.filter(m => m.status === 'joined');
   const badge = STATUS_BADGE[trip.status] || STATUS_BADGE.planning;
-
-  // Dynamically relabel "Guests" to "Members" after invites are sent
-  const displayTabs = TABS.map(tab => {
-    if (tab.id === 'guests' && invitesSent) {
-      return { ...tab, label: 'Members' };
-    }
-    return tab;
-  });
-
-  // Tab state indicators
-  const tabState = {
-    guests: invitesSent ? 'done' : 'active',
-    dates: trip?.confirmed_date ? 'done' : 'active',
-    locations: trip?.confirmed_location_id ? 'done' : trip?.confirmed_date ? 'active' : 'locked',
-    options: options.length > 0 ? 'active' : trip?.confirmed_location_id ? 'active' : 'locked',
-    itinerary: stops.length > 0 ? 'active' : trip?.confirmed_location_id ? 'active' : 'locked',
-    chat: 'active',
-    live: trip?.status === 'active' ? 'active' : 'locked',
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -307,10 +191,13 @@ function TripDetail() {
 
           {/* Tabs */}
           <div className="flex gap-1 -mb-px overflow-x-auto">
-            {displayTabs.map((tab) => {
+            {TABS.map((tab) => {
               const isLiveActive = tab.id === 'live' && trip?.status === 'active';
-              const state = tabState[tab.id];
-              const isDone = state === 'done';
+              // Show green check for completed milestones
+              const isDone =
+                (tab.id === 'guests' && !!trip?.invites_sent_at) ||
+                (tab.id === 'dates' && !!trip?.confirmed_date) ||
+                (tab.id === 'locations' && !!trip?.confirmed_location_id);
               return (
                 <button
                   key={tab.id}
@@ -321,7 +208,7 @@ function TripDetail() {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  {isDone && (tab.id === 'dates' || tab.id === 'locations' || tab.id === 'guests') ? (
+                  {isDone ? (
                     <span className="w-4 h-4 rounded-full bg-green-500 text-white flex items-center justify-center">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                         <polyline points="20 6 9 17 4 12" />
@@ -361,9 +248,7 @@ function TripDetail() {
 
       {/* Tab Content */}
       <main className="max-w-3xl mx-auto px-5 py-6">
-        {/* Progress stepper (only during planning) */}
-        <TripProgress trip={trip} options={options} onNavigate={setActiveTab} />
-
+        {currentTab === 'overview' && <TripOverview onNavigate={setActiveTab} />}
         {currentTab === 'guests' && <GuestList />}
         {currentTab === 'dates' && <DateVoting />}
         {currentTab === 'locations' && (
