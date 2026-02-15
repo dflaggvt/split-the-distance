@@ -21,12 +21,15 @@ export default function GuestList() {
   const invitesSent = !!trip?.invites_sent_at;
   const isHost = permissions.isHost;
 
-  // Guests = non-creator members
+  // Creator (host) is always shown at the top
+  const creator = members.find(m => m.role === 'creator');
+  // Guests = non-creator members (for add/remove management)
   const guests = members.filter(m => m.role !== 'creator');
   const pendingGuests = guests.filter(m => m.status === 'pending');
   const invitedGuests = guests.filter(m => m.status === 'invited');
   const joinedGuests = guests.filter(m => m.status === 'joined');
   const declinedGuests = guests.filter(m => m.status === 'declined');
+  const allDisplayCount = (creator ? 1 : 0) + guests.length;
 
   const inviteUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/trips/join/${trip?.invite_code}`
@@ -133,7 +136,7 @@ export default function GuestList() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900">
             {invitesSent ? 'Members' : 'Guest List'}
-            <span className="ml-2 text-xs text-gray-400 font-normal">({guests.length})</span>
+            <span className="ml-2 text-xs text-gray-400 font-normal">({allDisplayCount})</span>
           </h3>
           {isHost && !invitesSent && pendingGuests.length > 0 && (
             <button
@@ -146,7 +149,7 @@ export default function GuestList() {
           )}
         </div>
 
-        {guests.length === 0 ? (
+        {guests.length === 0 && !creator ? (
           <div className="text-center py-8 text-gray-400 text-sm">
             {isHost
               ? 'No guests yet. Add people above to build your guest list.'
@@ -154,7 +157,11 @@ export default function GuestList() {
           </div>
         ) : (
           <div className="space-y-2">
-            {/* Joined members first */}
+            {/* Creator / host always shown first */}
+            {creator && (
+              <GuestRow key={creator.id} guest={creator} status="joined" isCreator />
+            )}
+            {/* Joined members */}
             {joinedGuests.map(g => (
               <GuestRow key={g.id} guest={g} status="joined" />
             ))}
@@ -219,7 +226,7 @@ const STATUS_BADGE = {
   declined: { label: 'Declined', className: 'bg-red-100 text-red-600' },
 };
 
-function GuestRow({ guest, status, onRemove }) {
+function GuestRow({ guest, status, onRemove, isCreator }) {
   const badge = STATUS_BADGE[status] || STATUS_BADGE.pending;
   const initials = (guest.display_name || guest.email || '?')
     .split(/[\s@]/)
@@ -231,15 +238,24 @@ function GuestRow({ guest, status, onRemove }) {
   return (
     <div className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 transition">
       {/* Avatar */}
-      <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold shrink-0">
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+        isCreator ? 'bg-purple-100 text-purple-700' : 'bg-teal-100 text-teal-700'
+      }`}>
         {initials}
       </div>
 
       {/* Name + email */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">
-          {guest.display_name || 'Guest'}
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium text-gray-900 truncate">
+            {guest.display_name || 'Guest'}
+          </p>
+          {isCreator && (
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
+              Host
+            </span>
+          )}
+        </div>
         {guest.email && (
           <p className="text-xs text-gray-400 truncate">{guest.email}</p>
         )}
