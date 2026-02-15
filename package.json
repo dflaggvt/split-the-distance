@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@react-email/components": "^1.0.7",
+    "@react-email/render": "^2.0.4",
     "@react-google-maps/api": "^2.20.8",
     "@supabase/supabase-js": "^2.94.1",
     "@tailwindcss/typography": "^0.5.19",
