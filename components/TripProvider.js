@@ -19,7 +19,6 @@ import {
   fetchTripMessages,
   fetchLiveStatus,
   fetchTripOptions,
-  getMyMembership,
 } from '@/lib/trips';
 
 const TripContext = createContext(null);
@@ -31,7 +30,7 @@ export function useTripContext() {
 }
 
 export default function TripProvider({ tripId, children }) {
-  const { plan: userPlan } = useAuth();
+  const { user, plan: userPlan } = useAuth();
   const [trip, setTrip] = useState(null);
   const [members, setMembers] = useState([]);
   const [dateOptions, setDateOptions] = useState([]);
@@ -41,11 +40,16 @@ export default function TripProvider({ tripId, children }) {
   const [liveStatus, setLiveStatus] = useState([]);
   const [livePositions, setLivePositions] = useState({});
   const [options, setOptions] = useState([]);
-  const [myMembership, setMyMembership] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const channelRef = useRef(null);
   const broadcastRef = useRef(null);
+
+  // ---- Derive myMembership from members array so it stays in sync ----
+  const myMembership = useMemo(() => {
+    if (!user?.id || members.length === 0) return null;
+    return members.find(m => m.user_id === user.id) || null;
+  }, [members, user?.id]);
 
   // ---- Compute member permissions ----
   const permissions = useMemo(() => {
@@ -63,7 +67,7 @@ export default function TripProvider({ tripId, children }) {
     setLoading(true);
     setError(null);
     try {
-      const [tripData, membersData, dateData, locationData, stopsData, messagesData, liveData, optionsData, membership] = await Promise.all([
+      const [tripData, membersData, dateData, locationData, stopsData, messagesData, liveData, optionsData] = await Promise.all([
         fetchTrip(tripId),
         fetchTripMembers(tripId),
         fetchDateOptions(tripId),
@@ -72,7 +76,6 @@ export default function TripProvider({ tripId, children }) {
         fetchTripMessages(tripId),
         fetchLiveStatus(tripId),
         fetchTripOptions(tripId),
-        getMyMembership(tripId),
       ]);
       setTrip(tripData);
       setMembers(membersData);
@@ -82,7 +85,6 @@ export default function TripProvider({ tripId, children }) {
       setMessages(messagesData);
       setLiveStatus(liveData);
       setOptions(optionsData);
-      setMyMembership(membership);
     } catch (err) {
       console.error('Failed to load trip:', err);
       setError(err.message);
