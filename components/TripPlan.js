@@ -4,11 +4,14 @@
  * TripPlan — The "Plan" tab for a trip.
  *
  * Sub-navigation:
- *   PlanHome (default) -> Dates | Location | Options sections
+ *   PlanHome (default) -> Dates | Location | Activities sections
  *
  * PlanHome shows:
  *   - Host: "Next Step" hero card + status checklist
  *   - Guest: Pending actions + read-only summary (or "all caught up")
+ *
+ * Activities merges the old Options + Itinerary into a single
+ * Suggestions + Schedule view (see TripActivities.js).
  */
 
 import { useState } from 'react';
@@ -20,7 +23,7 @@ import { startTrip, updateTrip } from '@/lib/trips';
 import DateVoting from './DateVoting';
 import LocationCriteria from './LocationCriteria';
 import LocationVoting from './LocationVoting';
-import TripOptions from './TripOptions';
+import TripActivities from './TripActivities';
 
 // ---------------------------------------------------------------------------
 // Back button for sub-sections
@@ -237,13 +240,22 @@ export default function TripPlan({ onSwitchTab }) {
         action: () => setSection('locations'),
       };
     }
+    if (!hasOptions && !hasStops) {
+      return {
+        icon: '💡',
+        title: 'Plan your activities',
+        description: `Heading to ${confirmedLocation.name}. Suggest places, vote, and build your schedule.`,
+        actionLabel: 'Plan Activities',
+        action: () => setSection('activities'),
+      };
+    }
     if (!hasStops) {
       return {
-        icon: '📋',
-        title: 'Build your itinerary',
-        description: `Heading to ${confirmedLocation.name}. Add stops and activities.`,
-        actionLabel: 'Build Itinerary',
-        action: () => onSwitchTab('trip'),
+        icon: '📅',
+        title: 'Build your schedule',
+        description: `${options.length} suggestion${options.length !== 1 ? 's' : ''} added. Schedule them into your day-by-day plan.`,
+        actionLabel: 'View Schedule',
+        action: () => setSection('activities'),
       };
     }
     // Everything done
@@ -291,11 +303,11 @@ export default function TripPlan({ onSwitchTab }) {
     );
   }
 
-  if (section === 'options') {
+  if (section === 'activities') {
     return (
       <div>
         <BackHeader onBack={() => setSection(null)} />
-        <TripOptions />
+        <TripActivities />
       </div>
     );
   }
@@ -392,26 +404,24 @@ export default function TripPlan({ onSwitchTab }) {
             }
             done={!!confirmedLocation}
           />
-          {(hasOptions || confirmedLocation) && (
+          {(hasOptions || hasStops || confirmedLocation) && (
             <GuestStatusRow
-              icon="⭐"
-              label="Options"
-              value={hasOptions ? `${options.length} saved` : 'None yet'}
-              done={false}
-            />
-          )}
-          {(hasStops || confirmedLocation) && (
-            <GuestStatusRow
-              icon="📋"
-              label="Itinerary"
-              value={hasStops ? `${stops.length} stops planned` : 'Not started'}
-              done={false}
+              icon="💡"
+              label="Activities"
+              value={
+                hasStops
+                  ? `${options.length} suggestions, ${stops.length} scheduled`
+                  : hasOptions
+                    ? `${options.length} suggestions`
+                    : 'Not started'
+              }
+              done={hasStops}
             />
           )}
         </div>
 
         {/* Browse sections links */}
-        {(hasDateOptions || hasLocations || hasOptions) && (
+        {(hasDateOptions || hasLocations || hasOptions || hasStops) && (
           <div className="space-y-1">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-1 mb-2">Browse</p>
             {hasDateOptions && (
@@ -424,9 +434,9 @@ export default function TripPlan({ onSwitchTab }) {
                 📍 Locations <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="ml-auto text-gray-300"><path d="M9 18l6-6-6-6" /></svg>
               </button>
             )}
-            {hasOptions && (
-              <button onClick={() => setSection('options')} className="flex items-center gap-2 w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition text-sm text-gray-700 font-medium">
-                ⭐ Options <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="ml-auto text-gray-300"><path d="M9 18l6-6-6-6" /></svg>
+            {(hasOptions || hasStops) && (
+              <button onClick={() => setSection('activities')} className="flex items-center gap-2 w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition text-sm text-gray-700 font-medium">
+                💡 Activities <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="ml-auto text-gray-300"><path d="M9 18l6-6-6-6" /></svg>
               </button>
             )}
           </div>
@@ -487,26 +497,24 @@ export default function TripPlan({ onSwitchTab }) {
           done={!!confirmedLocation}
           onClick={() => setSection('locations')}
         />
-        {/* Options — only visible after location work has begun */}
+        {/* Activities — visible after location work has begun */}
         {(hasLocations || confirmedLocation) && (
           <ChecklistRow
-            icon="⭐"
-            label="Options"
-            status={hasOptions ? `${options.length} saved` : 'None yet'}
-            statusColor={hasOptions ? 'text-blue-600' : 'text-gray-400'}
-            done={false}
-            onClick={() => setSection('options')}
+            icon="💡"
+            label="Activities"
+            status={
+              hasStops
+                ? `${options.length} suggestions, ${stops.length} scheduled`
+                : hasOptions
+                  ? `${options.length} suggestions`
+                  : 'Not started'
+            }
+            statusColor={hasStops ? 'text-green-600' : hasOptions ? 'text-blue-600' : 'text-gray-400'}
+            done={hasStops && !!confirmedLocation}
+            locked={!confirmedLocation}
+            onClick={() => setSection('activities')}
           />
         )}
-        <ChecklistRow
-          icon="📋"
-          label="Itinerary"
-          status={hasStops ? `${stops.length} stops` : 'Not started'}
-          statusColor={hasStops ? 'text-blue-600' : 'text-gray-400'}
-          done={hasStops && !!confirmedLocation}
-          locked={!confirmedLocation}
-          onClick={() => onSwitchTab('trip')}
-        />
       </div>
 
       {/* Voting toggle */}

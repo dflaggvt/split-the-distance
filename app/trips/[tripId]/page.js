@@ -119,26 +119,11 @@ function TripDetail() {
 
   // Determine what the Trip tab shows
   const renderTripTab = () => {
-    const showLive = isActive && tripSubview !== 'itinerary';
-    const showItinerary = !isActive || tripSubview === 'itinerary';
-
-    // During planning with no confirmed location and no stops: empty state
-    if (!isActive && !confirmedLocation && stops.length === 0) {
+    // During an active trip: show Live map with itinerary toggle
+    if (isActive) {
+      const showLive = tripSubview !== 'itinerary';
       return (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <span className="text-3xl block mb-3">📋</span>
-          <h3 className="font-semibold text-gray-900 mb-1">Itinerary</h3>
-          <p className="text-sm text-gray-500">
-            Confirm a date and location in the Plan tab first, then build your itinerary here.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div>
-        {/* Toggle between Live / Itinerary when trip is active */}
-        {isActive && (
+        <div>
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setTripSubview(showLive ? 'itinerary' : null)}
@@ -151,9 +136,53 @@ function TripDetail() {
               {showLive ? 'View Itinerary' : 'View Live Map'}
             </button>
           </div>
-        )}
-        {showLive && <TripLive />}
-        {showItinerary && <TripItinerary />}
+          {showLive && <TripLive />}
+          {!showLive && <TripItinerary />}
+        </div>
+      );
+    }
+
+    // During planning: point to Plan > Activities
+    if (stops.length > 0) {
+      // Read-only schedule summary
+      return (
+        <div>
+          <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+            <span className="text-lg">💡</span>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-teal-800">
+                Manage your schedule in Plan → Activities
+              </p>
+              <p className="text-xs text-teal-600">
+                Add suggestions, vote, and organize your day-by-day plan there.
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveTab('plan')}
+              className="shrink-0 px-3 py-1.5 text-xs font-semibold bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition"
+            >
+              Go to Plan
+            </button>
+          </div>
+          <TripItinerary />
+        </div>
+      );
+    }
+
+    // No stops yet
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
+        <span className="text-3xl block mb-3">💡</span>
+        <h3 className="font-semibold text-gray-900 mb-1">Activities & Schedule</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Head to the Plan tab to suggest places, vote with your group, and build your day-by-day schedule.
+        </p>
+        <button
+          onClick={() => setActiveTab('plan')}
+          className="px-4 py-2 text-sm font-semibold bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition"
+        >
+          Go to Plan
+        </button>
       </div>
     );
   };
