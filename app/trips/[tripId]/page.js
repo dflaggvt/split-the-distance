@@ -142,12 +142,18 @@ function TripDetail() {
       );
     }
 
-    // During planning: point to Plan > Activities
+    // During planning: read-only schedule summary (no editing UI)
     if (stops.length > 0) {
-      // Read-only schedule summary
+      // Group stops by day for read-only display
+      const maxDay = Math.max(...stops.map(s => s.day_number));
+      const dayGroups = Array.from({ length: maxDay }, (_, i) => i + 1).map(d => ({
+        day: d,
+        stops: stops.filter(s => s.day_number === d).sort((a, b) => a.sort_order - b.sort_order),
+      }));
+
       return (
-        <div>
-          <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 mb-4 flex items-center gap-3">
+        <div className="space-y-4">
+          <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex items-center gap-3">
             <span className="text-lg">💡</span>
             <div className="flex-1">
               <p className="text-sm font-medium text-teal-800">
@@ -164,7 +170,35 @@ function TripDetail() {
               Go to Plan
             </button>
           </div>
-          <TripItinerary />
+
+          {dayGroups.map(({ day, stops: dayStops }) => (
+            dayStops.length > 0 && (
+              <div key={day}>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Day {day}</h3>
+                <div className="space-y-2">
+                  {dayStops.map((stop, idx) => (
+                    <div key={stop.id} className="bg-white rounded-xl border border-gray-200 p-3 flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-full bg-teal-50 text-teal-700 flex items-center justify-center text-xs font-bold shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-gray-900 truncate block">{stop.name}</span>
+                        {stop.address && <span className="text-[11px] text-gray-400 truncate block">{stop.address}</span>}
+                      </div>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                        stop.status === 'confirmed' ? 'bg-green-100 text-green-700'
+                          : stop.status === 'completed' ? 'bg-teal-100 text-teal-700'
+                          : stop.status === 'skipped' ? 'bg-gray-100 text-gray-500'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {stop.status === 'confirmed' ? 'Confirmed' : stop.status === 'completed' ? 'Done' : stop.status === 'skipped' ? 'Skipped' : 'Planned'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          ))}
         </div>
       );
     }
