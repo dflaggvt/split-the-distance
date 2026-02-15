@@ -166,6 +166,9 @@ export default function TripPlan({ onSwitchTab }) {
   const hasStops = stops.length > 0;
 
   // -- Pending action detection (for guest view) --
+  // Only prompt to vote if the user actually has permission (host, paid, or voting is open)
+  const canVote = permissions.canVote;
+
   const myVotedDateIds = new Set();
   dateOptions.forEach(opt => {
     (opt.trip_date_votes || []).forEach(v => {
@@ -173,7 +176,7 @@ export default function TripPlan({ onSwitchTab }) {
     });
   });
   const unvotedDates = dateOptions.filter(o => !myVotedDateIds.has(o.id));
-  const hasUnvotedDates = !trip?.confirmed_date && hasDateOptions && unvotedDates.length > 0;
+  const hasUnvotedDates = canVote && !trip?.confirmed_date && hasDateOptions && unvotedDates.length > 0;
 
   const myVotedLocationIds = new Set();
   locations.forEach(loc => {
@@ -182,7 +185,7 @@ export default function TripPlan({ onSwitchTab }) {
     });
   });
   const unvotedLocations = locations.filter(l => !myVotedLocationIds.has(l.id));
-  const hasUnvotedLocations = !trip?.confirmed_location_id && hasLocations && unvotedLocations.length > 0;
+  const hasUnvotedLocations = canVote && !trip?.confirmed_location_id && hasLocations && unvotedLocations.length > 0;
 
   const originNotSet = myMembership && !myMembership.origin_lat;
 
