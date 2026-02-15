@@ -62,12 +62,12 @@ export default function GuestList() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    if (!email.trim() && !displayName.trim()) return;
+    if (!email.trim()) return;
     setAdding(true);
     setError(null);
     try {
       await addGuest(tripId, {
-        email: email.trim() || null,
+        email: email.trim(),
         displayName: displayName.trim() || null,
       });
       setEmail('');
@@ -122,25 +122,26 @@ export default function GuestList() {
           <form onSubmit={handleAdd} className="space-y-3">
             <div className="flex gap-3">
               <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Name"
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-              <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email (optional)"
+                placeholder="Email address"
+                required
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Name (optional)"
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-400">Add by name, email, or both.</p>
+              <p className="text-xs text-gray-400">Email is required so they can receive their invite.</p>
               <button
                 type="submit"
-                disabled={adding || (!email.trim() && !displayName.trim())}
+                disabled={adding || !email.trim()}
                 className="px-4 py-2 bg-teal-600 text-white text-sm font-semibold rounded-lg hover:bg-teal-700 transition disabled:opacity-50"
               >
                 {adding ? 'Adding...' : 'Add Guest'}
