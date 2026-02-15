@@ -16,8 +16,12 @@
 
 import { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
+import { useJsApiLoader } from '@react-google-maps/api';
 import { useAuth } from '@/components/AuthProvider';
 import TripProvider, { useTripContext } from '@/components/TripProvider';
+
+// Must be a static constant to prevent useJsApiLoader from re-loading
+const GOOGLE_MAPS_LIBRARIES = [];
 import GuestList from '@/components/GuestList';
 import DateVoting from '@/components/DateVoting';
 import LocationCriteria from '@/components/LocationCriteria';
@@ -416,6 +420,12 @@ function TripDetail() {
 export default function TripDetailPage() {
   const { tripId } = useParams();
   const { isLoggedIn, loading: authLoading } = useAuth();
+
+  // Load Google Maps API for Live map, location voting, and itinerary features
+  useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
 
   if (authLoading) {
     return (
