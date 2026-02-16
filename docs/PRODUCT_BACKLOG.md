@@ -410,6 +410,10 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | Feb 10 | Collaborative Group Trips — Tier 2 | Social trip planning with date/location voting, live coordination, multi-day support. Builds on Group Gravity. | Theresa |
 | Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
 | Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
+| Feb 15 | Places results need clickable URLs | Add URLs to place results that open in new tab | Theresa |
+| Feb 15 | "Stay on course" preference for destination pairs | Option to bias midpoint/places toward the route rather than geographic midpoint — could be map move + "search this area," rest stops toggle, or related to Drift Radius. Needs discussion. | Theresa |
+| Feb 15 | Crosshairs "my location" icon not obvious | The GPS crosshairs icon in the address input field isn't clearly communicating "use my location" | Theresa |
+| Feb 15 | Distance vs Time toggle — does it auto-recalculate? | When toggling between distance and time midpoint, should auto-update without re-clicking "Split The Distance." Question for Daryl. | Theresa |
 | Feb 11 | Midpoint pin needs location context | Show city/state above "Open in Google Maps" or make pin clickable to reveal it. Currently just a floating pin with no info. | Theresa |
 | Feb 9 | Mapbox for place discovery | 20-35x cheaper than Google NearbySearch | Daryl/Wenee |
 | Feb 9 | No Google Ads / AdSense | Affiliate + premium model instead | Daryl |
