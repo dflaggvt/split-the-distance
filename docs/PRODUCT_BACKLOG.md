@@ -410,6 +410,11 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | Feb 10 | Collaborative Group Trips — Tier 2 | Social trip planning with date/location voting, live coordination, multi-day support. Builds on Group Gravity. | Theresa |
 | Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
 | Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
+| Feb 18 | 🐛 Pro upgrade not activating | Theresa upgraded to Pro, transaction went through but still only had free access. Needs investigation. | Theresa |
+| Feb 18 | Add Contact Us link/email | Need a visible contact us link somewhere on the site | Theresa |
+| Feb 18 | Midpoint vs 66% destination | Option to shift the meeting point toward one person's destination (e.g., 66/34 split instead of 50/50) | Theresa |
+| Feb 18 | Hamburger menu icon misleading | Hamburger icon expands the map, not a dropdown menu. Change icon to something that represents expand/fullscreen. | Theresa |
+| Feb 18 | Stripe "Subscribe" button text | Change "Subscribe" to "Go Pro" or something matching the premium branding | Theresa |
 | Feb 15 | Places results need clickable URLs | Add URLs to place results that open in new tab | Theresa |
 | Feb 15 | "Stay on course" preference for destination pairs | Option to bias midpoint/places toward the route rather than geographic midpoint — could be map move + "search this area," rest stops toggle, or related to Drift Radius. Needs discussion. | Theresa |
 | Feb 15 | Crosshairs "my location" icon not obvious | The GPS crosshairs icon in the address input field isn't clearly communicating "use my location" | Theresa |
