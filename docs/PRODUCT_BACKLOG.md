@@ -410,6 +410,8 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | Feb 10 | Collaborative Group Trips — Tier 2 | Social trip planning with date/location voting, live coordination, multi-day support. Builds on Group Gravity. | Theresa |
 | Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
 | Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
+| Feb 18 | Directions from place results list | Add a "Get Directions" link/button directly on place cards in the results list, not just from the map | Theresa |
+| Feb 18 | Place name in Google Maps instead of dropped pin | When opening a place in Google Maps, pass the place name (restaurant, park, etc.) instead of just lat/lng coordinates — so it shows as the actual business with Google's full info (website, share, reviews, etc.) | Theresa |
 | Feb 18 | Drift Radius UX improvements | 1) Show drift direction in places results — user should understand which person they're drifting toward. 2) Visualize drift on the map. 3) Extend options to 30 min (currently caps at ±15). | Theresa |
 | Feb 18 | Add "Alpha" badge next to site name | Display "Alpha" label next to "Split The Distance" in the header on both desktop and mobile | Theresa |
 | Feb 18 | 🐛 Pro upgrade not activating | Theresa upgraded to Pro, transaction went through but still only had free access. Needs investigation. | Theresa |
