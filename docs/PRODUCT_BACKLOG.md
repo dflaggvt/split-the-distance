@@ -410,6 +410,7 @@ The second use case implies a quick, low-friction interaction — one-tap "📌 
 | Feb 10 | Collaborative Group Trips — Tier 2 | Social trip planning with date/location voting, live coordination, multi-day support. Builds on Group Gravity. | Theresa |
 | Feb 10 | Added Incremental Stops to Tier 1 | Natural extension — longer trips need multiple stops, not just midpoint | Theresa |
 | Feb 10 | Reservation history = free with account | Shows platform value, builds loyalty | Theresa |
+| Feb 18 | Add "Alpha" badge next to site name | Display "Alpha" label next to "Split The Distance" in the header on both desktop and mobile | Theresa |
 | Feb 18 | 🐛 Pro upgrade not activating | Theresa upgraded to Pro, transaction went through but still only had free access. Needs investigation. | Theresa |
 | Feb 18 | Add Contact Us link/email | Need a visible contact us link somewhere on the site | Theresa |
 | Feb 18 | Midpoint vs 66% destination | Option to shift the meeting point toward one person's destination (e.g., 66/34 split instead of 50/50) | Theresa |
