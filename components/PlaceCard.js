@@ -1,6 +1,7 @@
 'use client';
 
 import { trackEvent, logOutboundClick } from '@/lib/analytics';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 export default function PlaceCard({ place, isActive, onClick }) {
   const photoUrl = place.photoUrl || null;
@@ -20,6 +21,13 @@ export default function PlaceCard({ place, isActive, onClick }) {
       placeName: place.name,
       placeCategory: place.category,
       destinationUrl: url,
+    });
+    logSessionEvent('place_directions_clicked', {
+      source: 'place_card',
+      placeName: place.name,
+      category: place.category,
+      distanceMeters: place.distance,
+      openNow: place.openNow,
     });
     
     window.open(url, '_blank', 'noopener,noreferrer');

@@ -57,6 +57,9 @@ export default function AdminDashboard() {
   const [shareMethodStats, setShareMethodStats] = useState([]);
   const [topSharedRoutes, setTopSharedRoutes] = useState([]);
   const [shareTimeline, setShareTimeline] = useState([]);
+  // Sessions tab state
+  const [sessionTimelines, setSessionTimelines] = useState([]);
+  const [expandedSessionId, setExpandedSessionId] = useState(null);
 
   useEffect(() => {
     fetchStats();
@@ -392,6 +395,73 @@ export default function AdminDashboard() {
           .map(([date, count]) => ({ date: date.substring(5), shares: count })));
       }
 
+      // ==================== SESSION TIMELINES ====================
+      try {
+        const { data: recentSessions, error: sessionsError } = await supabase
+          .from('sessions')
+          .select('session_id, visitor_id, started_at, created_at, device_type, source, source_detail, referrer_domain, landing_page, is_internal')
+          .gte('created_at', since)
+          .eq('is_internal', false)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (sessionsError) throw sessionsError;
+
+        const sessionIds = (recentSessions || []).map(s => s.session_id).filter(Boolean);
+        let timelineEvents = [];
+
+        if (sessionIds.length > 0) {
+          const { data: events, error: eventsError } = await supabase
+            .from('session_events')
+            .select('*')
+            .in('session_id', sessionIds)
+            .order('created_at', { ascending: true })
+            .limit(5000);
+          if (eventsError) throw eventsError;
+          timelineEvents = events || [];
+        }
+
+        const eventsBySession = {};
+        timelineEvents.forEach(e => {
+          if (!eventsBySession[e.session_id]) eventsBySession[e.session_id] = [];
+          eventsBySession[e.session_id].push(e);
+        });
+
+        setSessionTimelines((recentSessions || []).map(s => {
+          const events = eventsBySession[s.session_id] || [];
+          const eventTypes = events.reduce((acc, e) => {
+            acc[e.event_type] = (acc[e.event_type] || 0) + 1;
+            return acc;
+          }, {});
+          const firstEvent = events[0];
+          const lastEvent = events[events.length - 1];
+          const startedAt = s.started_at || s.created_at;
+          const lastAt = lastEvent?.created_at || startedAt;
+          const durationSeconds = Math.max(0, Math.round((new Date(lastAt) - new Date(startedAt)) / 1000));
+
+          return {
+            ...s,
+            events,
+            eventCount: events.length,
+            durationSeconds,
+            firstEventType: firstEvent?.event_type || null,
+            lastEventType: lastEvent?.event_type || null,
+            searches: eventTypes.search_completed || 0,
+            placeClicks: eventTypes.place_click || 0,
+            decisions:
+              (eventTypes.midpoint_directions_clicked || 0) +
+              (eventTypes.place_directions_clicked || 0) +
+              (eventTypes.place_website_clicked || 0) +
+              (eventTypes.place_call_clicked || 0) +
+              (eventTypes.share_created || 0),
+            gates: eventTypes.feature_gate_triggered || 0,
+          };
+        }));
+      } catch (timelineErr) {
+        console.warn('Session timeline fetch skipped:', timelineErr.message);
+        setSessionTimelines([]);
+      }
+
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
@@ -435,6 +505,179 @@ export default function AdminDashboard() {
       </div>
     );
   };
+
+  const formatSessionDuration = (seconds) => {
+    if (!seconds || seconds < 1) return '0s';
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const rem = seconds % 60;
+    if (mins < 60) return `${mins}m ${rem}s`;
+    const hrs = Math.floor(mins / 60);
+    return `${hrs}h ${mins % 60}m`;
+  };
+
+  const EVENT_DOT_COLORS = {
+    navigation: 'bg-gray-400',
+    search_funnel: 'bg-teal-500',
+    results: 'bg-orange-500',
+    map: 'bg-blue-500',
+    route: 'bg-cyan-500',
+    decision: 'bg-emerald-500',
+    discovery: 'bg-amber-500',
+    road_trip: 'bg-indigo-500',
+    premium: 'bg-purple-500',
+    monetization: 'bg-pink-500',
+    auth: 'bg-slate-500',
+  };
+
+  const describeSessionEvent = (event) => {
+    const m = event.metadata || {};
+    switch (event.event_type) {
+      case 'page_viewed':
+        return m.path || event.page_path || '/';
+      case 'input_started':
+      case 'input_cleared':
+        return m.field ? `${m.field} input` : '';
+      case 'input_selected':
+        return [m.field, m.locationName].filter(Boolean).join(': ');
+      case 'search_clicked':
+      case 'search_failed':
+        return [m.from, m.to].filter(Boolean).join(' -> ') || m.error || '';
+      case 'search_completed':
+        return `${[m.from, m.to].filter(Boolean).join(' -> ')}${m.durationSeconds ? ` (${Math.round(m.durationSeconds / 60)} min)` : ''}`;
+      case 'filter_toggle':
+        return `${m.category || 'filter'} ${m.action || ''}`.trim();
+      case 'places_loaded':
+        return `${m.count || 0} places${m.categories?.length ? ` for ${m.categories.join(', ')}` : ''}`;
+      case 'place_click':
+        return `${m.placeName || 'Place'}${m.rank ? ` (#${m.rank})` : ''}${m.category ? `, ${m.category}` : ''}`;
+      case 'map_marker_click':
+        return `${m.placeName || 'Marker'}${m.category ? `, ${m.category}` : ''}`;
+      case 'route_selected':
+        return `${m.routeSummary || 'Route'}${m.routeIndex != null ? ` (#${m.routeIndex + 1})` : ''}`;
+      case 'travel_mode_changed':
+      case 'midpoint_mode_changed':
+        return m.mode || '';
+      case 'place_directions_clicked':
+      case 'place_website_clicked':
+      case 'place_call_clicked':
+        return `${m.placeName || 'Place'}${m.source ? ` from ${m.source}` : ''}`;
+      case 'midpoint_directions_clicked':
+        return [m.from, m.to].filter(Boolean).join(' -> ');
+      case 'share_created':
+        return `${m.method || 'share'}: ${[m.from, m.to].filter(Boolean).join(' -> ')}`;
+      case 'roulette_spin':
+        return `${m.placeName || 'Pick'}${m.rollNumber ? `, roll #${m.rollNumber}` : ''}`;
+      case 'feature_gate_triggered':
+        return `${m.feature || 'feature'} (${m.reason || 'locked'})`;
+      case 'road_trip_activated':
+        return `${m.stopCount || 0} stops every ${m.intervalValue || '?'} ${m.intervalMode || ''}`;
+      case 'road_trip_stop_selected':
+        return `${m.label || 'Stop'}${m.stopIndex != null ? ` (#${m.stopIndex + 1})` : ''}`;
+      case 'sign_in':
+        return `${m.method || 'unknown'}${m.email ? `, ${m.email}` : ''}`;
+      default:
+        return Object.keys(m).length ? JSON.stringify(m) : '';
+    }
+  };
+
+  const SessionsTab = () => (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="text-lg font-bold text-gray-900">Session Timelines</h3>
+          <span className="text-xs text-gray-400">{sessionTimelines.length} recent sessions</span>
+        </div>
+        <p className="text-sm text-gray-500">
+          Ordered product events by session. New data appears after the session_events migration is applied.
+        </p>
+      </div>
+
+      {sessionTimelines.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
+          No session timeline events found for this range yet.
+        </div>
+      ) : (
+        sessionTimelines.map((session) => {
+          const isExpanded = expandedSessionId === session.session_id;
+          return (
+            <div key={session.session_id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <button
+                onClick={() => setExpandedSessionId(isExpanded ? null : session.session_id)}
+                className="w-full px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-semibold text-gray-900">
+                        {new Date(session.started_at || session.created_at).toLocaleString([], {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <span className="text-xs text-gray-400">{session.device_type || 'unknown'}</span>
+                      <span className="text-xs text-gray-400">{session.source || 'unknown'}</span>
+                      {session.referrer_domain && <span className="text-xs text-gray-400">{session.referrer_domain}</span>}
+                    </div>
+                    <div className="text-xs text-gray-400 truncate">
+                      {session.visitor_id || 'no visitor'} &middot; {session.session_id}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="px-2 py-1 rounded-md bg-gray-100 text-gray-600 text-xs font-medium">{session.eventCount} events</span>
+                    <span className="px-2 py-1 rounded-md bg-teal-50 text-teal-700 text-xs font-medium">{session.searches} searches</span>
+                    <span className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 text-xs font-medium">{session.placeClicks} places</span>
+                    <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium">{session.decisions} decisions</span>
+                    {session.gates > 0 && (
+                      <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs font-medium">{session.gates} gates</span>
+                    )}
+                    <span className="px-2 py-1 rounded-md bg-gray-50 text-gray-500 text-xs font-medium">
+                      {formatSessionDuration(session.durationSeconds)}
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="border-t border-gray-100 px-5 py-4">
+                  {session.events.length === 0 ? (
+                    <div className="text-sm text-gray-400">No events recorded for this session.</div>
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute left-[7px] top-2 bottom-2 w-px bg-gray-200" />
+                      <div className="space-y-3">
+                        {session.events.map((event) => {
+                          const secondsFromStart = Math.max(0, Math.round((new Date(event.created_at) - new Date(session.started_at || session.created_at)) / 1000));
+                          const dotColor = EVENT_DOT_COLORS[event.event_group] || 'bg-gray-400';
+                          return (
+                            <div key={event.id} className="relative flex gap-3">
+                              <div className={`w-3.5 h-3.5 rounded-full ${dotColor} mt-1.5 z-10 ring-4 ring-white`} />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-gray-800">{event.event_label || event.event_type}</span>
+                                  <span className="text-[11px] text-gray-400">+{formatSessionDuration(secondsFromStart)}</span>
+                                  <span className="text-[10px] text-gray-300">{event.event_group}</span>
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {describeSessionEvent(event)}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
 
   const funnelData = stats ? [
     { name: 'Sessions', value: stats.sessions, fill: '#3b82f6' },
@@ -1638,6 +1881,7 @@ export default function AdminDashboard() {
 
   // ==================== MAIN RENDER ====================
   const tabs = [
+    { id: 'sessions', label: 'Timeline' },
     { id: 'overview', label: '📊 Overview' },
     { id: 'attribution', label: '🔗 Attribution' },
     { id: 'shares', label: '📤 Shares' },
@@ -1722,6 +1966,7 @@ export default function AdminDashboard() {
         ) : (
           <>
             {activeTab === 'overview' && <OverviewTab />}
+            {activeTab === 'sessions' && <SessionsTab />}
             {activeTab === 'attribution' && <AttributionTab />}
             {activeTab === 'shares' && <SharesTab />}
             {activeTab === 'users' && <UsersTab />}

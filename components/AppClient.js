@@ -20,6 +20,7 @@ import { logSearch, logPlaceClick, checkInternalUser, trackEvent, getSharedRoute
 import { saveSearch } from '@/lib/searchHistory';
 import { generateDriftCircle, filterPlacesInZone } from '@/lib/isochrone';
 import { logUserEvent } from '@/lib/userEvents';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -93,6 +94,10 @@ export default function AppClient() {
   // Check internal user status on mount
   useEffect(() => {
     setIsInternal(checkInternalUser());
+    logSessionEvent('page_viewed', {
+      path: window.location.pathname,
+      search: window.location.search || null,
+    }, { userId: user?.id });
   }, []);
 
   // ---- Welcome Modal (signup / upgrade walkthrough) ----
@@ -112,6 +117,7 @@ export default function AppClient() {
       // Refresh profile to pick up the new plan from DB
       refreshProfile();
       // Log upgrade event
+      logSessionEvent('upgrade_completed', { plan: 'premium' }, { userId: user?.id });
       if (user?.id) {
         logUserEvent(user.id, 'upgrade_completed', { plan: 'premium' });
       }
@@ -191,6 +197,11 @@ export default function AppClient() {
         // Sort by distance
         allPlaces.sort((a, b) => a.distance - b.distance);
         setPlaces(allPlaces);
+        logSessionEvent('places_loaded', {
+          categories: cats,
+          count: allPlaces.length,
+          cacheStatus: 'hit',
+        }, { userId: user?.id });
         return allPlaces;
       }
       
@@ -217,9 +228,20 @@ export default function AppClient() {
         const allPlaces = cats.flatMap(cat => newCache[cat] || []);
         allPlaces.sort((a, b) => a.distance - b.distance);
         setPlaces(allPlaces);
+        logSessionEvent('places_loaded', {
+          categories: cats,
+          fetchedCategories: uncachedCats,
+          cachedCategories: cachedCats,
+          count: allPlaces.length,
+          cacheStatus: cachedCats.length > 0 ? 'partial' : 'miss',
+        }, { userId: user?.id });
         return allPlaces;
       } catch (err) {
         console.error('POI search error:', err);
+        logSessionEvent('places_load_failed', {
+          categories: cats,
+          error: err.message,
+        }, { userId: user?.id });
         setPlaces([]);
         return [];
       } finally {
@@ -258,6 +280,14 @@ export default function AppClient() {
       to_input: toVal,
       location_count: 2 + validExtras.length,
     });
+    logSessionEvent('search_clicked', {
+      from: fromVal,
+      to: toVal,
+      locationCount: 2 + validExtras.length,
+      travelMode,
+      midpointMode,
+      isMulti,
+    }, { userId: user?.id });
 
     setLoading(true);
     setMultiResult(null);
@@ -366,6 +396,18 @@ export default function AppClient() {
           activeFilters: [],
           placesFound: 0,
         });
+        logSessionEvent('search_completed', {
+          from: from.name,
+          to: to.name,
+          locationCount: allLocations.length,
+          travelMode,
+          midpointMode,
+          resultType: 'group',
+          maxDriveSeconds: result.maxDrive,
+          driveTimeSpreadSeconds: result.maxDrive && result.minDrive ? result.maxDrive - result.minDrive : null,
+          midpointLat: result.midpoint.lat,
+          midpointLng: result.midpoint.lon || result.midpoint.lng,
+        }, { userId: user?.id });
       } else {
         // ---- STANDARD 2-LOCATION PATH ----
         const cacheKey = `${from.lat},${from.lon}|${to.lat},${to.lon}|${travelMode}`;
@@ -406,6 +448,19 @@ export default function AppClient() {
           activeFilters: [],
           placesFound: 0,
         });
+        logSessionEvent('search_completed', {
+          from: from.name,
+          to: to.name,
+          locationCount: 2,
+          travelMode,
+          midpointMode,
+          resultType: 'standard',
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+          midpointLat: mp.lat,
+          midpointLng: mp.lon,
+          routeOptions: routeData.allRoutes?.length || 1,
+        }, { userId: user?.id });
 
         // Log user event for per-user analytics
         if (user?.id) {
@@ -444,6 +499,14 @@ export default function AppClient() {
       }
     } catch (err) {
       console.error('Split error:', err);
+      logSessionEvent('search_failed', {
+        from: fromVal,
+        to: toVal,
+        locationCount: 2 + validExtras.length,
+        travelMode,
+        midpointMode,
+        error: err.message,
+      }, { userId: user?.id });
       showToast(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
@@ -481,6 +544,12 @@ export default function AppClient() {
         to: entry.toName,
       });
     }
+    logSessionEvent('search_history_resplit', {
+      from: entry.fromName,
+      to: entry.toName,
+      travelMode: entry.travelMode,
+      midpointMode: entry.midpointMode,
+    }, { userId: user?.id });
     // Trigger the split on next tick (after state updates)
     setTimeout(() => {
       const splitBtn = document.querySelector('[data-split-btn]');
@@ -501,6 +570,7 @@ export default function AppClient() {
     // Pure client-side computation — no API call needed
     const result = generateDriftCircle(midpoint, { minutes, travelMode });
     setDriftRadius(result);
+    logSessionEvent('drift_radius_toggled', { minutes, travelMode, enabled: true }, { userId: user?.id });
     // Per-user event
     if (user?.id) {
       logUserEvent(user.id, 'drift_radius_toggled', { minutes, travelMode });
@@ -551,6 +621,13 @@ export default function AppClient() {
       route_duration: route.totalDuration,
       route_distance: route.totalDistance,
     });
+    logSessionEvent('road_trip_activated', {
+      intervalValue: interval.value,
+      intervalMode: interval.mode,
+      stopCount: stopsWithLabels.length,
+      routeDurationSeconds: route.totalDuration,
+      routeDistanceMeters: route.totalDistance,
+    }, { userId: user?.id });
     // Per-user event
     if (user?.id) {
       logUserEvent(user.id, 'road_trip_activated', {
@@ -562,6 +639,11 @@ export default function AppClient() {
   }, [route, selectedRouteIndex, showToast, midpoint, user]);
 
   const handleExitRoadTrip = useCallback(() => {
+    logSessionEvent('road_trip_exited', {
+      stopCount: roadTripStops?.length || 0,
+      intervalValue: roadTripInterval?.value || null,
+      intervalMode: roadTripInterval?.mode || null,
+    }, { userId: user?.id });
     setRoadTripStops(null);
     setRoadTripInterval(null);
     setActiveStopIndex(0);
@@ -574,7 +656,7 @@ export default function AppClient() {
     setPlaces([]);
     setPlacesCache({});
     setActiveFilters([]);
-  }, []);
+  }, [roadTripStops, roadTripInterval, user]);
 
   // ---- Handle road trip stop selection ----
   const handleActiveStopChange = useCallback((idx) => {
@@ -589,6 +671,12 @@ export default function AppClient() {
     setPlaces([]);
     setPlacesCache({});
     setActiveFilters([]);
+    logSessionEvent('road_trip_stop_selected', {
+      stopIndex: idx,
+      label: stop.label,
+      distanceFromStart: stop.distanceFromStart,
+      timeFromStart: stop.timeFromStart,
+    }, { userId: user?.id });
     // Per-user event
     if (user?.id) {
       logUserEvent(user.id, 'road_trip_stop_selected', { stopIndex: idx, label: stop.label });
@@ -599,6 +687,7 @@ export default function AppClient() {
   // ---- Tracked travel mode change ----
   const handleTravelModeChange = useCallback((mode) => {
     setTravelMode(mode);
+    logSessionEvent('travel_mode_changed', { mode }, { userId: user?.id });
     if (user?.id) {
       logUserEvent(user.id, 'travel_mode_changed', { mode });
     }
@@ -607,6 +696,7 @@ export default function AppClient() {
   // ---- Tracked midpoint mode change ----
   const handleMidpointModeChange = useCallback((mode) => {
     setMidpointMode(mode);
+    logSessionEvent('midpoint_mode_changed', { mode }, { userId: user?.id });
     if (user?.id) {
       logUserEvent(user.id, 'midpoint_mode_changed', { mode });
     }
@@ -618,6 +708,9 @@ export default function AppClient() {
     if (newExtras.length > extraLocations.length && user?.id) {
       logUserEvent(user.id, 'group_location_added', { totalPeople: 2 + newExtras.length });
     }
+    if (newExtras.length > extraLocations.length) {
+      logSessionEvent('group_location_added', { totalPeople: 2 + newExtras.length }, { userId: user?.id });
+    }
     setExtraLocations(newExtras);
   }, [extraLocations.length, user]);
 
@@ -626,7 +719,11 @@ export default function AppClient() {
     setToValue(fromValue);
     setFromLocation(toLocation);
     setToLocation(fromLocation);
-  }, [fromValue, toValue, fromLocation, toLocation]);
+    logSessionEvent('locations_swapped', {
+      from: toValue,
+      to: fromValue,
+    }, { userId: user?.id });
+  }, [fromValue, toValue, fromLocation, toLocation, user]);
 
   // ---- Handle filter toggle ----
   const handleFilterToggle = useCallback(
@@ -642,9 +739,24 @@ export default function AppClient() {
       if (user?.id) {
         logUserEvent(user.id, 'filter_toggle', { category: key });
       }
+      logSessionEvent('filter_toggle', {
+        category: key,
+        action: activeFilters.includes(key) ? 'off' : 'on',
+      }, { userId: user?.id });
     },
-    [user]
+    [user, activeFilters]
   );
+
+  const handleLocalOnlyToggle = useCallback(() => {
+    setLocalOnly((prev) => {
+      const next = !prev;
+      logSessionEvent('filter_toggle', {
+        category: 'local_only',
+        action: next ? 'on' : 'off',
+      }, { userId: user?.id });
+      return next;
+    });
+  }, [user]);
 
   // Re-calculate route when travel mode changes (if we have locations)
   useEffect(() => {
@@ -738,6 +850,16 @@ export default function AppClient() {
         midpointLng: midpoint?.lon ?? null,
       });
       // Per-user event
+      const rank = places.findIndex((p) => p.id === placeId) + 1;
+      logSessionEvent('place_click', {
+        placeName: place.name,
+        category: place.category,
+        rank: rank || null,
+        distanceMeters: place.distance,
+        openNow: place.openNow,
+        hasWebsite: Boolean(place.websiteUri),
+        hasPhone: Boolean(place.phoneNumber),
+      }, { userId: user?.id });
       if (user?.id) {
         logUserEvent(user.id, 'place_click', {
           placeName: place.name,
@@ -773,8 +895,14 @@ export default function AppClient() {
         route_index: index,
         route_summary: selectedRoute.summary,
       });
+      logSessionEvent('route_selected', {
+        routeIndex: index,
+        routeSummary: selectedRoute.summary,
+        durationSeconds: selectedRoute.totalDuration,
+        distanceMeters: selectedRoute.totalDistance,
+      }, { userId: user?.id });
     },
-    [route, fetchPlaces, activeFilters, midpointMode]
+    [route, fetchPlaces, activeFilters, midpointMode, user]
   );
 
   // ---- Auto-run from URL params on mount ----
@@ -860,8 +988,23 @@ export default function AppClient() {
           activeFilters: [],
           placesFound: 0,
         });
+        logSessionEvent('search_completed', {
+          from: from.name,
+          to: to.name,
+          resultType: 'url_autoload',
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+          midpointLat: routeData.midpoint.lat,
+          midpointLng: routeData.midpoint.lon,
+        }, { userId: user?.id });
       } catch (err) {
         console.error('Auto-split error:', err);
+        logSessionEvent('search_failed', {
+          from: fromVal,
+          to: toVal,
+          resultType: 'url_autoload',
+          error: err.message,
+        }, { userId: user?.id });
         showToast(err.message || 'Failed to load shared route.');
       } finally {
         setLoading(false);
@@ -911,8 +1054,21 @@ export default function AppClient() {
           activeFilters: [],
           placesFound: 0,
         });
+        logSessionEvent('search_completed', {
+          from: from.name,
+          to: to.name,
+          resultType: 'share_autoload',
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+          midpointLat: routeData.midpoint.lat,
+          midpointLng: routeData.midpoint.lon,
+        }, { userId: user?.id });
       } catch (err) {
         console.error('Shared route error:', err);
+        logSessionEvent('search_failed', {
+          resultType: 'share_autoload',
+          error: err.message,
+        }, { userId: user?.id });
         showToast(err.message || 'Failed to load shared route.');
       } finally {
         setLoading(false);
@@ -986,17 +1142,35 @@ export default function AppClient() {
           fromValue={fromValue}
           toValue={toValue}
           onFromChange={(val) => {
+            if (!fromValue && val.trim()) {
+              logSessionEvent('input_started', { field: 'from' }, { userId: user?.id });
+            }
             setFromValue(val);
             if (!val.trim()) setFromLocation(null);
           }}
           onToChange={(val) => {
+            if (!toValue && val.trim()) {
+              logSessionEvent('input_started', { field: 'to' }, { userId: user?.id });
+            }
             setToValue(val);
             if (!val.trim()) setToLocation(null);
           }}
-          onFromSelect={(loc) => setFromLocation(loc)}
-          onToSelect={(loc) => setToLocation(loc)}
-          onFromClear={() => setFromLocation(null)}
-          onToClear={() => setToLocation(null)}
+          onFromSelect={(loc) => {
+            setFromLocation(loc);
+            logSessionEvent('input_selected', { field: 'from', locationName: loc.name }, { userId: user?.id });
+          }}
+          onToSelect={(loc) => {
+            setToLocation(loc);
+            logSessionEvent('input_selected', { field: 'to', locationName: loc.name }, { userId: user?.id });
+          }}
+          onFromClear={() => {
+            setFromLocation(null);
+            logSessionEvent('input_cleared', { field: 'from' }, { userId: user?.id });
+          }}
+          onToClear={() => {
+            setToLocation(null);
+            logSessionEvent('input_cleared', { field: 'to' }, { userId: user?.id });
+          }}
           onSwap={handleSwap}
           onSplit={handleSplit}
           loading={loading}
@@ -1020,7 +1194,7 @@ export default function AppClient() {
           midpointMode={midpointMode}
           onMidpointModeChange={handleMidpointModeChange}
           localOnly={localOnly}
-          onLocalOnlyToggle={() => setLocalOnly(prev => !prev)}
+          onLocalOnlyToggle={handleLocalOnlyToggle}
           onResplit={handleResplit}
           extraLocations={extraLocations}
           onExtraLocationsChange={handleExtraLocationsChange}

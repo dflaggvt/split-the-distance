@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { onAuthStateChange, upsertUserProfile, fetchUserProfile, signOut as authSignOut } from '@/lib/auth';
 import { logUserEvent } from '@/lib/userEvents';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 const AuthContext = createContext({
   user: null,
@@ -43,6 +44,10 @@ export function AuthProvider({ children }) {
                   method: currentUser.app_metadata?.provider || 'unknown',
                   email: currentUser.email,
                 });
+                logSessionEvent('sign_in', {
+                  method: currentUser.app_metadata?.provider || 'unknown',
+                  email: currentUser.email,
+                }, { userId: currentUser.id });
                 sessionStorage.setItem('std_signin_logged', '1');
               }
             } catch {}

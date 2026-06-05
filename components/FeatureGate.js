@@ -2,6 +2,8 @@
 
 import { useFeature } from './FeatureProvider';
 import ComingSoonCard from './ComingSoonCard';
+import { useAuth } from './AuthProvider';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 /**
  * FeatureGate — declarative wrapper that controls feature access.
@@ -117,6 +119,7 @@ export default function FeatureGate({
  */
 export function useGatedAction(featureKey) {
   const { allowed, reason, showSignIn, showUpgrade } = useFeature(featureKey);
+  const { user } = useAuth();
 
   return {
     allowed,
@@ -126,8 +129,16 @@ export function useGatedAction(featureKey) {
       if (allowed) {
         action();
       } else if (reason === 'login_required') {
+        logSessionEvent('feature_gate_triggered', {
+          feature: featureKey,
+          reason,
+        }, { userId: user?.id });
         showSignIn();
       } else if (reason === 'upgrade_required') {
+        logSessionEvent('feature_gate_triggered', {
+          feature: featureKey,
+          reason,
+        }, { userId: user?.id });
         showUpgrade();
       }
       // coming_soon, hidden, disabled — do nothing

@@ -7,6 +7,7 @@ import { reverseGeocode } from '@/lib/geocoding';
 import { useGatedAction } from './FeatureGate';
 import { useAuth } from './AuthProvider';
 import { logUserEvent } from '@/lib/userEvents';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 const SHARE_METHODS = [
   { id: 'copy', label: 'Copy Link', icon: '📋', color: 'text-gray-600' },
@@ -240,10 +241,6 @@ export default function RouteInfo({
     return () => { cancelled = true; };
   }, [midpoint?.lat, midpoint?.lon]);
 
-  if (!route && !multiResult) return null;
-
-  const hasAlternatives = route?.allRoutes && route.allRoutes.length > 1;
-
   // Close share menu when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
@@ -256,6 +253,10 @@ export default function RouteInfo({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showShareMenu]);
+
+  if (!route && !multiResult) return null;
+
+  const hasAlternatives = route?.allRoutes && route.allRoutes.length > 1;
 
   const executeShare = async (method) => {
     setShowShareMenu(false);
@@ -276,6 +277,7 @@ export default function RouteInfo({
       toLng: toLocation?.lon || null,
     });
     // Per-user event
+    logSessionEvent('share_created', { method, from: fromName, to: toName }, { userId: user?.id });
     if (user?.id) {
       logUserEvent(user.id, 'share_created', { method, from: fromName, to: toName });
     }
@@ -361,6 +363,12 @@ export default function RouteInfo({
       destinationUrl: url,
       fromSearchRoute: `${fromName} → ${toName}`,
     });
+    logSessionEvent('midpoint_directions_clicked', {
+      from: fromName,
+      to: toName,
+      midpointLat: midpoint.lat,
+      midpointLng: midpoint.lon,
+    }, { userId: user?.id });
     if (user?.id) {
       logUserEvent(user.id, 'outbound_click', { type: 'midpoint_directions' });
     }

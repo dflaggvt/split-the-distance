@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { fetchFeatureFlags, checkAccess, getComingSoonFeatures, getFeaturesByTier, DEFAULT_FEATURES } from '@/lib/features';
 import { useAuth } from './AuthProvider';
 import { logUserEvent } from '@/lib/userEvents';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 const FeatureContext = createContext({
   features: DEFAULT_FEATURES,
@@ -76,6 +77,7 @@ export function FeatureProvider({ children }) {
   const openPricingModal = useCallback(() => {
     setPricingModalOpen(true);
     // Track pricing modal view for conversion funnel
+    logSessionEvent('pricing_modal_opened', {}, { userId: auth.user?.id });
     if (auth.user?.id) {
       logUserEvent(auth.user.id, 'pricing_modal_opened', {});
     }

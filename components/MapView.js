@@ -10,6 +10,7 @@ import {
 } from '@react-google-maps/api';
 import { formatDuration } from '@/lib/utils';
 import { trackEvent } from '@/lib/analytics';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 const DEFAULT_CENTER = { lat: 39.8283, lng: -98.5795 };
 const DEFAULT_ZOOM = 4;
@@ -433,6 +434,12 @@ export default function MapView({
               place_name: place.name,
               place_category: place.category,
             });
+            logSessionEvent('map_marker_click', {
+              placeName: place.name,
+              category: place.category,
+              distanceMeters: place.distance,
+              openNow: place.openNow,
+            });
             onPlaceClick?.(place.id);
             setActiveInfoWindow(place.id);
           }}
@@ -606,6 +613,11 @@ export default function MapView({
                       place_name: activePlace.name,
                       place_category: activePlace.category,
                     });
+                    logSessionEvent('place_directions_clicked', {
+                      source: 'map_infowindow',
+                      placeName: activePlace.name,
+                      category: activePlace.category,
+                    });
                   }}
                 >
                   <span>🧭</span><span>Directions</span>
@@ -633,6 +645,11 @@ export default function MapView({
                       trackEvent('infowindow_call_click', {
                         place_name: activePlace.name,
                         place_category: activePlace.category,
+                      });
+                      logSessionEvent('place_call_clicked', {
+                        source: 'map_infowindow',
+                        placeName: activePlace.name,
+                        category: activePlace.category,
                       });
                     }}
                   >
@@ -664,6 +681,11 @@ export default function MapView({
                       trackEvent('infowindow_website_click', {
                         place_name: activePlace.name,
                         place_category: activePlace.category,
+                      });
+                      logSessionEvent('place_website_clicked', {
+                        source: 'map_infowindow',
+                        placeName: activePlace.name,
+                        category: activePlace.category,
                       });
                     }}
                   >

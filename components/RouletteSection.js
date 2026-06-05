@@ -7,6 +7,7 @@ import { useGatedAction } from './FeatureGate';
 import { searchNearby, CATEGORIES } from '@/lib/places';
 import { trackEvent, logOutboundClick } from '@/lib/analytics';
 import { logUserEvent } from '@/lib/userEvents';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 const ALL_CATEGORY_KEYS = Object.keys(CATEGORIES);
 const CATEGORY_EMOJIS = ALL_CATEGORY_KEYS.map(k => CATEGORIES[k].emoji);
@@ -171,6 +172,11 @@ export default function RouletteSection({ midpoint, onPlaceClick }) {
         place_category: pick.category,
         roll_number: rollCount + 1,
       });
+      logSessionEvent('roulette_spin', {
+        placeName: pick.name,
+        category: pick.category,
+        rollNumber: rollCount + 1,
+      }, { userId: user?.id });
       // Per-user event
       if (user?.id) {
         logUserEvent(user.id, 'roulette_spin', {
@@ -226,6 +232,11 @@ export default function RouletteSection({ midpoint, onPlaceClick }) {
     if (user?.id) {
       logUserEvent(user.id, 'outbound_click', { type: 'roulette_directions', placeName: currentPick.name });
     }
+    logSessionEvent('place_directions_clicked', {
+      source: 'roulette',
+      placeName: currentPick.name,
+      category: currentPick.category,
+    }, { userId: user?.id });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
