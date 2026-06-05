@@ -1,4 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import {
+  getCanonicalSiteUrl,
+  getMissingEnv,
+  isNoRowsError,
+} from '@/lib/stripeServer';
 
 /**
  * POST /api/stripe/checkout
@@ -11,8 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 export async function POST(request) {
   try {
     // Validate required env vars
-    const missing = ['STRIPE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'NEXT_PUBLIC_SB_PROJECT_URL', 'NEXT_PUBLIC_SB_PUBLISHABLE_KEY']
-      .filter(k => !process.env[k]);
+    const missing = getMissingEnv(['STRIPE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'NEXT_PUBLIC_SB_PROJECT_URL', 'NEXT_PUBLIC_SB_PUBLISHABLE_KEY']);
     if (missing.length > 0) {
       return Response.json(
         { error: `Server misconfigured. Missing: ${missing.join(', ')}` },
@@ -50,6 +54,12 @@ export async function POST(request) {
     }
 
     const { priceType } = await request.json();
+    if (!['monthly', 'yearly'].includes(priceType)) {
+      return Response.json(
+        { error: 'Invalid price type.' },
+        { status: 400 }
+      );
+    }
 
     // Map price type to Stripe Price ID (set these in env vars)
     const priceId = priceType === 'yearly'
@@ -64,12 +74,16 @@ export async function POST(request) {
     }
 
     // Check if user already has a Stripe customer ID
-    const { data: existingSub } = await supabase
+    const { data: existingSub, error: existingSubError } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('user_id', user.id)
       .limit(1)
       .single();
+
+    if (existingSubError && !isNoRowsError(existingSubError)) {
+      throw new Error(`Failed to look up subscription: ${existingSubError.message}`);
+    }
 
     let customerId = existingSub?.stripe_customer_id;
 
@@ -83,13 +97,13 @@ export async function POST(request) {
     }
 
     // Create checkout session
-    const origin = request.headers.get('origin') || 'https://www.splitthedistance.com';
+    const siteUrl = getCanonicalSiteUrl();
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}?upgrade=success`,
-      cancel_url: `${origin}?upgrade=cancelled`,
+      success_url: `${siteUrl}?upgrade=success`,
+      cancel_url: `${siteUrl}?upgrade=cancelled`,
       metadata: { supabase_user_id: user.id },
       subscription_data: {
         metadata: { supabase_user_id: user.id },
