@@ -82,7 +82,7 @@ export default function BestPlaceToStopHalfwayPage() {
             Split The Distance
           </Link>
           <nav className="flex items-center gap-5 text-sm text-gray-500">
-            <Link href="/halfway-point-calculator" className="hover:text-gray-900 transition">Calculator</Link>
+            <Link href="/halfway-point-calculator" className="hover:text-gray-900 transition">Halfway Calculator</Link>
             <Link href="/meet-halfway" className="hover:text-gray-900 transition">Meet Halfway</Link>
             <Link href="/about" className="hover:text-gray-900 transition">About Us</Link>
           </nav>
@@ -217,10 +217,10 @@ export default function BestPlaceToStopHalfwayPage() {
               Enter your start and destination, then choose a useful place near the midpoint.
             </p>
             <Link
-              href="/halfway-point-calculator"
+              href="/"
               className="inline-flex h-12 items-center justify-center rounded-md bg-orange-500 px-6 text-base font-bold text-white hover:bg-orange-600 transition"
             >
-              Open the Calculator
+              Find a Halfway Stop
             </Link>
           </div>
         </section>
