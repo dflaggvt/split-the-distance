@@ -15,6 +15,7 @@ export default function LegalLayout({ children }) {
             Split The Distance
           </Link>
           <nav className="flex items-center gap-6 text-sm">
+            <Link href="/about" className="text-gray-500 hover:text-gray-900 transition">About Us</Link>
             <Link href="/legal/terms" className="text-gray-500 hover:text-gray-900 transition">Terms</Link>
             <Link href="/legal/privacy" className="text-gray-500 hover:text-gray-900 transition">Privacy</Link>
             <Link href="/" className="text-teal-600 hover:text-teal-700 font-medium transition">Back to App</Link>
@@ -31,6 +32,8 @@ export default function LegalLayout({ children }) {
       <footer className="border-t border-gray-200 bg-gray-50">
         <div className="max-w-3xl mx-auto px-6 py-8 text-center text-sm text-gray-400">
           <div className="flex items-center justify-center gap-4 mb-2">
+            <Link href="/about" className="hover:text-gray-600 transition">About Us</Link>
+            <span>&middot;</span>
             <Link href="/legal/terms" className="hover:text-gray-600 transition">Terms of Use</Link>
             <span>·</span>
             <Link href="/legal/privacy" className="hover:text-gray-600 transition">Privacy Policy</Link>

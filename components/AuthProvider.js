@@ -3,7 +3,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { onAuthStateChange, upsertUserProfile, fetchUserProfile, signOut as authSignOut } from '@/lib/auth';
 import { logUserEvent } from '@/lib/userEvents';
-import { logSessionEvent } from '@/lib/sessionEvents';
+import { logSessionEvent, setTrackedSessionUserId } from '@/lib/sessionEvents';
+import { associateCurrentSessionUser } from '@/lib/analytics';
 
 const AuthContext = createContext({
   user: null,
@@ -18,6 +19,7 @@ const AuthContext = createContext({
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [accessToken, setAccessToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Derive plan from profile (or 'anonymous' if not logged in)
@@ -29,8 +31,12 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChange(async (event, session) => {
       const currentUser = session?.user || null;
       setUser(currentUser);
+      setAccessToken(session?.access_token || null);
 
       if (currentUser) {
+        setTrackedSessionUserId(currentUser.id);
+        associateCurrentSessionUser(currentUser.id, session?.access_token);
+
         // Upsert profile on sign in (ensures row exists, updates name/avatar)
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           const upserted = await upsertUserProfile(currentUser);
@@ -58,6 +64,8 @@ export function AuthProvider({ children }) {
           setProfile(existing);
         }
       } else {
+        setAccessToken(null);
+        setTrackedSessionUserId(null);
         setProfile(null);
       }
 
@@ -66,6 +74,17 @@ export function AuthProvider({ children }) {
 
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    const handleSessionStarted = () => {
+      associateCurrentSessionUser(user.id, accessToken);
+    };
+
+    window.addEventListener('std:session-started', handleSessionStarted);
+    return () => window.removeEventListener('std:session-started', handleSessionStarted);
+  }, [user, accessToken]);
 
   const handleSignOut = useCallback(async () => {
     await authSignOut();

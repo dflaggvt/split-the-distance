@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useJsApiLoader } from '@react-google-maps/api';
@@ -94,10 +95,6 @@ export default function AppClient() {
   // Check internal user status on mount
   useEffect(() => {
     setIsInternal(checkInternalUser());
-    logSessionEvent('page_viewed', {
-      path: window.location.pathname,
-      search: window.location.search || null,
-    }, { userId: user?.id });
   }, []);
 
   // ---- Welcome Modal (signup / upgrade walkthrough) ----
@@ -1084,7 +1081,7 @@ export default function AppClient() {
         {/* Header (always visible) */}
         <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
           <div className="w-full max-w-[1440px] mx-auto px-5 flex items-center">
-            <a
+            <Link
               href="/"
               className="flex items-center gap-2.5 no-underline text-gray-900"
             >
@@ -1092,7 +1089,7 @@ export default function AppClient() {
               <span className="text-lg font-bold tracking-tight">
                 Split The Distance
               </span>
-            </a>
+            </Link>
           </div>
         </header>
         <div className="flex items-center justify-center h-[calc(100vh-56px)] mt-14 bg-gray-50">
@@ -1110,7 +1107,7 @@ export default function AppClient() {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
         <div className="w-full max-w-[1440px] mx-auto px-5 flex items-center justify-between">
-          <a
+          <Link
             href="/"
             className="flex items-center gap-2.5 no-underline text-gray-900"
           >
@@ -1123,7 +1120,7 @@ export default function AppClient() {
                 INTERNAL
               </span>
             )}
-          </a>
+          </Link>
           <nav className="flex items-center gap-4">
             <a
               href="#how-it-works"
@@ -1261,9 +1258,11 @@ export default function AppClient() {
         <div className="max-w-[800px] mx-auto text-center flex items-center justify-center gap-2 flex-wrap">
           <span>Split The Distance &copy; {new Date().getFullYear()}</span>
           <span className="text-gray-600">·</span>
-          <a href="/legal/terms" className="hover:text-gray-200 transition">Terms</a>
+          <Link href="/about" className="hover:text-gray-200 transition">About Us</Link>
+          <span className="text-gray-600">&middot;</span>
+          <Link href="/legal/terms" className="hover:text-gray-200 transition">Terms</Link>
           <span className="text-gray-600">·</span>
-          <a href="/legal/privacy" className="hover:text-gray-200 transition">Privacy</a>
+          <Link href="/legal/privacy" className="hover:text-gray-200 transition">Privacy</Link>
         </div>
       </footer>
 

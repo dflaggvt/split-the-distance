@@ -60,6 +60,10 @@ export default function AdminDashboard() {
   // Sessions tab state
   const [sessionTimelines, setSessionTimelines] = useState([]);
   const [expandedSessionId, setExpandedSessionId] = useState(null);
+  const [timelineAudience, setTimelineAudience] = useState('all');
+  const [timelineActivity, setTimelineActivity] = useState('all');
+  const [timelineDevice, setTimelineDevice] = useState('all');
+  const [timelineSource, setTimelineSource] = useState('all');
 
   useEffect(() => {
     fetchStats();
@@ -109,6 +113,8 @@ export default function AdminDashboard() {
         { count: shares },
         { count: outboundClicks },
         { count: sessions },
+        { count: anonymousSessions },
+        { count: signedInSessions },
       ] = await Promise.all([
         supabase.from('searches').select('*', { count: 'exact', head: true }).gte('created_at', since),
         supabase.from('searches').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
@@ -116,6 +122,8 @@ export default function AdminDashboard() {
         supabase.from('shares').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
         supabase.from('outbound_clicks').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
         supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
+        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false).is('user_id', null),
+        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false).not('user_id', 'is', null),
       ]);
 
       setStats({
@@ -125,6 +133,8 @@ export default function AdminDashboard() {
         shares: shares || 0,
         outboundClicks: outboundClicks || 0,
         sessions: sessions || 0,
+        anonymousSessions: anonymousSessions || 0,
+        signedInSessions: signedInSessions || 0,
       });
 
       // Fetch previous period for comparison (same duration, shifted back)
@@ -140,12 +150,16 @@ export default function AdminDashboard() {
         { count: prevPlaceClicks },
         { count: prevShares },
         { count: prevOutbound },
+        { count: prevAnonymousSessions },
+        { count: prevSignedInSessions },
       ] = await Promise.all([
         supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
         supabase.from('searches').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
         supabase.from('place_clicks').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
         supabase.from('shares').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
         supabase.from('outbound_clicks').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).is('user_id', null),
+        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).not('user_id', 'is', null),
       ]);
 
       setPrevStats({
@@ -154,12 +168,14 @@ export default function AdminDashboard() {
         placeClicks: prevPlaceClicks || 0,
         shares: prevShares || 0,
         outboundClicks: prevOutbound || 0,
+        anonymousSessions: prevAnonymousSessions || 0,
+        signedInSessions: prevSignedInSessions || 0,
       });
 
       // Place clicks with categories (unique sessions)
       const { data: placesData } = await supabase
         .from('place_clicks')
-        .select('place_name, place_category, session_id')
+        .select('id, place_name, place_category, session_id')
         .gte('created_at', since)
         .eq('is_internal', false).limit(10000);
 
@@ -168,7 +184,7 @@ export default function AdminDashboard() {
         const catCounts = {};
         placesData.forEach(p => {
           if (!placeSessionSets[p.place_name]) placeSessionSets[p.place_name] = new Set();
-          placeSessionSets[p.place_name].add(p.session_id || 'unknown');
+          placeSessionSets[p.place_name].add(p.session_id || `row:${p.id}`);
           const cat = p.place_category || 'Other';
           catCounts[cat] = (catCounts[cat] || 0) + 1;
         });
@@ -184,7 +200,7 @@ export default function AdminDashboard() {
       // Searches for routes, geo, time stats
       const { data: routesData } = await supabase
         .from('searches')
-        .select('from_name, to_name, created_at, session_id')
+        .select('id, from_name, to_name, created_at, session_id')
         .gte('created_at', since)
         .eq('is_internal', false).limit(10000);
 
@@ -195,7 +211,7 @@ export default function AdminDashboard() {
           const toShort = r.to_name?.split(',')[0] || 'Unknown';
           const route = `${fromShort} → ${toShort}`;
           if (!routeSessionSets[route]) routeSessionSets[route] = new Set();
-          routeSessionSets[route].add(r.session_id || 'unknown');
+          routeSessionSets[route].add(r.session_id || `row:${r.id}`);
         });
         setTopRoutes(Object.entries(routeSessionSets)
           .map(([name, sessions]) => ({ name: name.substring(0, 35), value: sessions.size }))
@@ -399,7 +415,7 @@ export default function AdminDashboard() {
       try {
         const { data: recentSessions, error: sessionsError } = await supabase
           .from('sessions')
-          .select('session_id, visitor_id, started_at, created_at, device_type, source, source_detail, referrer_domain, landing_page, is_internal')
+          .select('session_id, visitor_id, user_id, started_at, ended_at, duration_seconds, created_at, device_type, source, source_detail, referrer_domain, landing_page, is_internal')
           .gte('created_at', since)
           .eq('is_internal', false)
           .order('created_at', { ascending: false })
@@ -437,7 +453,10 @@ export default function AdminDashboard() {
           const lastEvent = events[events.length - 1];
           const startedAt = s.started_at || s.created_at;
           const lastAt = lastEvent?.created_at || startedAt;
-          const durationSeconds = Math.max(0, Math.round((new Date(lastAt) - new Date(startedAt)) / 1000));
+          const trackedDuration = Number.parseInt(s.duration_seconds, 10);
+          const durationSeconds = Number.isFinite(trackedDuration)
+            ? trackedDuration
+            : Math.max(0, Math.round((new Date(lastAt) - new Date(startedAt)) / 1000));
 
           return {
             ...s,
@@ -516,6 +535,21 @@ export default function AdminDashboard() {
     return `${hrs}h ${mins % 60}m`;
   };
 
+  const filteredSessionTimelines = sessionTimelines.filter((session) => {
+    if (timelineAudience === 'anonymous' && session.user_id) return false;
+    if (timelineAudience === 'signed_in' && !session.user_id) return false;
+    if (timelineActivity === 'with_searches' && session.searches < 1) return false;
+    if (timelineActivity === 'no_decisions' && session.decisions > 0) return false;
+    if (timelineActivity === 'with_decisions' && session.decisions < 1) return false;
+    if (timelineActivity === 'with_gates' && session.gates < 1) return false;
+    if (timelineDevice !== 'all' && (session.device_type || 'unknown') !== timelineDevice) return false;
+    if (timelineSource !== 'all' && (session.source || 'unknown') !== timelineSource) return false;
+    return true;
+  });
+
+  const timelineDevices = [...new Set(sessionTimelines.map(s => s.device_type || 'unknown'))].sort();
+  const timelineSources = [...new Set(sessionTimelines.map(s => s.source || 'unknown'))].sort();
+
   const EVENT_DOT_COLORS = {
     navigation: 'bg-gray-400',
     search_funnel: 'bg-teal-500',
@@ -586,19 +620,73 @@ export default function AdminDashboard() {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-lg font-bold text-gray-900">Session Timelines</h3>
-          <span className="text-xs text-gray-400">{sessionTimelines.length} recent sessions</span>
+          <span className="text-xs text-gray-400">{filteredSessionTimelines.length} of {sessionTimelines.length} recent sessions</span>
         </div>
         <p className="text-sm text-gray-500">
           Ordered product events by session. New data appears after the session_events migration is applied.
         </p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <label className="text-xs font-medium text-gray-500">
+            Audience
+            <select
+              value={timelineAudience}
+              onChange={(e) => setTimelineAudience(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+            >
+              <option value="all">All sessions</option>
+              <option value="anonymous">Anonymous</option>
+              <option value="signed_in">Signed in</option>
+            </select>
+          </label>
+          <label className="text-xs font-medium text-gray-500">
+            Activity
+            <select
+              value={timelineActivity}
+              onChange={(e) => setTimelineActivity(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+            >
+              <option value="all">All activity</option>
+              <option value="with_searches">With searches</option>
+              <option value="no_decisions">No decisions</option>
+              <option value="with_decisions">With decisions</option>
+              <option value="with_gates">Hit a gate</option>
+            </select>
+          </label>
+          <label className="text-xs font-medium text-gray-500">
+            Device
+            <select
+              value={timelineDevice}
+              onChange={(e) => setTimelineDevice(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+            >
+              <option value="all">All devices</option>
+              {timelineDevices.map(device => (
+                <option key={device} value={device}>{device}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-medium text-gray-500">
+            Source
+            <select
+              value={timelineSource}
+              onChange={(e) => setTimelineSource(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700"
+            >
+              <option value="all">All sources</option>
+              {timelineSources.map(source => (
+                <option key={source} value={source}>{source}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
-      {sessionTimelines.length === 0 ? (
+      {filteredSessionTimelines.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-sm text-gray-400">
-          No session timeline events found for this range yet.
+          No sessions match these filters.
         </div>
       ) : (
-        sessionTimelines.map((session) => {
+        filteredSessionTimelines.map((session) => {
           const isExpanded = expandedSessionId === session.session_id;
           return (
             <div key={session.session_id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -620,6 +708,11 @@ export default function AdminDashboard() {
                       <span className="text-xs text-gray-400">{session.device_type || 'unknown'}</span>
                       <span className="text-xs text-gray-400">{session.source || 'unknown'}</span>
                       {session.referrer_domain && <span className="text-xs text-gray-400">{session.referrer_domain}</span>}
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                        session.user_id ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {session.user_id ? 'signed in' : 'anonymous'}
+                      </span>
                     </div>
                     <div className="text-xs text-gray-400 truncate">
                       {session.visitor_id || 'no visitor'} &middot; {session.session_id}
@@ -691,9 +784,11 @@ export default function AdminDashboard() {
   // ==================== TAB: OVERVIEW ====================
   const OverviewTab = () => (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4 mb-6">
         <StatCard icon="👤" label="Total Users" value={userGrowthData.length > 0 ? userGrowthData[userGrowthData.length - 1].totalUsers : 0} tooltip="Registered users (all time)." />
         <StatCard icon="👥" label="Sessions" value={stats?.sessions} prevValue={prevStats?.sessions} tooltip="Unique visits to the site." />
+        <StatCard icon="A" label="Anonymous" value={stats?.anonymousSessions} prevValue={prevStats?.anonymousSessions} subtext={stats?.sessions > 0 ? `${((stats?.anonymousSessions / stats.sessions) * 100).toFixed(0)}% of sessions` : ''} tooltip="Sessions that have not been linked to a signed-in user." />
+        <StatCard icon="ID" label="Signed In" value={stats?.signedInSessions} prevValue={prevStats?.signedInSessions} subtext={stats?.sessions > 0 ? `${((stats?.signedInSessions / stats.sessions) * 100).toFixed(0)}% of sessions` : ''} tooltip="Sessions associated with a logged-in user." />
         <StatCard icon="🔍" label="Searches" value={stats?.externalSearches} prevValue={prevStats?.externalSearches} tooltip="Midpoint searches performed." />
         <StatCard icon="📍" label="Place Clicks" value={stats?.placeClicks} prevValue={prevStats?.placeClicks} tooltip="Clicks on place cards." />
         <StatCard icon="🔗" label="Shares" value={stats?.shares} prevValue={prevStats?.shares} tooltip="Times users shared results." />

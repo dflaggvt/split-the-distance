@@ -1,8 +1,10 @@
 import { Inter } from 'next/font/google';
 import Script from 'next/script';
+import { Suspense } from 'react';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 import { FeatureProvider } from '@/components/FeatureProvider';
+import PageViewTracker from '@/components/PageViewTracker';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -141,6 +143,9 @@ export default function RootLayout({ children }) {
         </noscript>
         <AuthProvider>
           <FeatureProvider>
+            <Suspense fallback={null}>
+              <PageViewTracker />
+            </Suspense>
             {children}
           </FeatureProvider>
         </AuthProvider>
