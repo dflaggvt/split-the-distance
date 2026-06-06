@@ -67,7 +67,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchStats();
-  }, [timeRange, customValue, customUnit]);
+  }, [timeRange, customValue, customUnit, activeTab]);
 
   const getTimeFilter = () => {
     const now = new Date();
@@ -103,6 +103,7 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     setLoading(true);
     const since = getTimeFilter();
+    const shouldLoadSessions = activeTab === 'sessions';
 
     try {
       // ==================== OVERVIEW DATA ====================
@@ -116,14 +117,14 @@ export default function AdminDashboard() {
         { count: anonymousSessions },
         { count: signedInSessions },
       ] = await Promise.all([
-        supabase.from('searches').select('*', { count: 'exact', head: true }).gte('created_at', since),
-        supabase.from('searches').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
-        supabase.from('place_clicks').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
-        supabase.from('shares').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
-        supabase.from('outbound_clicks').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
-        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
-        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false).is('user_id', null),
-        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false).not('user_id', 'is', null),
+        supabase.from('searches').select('id', { count: 'exact', head: true }).gte('created_at', since),
+        supabase.from('searches').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
+        supabase.from('place_clicks').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
+        supabase.from('shares').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
+        supabase.from('outbound_clicks').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
+        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
+        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false).is('user_id', null),
+        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false).not('user_id', 'is', null),
       ]);
 
       setStats({
@@ -153,13 +154,13 @@ export default function AdminDashboard() {
         { count: prevAnonymousSessions },
         { count: prevSignedInSessions },
       ] = await Promise.all([
-        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('searches').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('place_clicks').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('shares').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('outbound_clicks').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).is('user_id', null),
-        supabase.from('sessions').select('*', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).not('user_id', 'is', null),
+        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('searches').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('place_clicks').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('shares').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('outbound_clicks').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).is('user_id', null),
+        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).not('user_id', 'is', null),
       ]);
 
       setPrevStats({
@@ -412,73 +413,75 @@ export default function AdminDashboard() {
       }
 
       // ==================== SESSION TIMELINES ====================
-      try {
-        const { data: recentSessions, error: sessionsError } = await supabase
-          .from('sessions')
-          .select('session_id, visitor_id, user_id, started_at, ended_at, duration_seconds, created_at, device_type, source, source_detail, referrer_domain, landing_page, is_internal')
-          .gte('created_at', since)
-          .eq('is_internal', false)
-          .order('created_at', { ascending: false })
-          .limit(100);
+      if (shouldLoadSessions) {
+        try {
+          const { data: recentSessions, error: sessionsError } = await supabase
+            .from('sessions')
+            .select('session_id, visitor_id, user_id, started_at, ended_at, duration_seconds, created_at, device_type, source, source_detail, referrer_domain, landing_page, is_internal')
+            .gte('created_at', since)
+            .eq('is_internal', false)
+            .order('created_at', { ascending: false })
+            .limit(100);
 
-        if (sessionsError) throw sessionsError;
+          if (sessionsError) throw sessionsError;
 
-        const sessionIds = (recentSessions || []).map(s => s.session_id).filter(Boolean);
-        let timelineEvents = [];
+          const sessionIds = (recentSessions || []).map(s => s.session_id).filter(Boolean);
+          let timelineEvents = [];
 
-        if (sessionIds.length > 0) {
-          const { data: events, error: eventsError } = await supabase
-            .from('session_events')
-            .select('*')
-            .in('session_id', sessionIds)
-            .order('created_at', { ascending: true })
-            .limit(5000);
-          if (eventsError) throw eventsError;
-          timelineEvents = events || [];
+          if (sessionIds.length > 0) {
+            const { data: events, error: eventsError } = await supabase
+              .from('session_events')
+              .select('*')
+              .in('session_id', sessionIds)
+              .order('created_at', { ascending: true })
+              .limit(5000);
+            if (eventsError) throw eventsError;
+            timelineEvents = events || [];
+          }
+
+          const eventsBySession = {};
+          timelineEvents.forEach(e => {
+            if (!eventsBySession[e.session_id]) eventsBySession[e.session_id] = [];
+            eventsBySession[e.session_id].push(e);
+          });
+
+          setSessionTimelines((recentSessions || []).map(s => {
+            const events = eventsBySession[s.session_id] || [];
+            const eventTypes = events.reduce((acc, e) => {
+              acc[e.event_type] = (acc[e.event_type] || 0) + 1;
+              return acc;
+            }, {});
+            const firstEvent = events[0];
+            const lastEvent = events[events.length - 1];
+            const startedAt = s.started_at || s.created_at;
+            const lastAt = lastEvent?.created_at || startedAt;
+            const trackedDuration = Number.parseInt(s.duration_seconds, 10);
+            const durationSeconds = Number.isFinite(trackedDuration)
+              ? trackedDuration
+              : Math.max(0, Math.round((new Date(lastAt) - new Date(startedAt)) / 1000));
+
+            return {
+              ...s,
+              events,
+              eventCount: events.length,
+              durationSeconds,
+              firstEventType: firstEvent?.event_type || null,
+              lastEventType: lastEvent?.event_type || null,
+              searches: eventTypes.search_completed || 0,
+              placeClicks: eventTypes.place_click || 0,
+              decisions:
+                (eventTypes.midpoint_directions_clicked || 0) +
+                (eventTypes.place_directions_clicked || 0) +
+                (eventTypes.place_website_clicked || 0) +
+                (eventTypes.place_call_clicked || 0) +
+                (eventTypes.share_created || 0),
+              gates: eventTypes.feature_gate_triggered || 0,
+            };
+          }));
+        } catch (timelineErr) {
+          console.warn('Session timeline fetch skipped:', timelineErr.message);
+          setSessionTimelines([]);
         }
-
-        const eventsBySession = {};
-        timelineEvents.forEach(e => {
-          if (!eventsBySession[e.session_id]) eventsBySession[e.session_id] = [];
-          eventsBySession[e.session_id].push(e);
-        });
-
-        setSessionTimelines((recentSessions || []).map(s => {
-          const events = eventsBySession[s.session_id] || [];
-          const eventTypes = events.reduce((acc, e) => {
-            acc[e.event_type] = (acc[e.event_type] || 0) + 1;
-            return acc;
-          }, {});
-          const firstEvent = events[0];
-          const lastEvent = events[events.length - 1];
-          const startedAt = s.started_at || s.created_at;
-          const lastAt = lastEvent?.created_at || startedAt;
-          const trackedDuration = Number.parseInt(s.duration_seconds, 10);
-          const durationSeconds = Number.isFinite(trackedDuration)
-            ? trackedDuration
-            : Math.max(0, Math.round((new Date(lastAt) - new Date(startedAt)) / 1000));
-
-          return {
-            ...s,
-            events,
-            eventCount: events.length,
-            durationSeconds,
-            firstEventType: firstEvent?.event_type || null,
-            lastEventType: lastEvent?.event_type || null,
-            searches: eventTypes.search_completed || 0,
-            placeClicks: eventTypes.place_click || 0,
-            decisions:
-              (eventTypes.midpoint_directions_clicked || 0) +
-              (eventTypes.place_directions_clicked || 0) +
-              (eventTypes.place_website_clicked || 0) +
-              (eventTypes.place_call_clicked || 0) +
-              (eventTypes.share_created || 0),
-            gates: eventTypes.feature_gate_triggered || 0,
-          };
-        }));
-      } catch (timelineErr) {
-        console.warn('Session timeline fetch skipped:', timelineErr.message);
-        setSessionTimelines([]);
       }
 
     } catch (err) {
