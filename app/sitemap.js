@@ -33,6 +33,12 @@ export default function sitemap() {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/what-is-the-halfway-point-between`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
       url: `${baseUrl}/legal/terms`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
