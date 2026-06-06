@@ -84,7 +84,7 @@ export default function MeetHalfwayPage() {
       </header>
 
       <main>
-        <section className="bg-white px-5 py-14 lg:py-18">
+        <section className="bg-white px-5 py-12 lg:py-16">
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-10 items-center">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-teal-700 mb-4">
@@ -129,13 +129,13 @@ export default function MeetHalfwayPage() {
               </form>
             </div>
 
-            <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-gray-100 aspect-[4/3]">
+            <div className="relative overflow-hidden rounded-lg border border-teal-900/10 bg-teal-900 aspect-[4/3] shadow-sm">
               <Image
                 src="/og-image.png"
                 alt="Split The Distance map pin graphic"
                 fill
                 sizes="(min-width: 1024px) 45vw, 100vw"
-                className="object-cover"
+                className="object-contain"
                 priority
               />
             </div>
@@ -149,7 +149,7 @@ export default function MeetHalfwayPage() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {situations.map((situation) => (
-                <div key={situation} className="rounded-md border border-gray-200 bg-white px-4 py-4 text-sm font-semibold text-gray-700">
+                <div key={situation} className="min-h-16 rounded-md border border-gray-200 bg-white px-4 py-4 text-sm font-semibold leading-6 text-gray-700">
                   {situation}
                 </div>
               ))}
