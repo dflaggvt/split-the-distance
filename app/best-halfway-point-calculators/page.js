@@ -66,11 +66,11 @@ const tools = [
 ];
 
 const comparisonRows = [
-  ['Split The Distance', 'Fair meeting spots', 'Yes', 'Yes', 'Yes', 'Yes'],
-  ['Travelmath', 'Travel calculations', 'Yes', 'Some', 'Yes', 'Some'],
-  ['MeetWays', 'Meet-in-the-middle search', 'Yes', 'Yes', 'Some', 'Yes'],
-  ['Whatshalfway', 'Meet or stop halfway', 'Yes', 'Yes', 'Yes', 'Yes'],
-  ['Map midpoint tools', 'Geographic center points', 'Varies', 'Usually no', 'Usually no', 'Varies'],
+  ['Split The Distance', 'Yes', 'Yes', 'Yes', 'Choosing where to actually meet'],
+  ['Travelmath', 'Yes', 'Limited', 'Okay', 'Travel calculations'],
+  ['MeetWays', 'Yes', 'Yes', 'Dated', 'Basic halfway searches'],
+  ['Whatshalfway', 'Yes', 'Yes', 'Dated', 'Halfway stops'],
+  ['Google Maps', 'Manual', 'Yes', 'Requires extra work', 'Exploring places'],
 ];
 
 const faqs = [
@@ -205,31 +205,39 @@ export default function BestHalfwayPointCalculatorsPage() {
               Quick comparison
             </h2>
             <p className="max-w-3xl mx-auto text-center text-lg leading-8 text-gray-600 mb-8">
-              Different halfway tools are better for different jobs. The best choice depends on whether you need travel
-              math, a simple midpoint, or a real place to meet.
+              Most tools can help you find the middle. Split The Distance is built to help you choose where to actually
+              meet.
             </p>
 
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-              <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[680px] text-sm">
                 <thead className="bg-gray-100 text-left text-gray-600">
                   <tr>
                     <th className="px-4 py-3 font-semibold">Tool</th>
+                    <th className="px-4 py-3 font-semibold">Finds halfway</th>
+                    <th className="px-4 py-3 font-semibold">Suggests real places nearby</th>
+                    <th className="px-4 py-3 font-semibold">Easy to use</th>
                     <th className="px-4 py-3 font-semibold">Best for</th>
-                    <th className="px-4 py-3 font-semibold">Addresses</th>
-                    <th className="px-4 py-3 font-semibold">Nearby places</th>
-                    <th className="px-4 py-3 font-semibold">Road trips</th>
-                    <th className="px-4 py-3 font-semibold">Meet halfway</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {comparisonRows.map(([tool, bestFor, addresses, places, roadTrips, meet]) => (
-                    <tr key={tool} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-bold text-gray-950">{tool}</td>
+                  {comparisonRows.map(([tool, halfway, places, ease, bestFor]) => (
+                    <tr
+                      key={tool}
+                      className={tool === 'Split The Distance' ? 'bg-teal-50 hover:bg-teal-50' : 'hover:bg-gray-50'}
+                    >
+                      <td className="px-4 py-3 font-bold text-gray-950">
+                        <span>{tool}</span>
+                        {tool === 'Split The Distance' && (
+                          <span className="ml-2 inline-flex rounded-full bg-teal-600 px-2 py-0.5 text-xs font-bold text-white">
+                            Best choice
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-700 font-semibold">{halfway}</td>
+                      <td className="px-4 py-3 text-gray-700 font-semibold">{places}</td>
+                      <td className="px-4 py-3 text-gray-700 font-semibold">{ease}</td>
                       <td className="px-4 py-3 text-gray-700">{bestFor}</td>
-                      <td className="px-4 py-3 text-gray-600">{addresses}</td>
-                      <td className="px-4 py-3 text-gray-600">{places}</td>
-                      <td className="px-4 py-3 text-gray-600">{roadTrips}</td>
-                      <td className="px-4 py-3 text-gray-600">{meet}</td>
                     </tr>
                   ))}
                 </tbody>
