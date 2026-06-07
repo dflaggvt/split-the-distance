@@ -116,6 +116,7 @@ export default function AdminDashboard() {
         { count: sessions },
         { count: anonymousSessions },
         { count: signedInSessions },
+        { count: newUsers },
       ] = await Promise.all([
         supabase.from('searches').select('id', { count: 'exact', head: true }).gte('created_at', since),
         supabase.from('searches').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
@@ -125,6 +126,7 @@ export default function AdminDashboard() {
         supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false),
         supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false).is('user_id', null),
         supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', since).eq('is_internal', false).not('user_id', 'is', null),
+        supabase.from('user_profiles').select('id', { count: 'exact', head: true }).gte('created_at', since),
       ]);
 
       setStats({
@@ -136,6 +138,7 @@ export default function AdminDashboard() {
         sessions: sessions || 0,
         anonymousSessions: anonymousSessions || 0,
         signedInSessions: signedInSessions || 0,
+        newUsers: newUsers || 0,
       });
 
       // Fetch previous period for comparison (same duration, shifted back)
@@ -145,33 +148,40 @@ export default function AdminDashboard() {
       const prevStart = new Date(sinceDate - periodMs).toISOString();
       const prevEnd = since;
 
-      const [
-        { count: prevSessions },
-        { count: prevSearches },
-        { count: prevPlaceClicks },
-        { count: prevShares },
-        { count: prevOutbound },
-        { count: prevAnonymousSessions },
-        { count: prevSignedInSessions },
-      ] = await Promise.all([
-        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('searches').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('place_clicks').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('shares').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('outbound_clicks').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
-        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).is('user_id', null),
-        supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).not('user_id', 'is', null),
-      ]);
+      if (timeRange === 'all') {
+        setPrevStats(null);
+      } else {
+        const [
+          { count: prevSessions },
+          { count: prevSearches },
+          { count: prevPlaceClicks },
+          { count: prevShares },
+          { count: prevOutbound },
+          { count: prevAnonymousSessions },
+          { count: prevSignedInSessions },
+          { count: prevNewUsers },
+        ] = await Promise.all([
+          supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+          supabase.from('searches').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+          supabase.from('place_clicks').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+          supabase.from('shares').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+          supabase.from('outbound_clicks').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false),
+          supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).is('user_id', null),
+          supabase.from('sessions').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd).eq('is_internal', false).not('user_id', 'is', null),
+          supabase.from('user_profiles').select('id', { count: 'exact', head: true }).gte('created_at', prevStart).lt('created_at', prevEnd),
+        ]);
 
-      setPrevStats({
-        sessions: prevSessions || 0,
-        externalSearches: prevSearches || 0,
-        placeClicks: prevPlaceClicks || 0,
-        shares: prevShares || 0,
-        outboundClicks: prevOutbound || 0,
-        anonymousSessions: prevAnonymousSessions || 0,
-        signedInSessions: prevSignedInSessions || 0,
-      });
+        setPrevStats({
+          sessions: prevSessions || 0,
+          externalSearches: prevSearches || 0,
+          placeClicks: prevPlaceClicks || 0,
+          shares: prevShares || 0,
+          outboundClicks: prevOutbound || 0,
+          anonymousSessions: prevAnonymousSessions || 0,
+          signedInSessions: prevSignedInSessions || 0,
+          newUsers: prevNewUsers || 0,
+        });
+      }
 
       // Place clicks with categories (unique sessions)
       const { data: placesData } = await supabase
@@ -326,30 +336,30 @@ export default function AdminDashboard() {
         .from('searches')
         .select('from_name, to_name, distance_miles, created_at')
         .eq('is_internal', false)
+        .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(10);
       setRecentSearches(recentData || []);
 
       // ==================== USER GROWTH ====================
-      const { data: allProfiles } = await supabase
+      const { data: profilesInRange } = await supabase
         .from('user_profiles')
         .select('created_at')
+        .gte('created_at', since)
         .order('created_at', { ascending: true });
 
-      if (allProfiles) {
+      if (profilesInRange) {
         const byDay = {};
-        allProfiles.forEach(p => {
+        profilesInRange.forEach(p => {
           const day = new Date(p.created_at).toISOString().split('T')[0];
           byDay[day] = (byDay[day] || 0) + 1;
         });
-        let cumulative = 0;
         const growth = Object.entries(byDay)
           .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([date, count]) => {
-            cumulative += count;
-            return { date: date.substring(5), newUsers: count, totalUsers: cumulative };
-          });
+          .map(([date, count]) => ({ date: date.substring(5), newUsers: count }));
         setUserGrowthData(growth);
+      } else {
+        setUserGrowthData([]);
       }
 
       // ==================== SHARES DATA ====================
@@ -788,7 +798,7 @@ export default function AdminDashboard() {
   const OverviewTab = () => (
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4 mb-6">
-        <StatCard icon="👤" label="Total Users" value={userGrowthData.length > 0 ? userGrowthData[userGrowthData.length - 1].totalUsers : 0} tooltip="Registered users (all time)." />
+        <StatCard icon="👤" label="New Users" value={stats?.newUsers} prevValue={prevStats?.newUsers} tooltip="Registered users created during the selected time range." />
         <StatCard icon="👥" label="Sessions" value={stats?.sessions} prevValue={prevStats?.sessions} tooltip="Unique visits to the site." />
         <StatCard icon="A" label="Anonymous" value={stats?.anonymousSessions} prevValue={prevStats?.anonymousSessions} subtext={stats?.sessions > 0 ? `${((stats?.anonymousSessions / stats.sessions) * 100).toFixed(0)}% of sessions` : ''} tooltip="Sessions that have not been linked to a signed-in user." />
         <StatCard icon="ID" label="Signed In" value={stats?.signedInSessions} prevValue={prevStats?.signedInSessions} subtext={stats?.sessions > 0 ? `${((stats?.signedInSessions / stats.sessions) * 100).toFixed(0)}% of sessions` : ''} tooltip="Sessions associated with a logged-in user." />
@@ -822,21 +832,19 @@ export default function AdminDashboard() {
       {/* Users Over Time */}
       {userGrowthData.length > 1 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4">👥 Users Over Time</h2>
+          <h2 className="font-semibold text-gray-900 mb-4">👥 New Users Over Time</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={userGrowthData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} />
               <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
               <Tooltip />
-              <Bar dataKey="totalUsers" fill="#0d9488" radius={[4, 4, 0, 0]} name="Total Users" />
+              <Bar dataKey="newUsers" fill="#0d9488" radius={[4, 4, 0, 0]} name="New Users" />
             </BarChart>
           </ResponsiveContainer>
           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-teal-600 rounded-sm inline-block"></span> Cumulative Users</span>
-            {userGrowthData.length > 0 && (
-              <span>Latest: <strong className="text-gray-700">{userGrowthData[userGrowthData.length - 1].totalUsers}</strong> users</span>
-            )}
+            <span className="flex items-center gap-1"><span className="w-3 h-3 bg-teal-600 rounded-sm inline-block"></span> New users</span>
+            <span>Total in range: <strong className="text-gray-700">{stats?.newUsers?.toLocaleString?.() ?? 0}</strong></span>
           </div>
         </div>
       )}
