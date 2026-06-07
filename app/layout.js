@@ -15,6 +15,7 @@ const inter = Inter({
 // Analytics IDs
 const GA4_ID = 'G-3DME8BT47D';
 const GTM_ID = 'GTM-W9DCSSKC';
+const GROW_SITE_ID = 'U2l0ZTozNmEyYjg5Ni1lOWQ0LTQwYWYtOTc5Ny0zMTdlZjhmMzI1Y2M=';
 
 export const viewport = {
   themeColor: '#0f766e',
@@ -128,6 +129,30 @@ export default function RootLayout({ children }) {
             window.gtag = gtag;
             gtag('js', new Date());
             gtag('config', '${GA4_ID}');
+          })();`}
+        </Script>
+
+        {/* Grow by Mediavine - only on public production pages */}
+        <Script id="grow-script" data-grow-initializer="" strategy="afterInteractive">
+          {`(function(){
+            var h = window.location.hostname;
+            var path = window.location.pathname || '';
+            var params = new URLSearchParams(window.location.search || '');
+            if (
+              (h !== 'splitthedistance.com' && h !== 'www.splitthedistance.com') ||
+              path.indexOf('/d4shb0ard-7x9k') === 0 ||
+              params.has('_internal')
+            ) {
+              return;
+            }
+            window.growMe || ((window.growMe = function(e) { window.growMe._.push(e); }), (window.growMe._ = []));
+            var e = document.createElement('script');
+            e.type = 'text/javascript';
+            e.src = 'https://faves.grow.me/main.js';
+            e.defer = true;
+            e.setAttribute('data-grow-faves-site-id', '${GROW_SITE_ID}');
+            var t = document.getElementsByTagName('script')[0];
+            t.parentNode.insertBefore(e, t);
           })();`}
         </Script>
       </head>

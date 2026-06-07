@@ -126,6 +126,7 @@ export default function PrivacyPage() {
             <li><strong>Google Maps Platform</strong> — maps, directions, and geocoding</li>
             <li><strong>Mapbox</strong> — place search</li>
             <li><strong>Google Analytics &amp; Google Tag Manager</strong> — web analytics</li>
+            <li><strong>Grow by Mediavine</strong> — audience analytics and advertising readiness</li>
             <li><strong>Vercel</strong> — hosting and deployment</li>
           </ul>
           Each provider processes data in accordance with their own privacy policies.
@@ -166,6 +167,11 @@ export default function PrivacyPage() {
               <td>Google Tag Manager</td>
               <td>Manage analytics and marketing tags</td>
               <td>Session-based</td>
+            </tr>
+            <tr>
+              <td>Grow by Mediavine</td>
+              <td>Audience analytics, personalization, and advertising readiness</td>
+              <td>Managed by Grow/Mediavine</td>
             </tr>
             <tr>
               <td>Supabase Auth</td>
