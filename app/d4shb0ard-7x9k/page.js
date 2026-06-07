@@ -38,8 +38,7 @@ export default function AdminDashboard() {
   const [topRoutes, setTopRoutes] = useState([]);
   const [recentSearches, setRecentSearches] = useState([]);
   const [deviceStats, setDeviceStats] = useState([]);
-  const [hourlyStats, setHourlyStats] = useState([]);
-  const [dailyStats, setDailyStats] = useState([]);
+  const [searchTrend, setSearchTrend] = useState({ data: [], unit: 'hour', title: 'Searches Over Time' });
   const [geoStats, setGeoStats] = useState([]);
   const [returnVisitors, setReturnVisitors] = useState([]);
   const [categoryStats, setCategoryStats] = useState([]);
@@ -89,6 +88,73 @@ export default function AdminDashboard() {
       }
       default: return new Date(now - 24 * 60 * 60 * 1000).toISOString();
     }
+  };
+
+  const startOfBucket = (date, unit) => {
+    const d = new Date(date);
+    d.setUTCSeconds(0, 0);
+    if (unit === 'day') d.setUTCHours(0, 0, 0, 0);
+    if (unit === 'hour') d.setUTCMinutes(0, 0, 0);
+    return d;
+  };
+
+  const addBucket = (date, unit) => {
+    const d = new Date(date);
+    if (unit === 'day') d.setUTCDate(d.getUTCDate() + 1);
+    else if (unit === 'hour') d.setUTCHours(d.getUTCHours() + 1);
+    else d.setUTCMinutes(d.getUTCMinutes() + 1);
+    return d;
+  };
+
+  const formatBucketLabel = (date, unit) => {
+    if (unit === 'day') return date.toISOString().slice(5, 10);
+    if (unit === 'hour') return `${date.toISOString().slice(5, 10)} ${String(date.getUTCHours()).padStart(2, '0')}:00`;
+    return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+  };
+
+  const buildSearchTrend = (rows, since) => {
+    const now = new Date();
+    const sinceDate = new Date(since);
+    const durationMs = now - sinceDate;
+    const unit = durationMs <= 60 * 60 * 1000
+      ? 'minute'
+      : durationMs <= 48 * 60 * 60 * 1000
+        ? 'hour'
+        : 'day';
+    const title = unit === 'minute'
+      ? 'Searches by Minute'
+      : unit === 'hour'
+        ? 'Searches by Hour'
+        : 'Daily Searches';
+    const buckets = {};
+
+    for (let d = startOfBucket(sinceDate, unit); d <= now; d = addBucket(d, unit)) {
+      buckets[d.toISOString()] = 0;
+    }
+
+    rows.forEach((row) => {
+      const bucket = startOfBucket(row.created_at, unit).toISOString();
+      buckets[bucket] = (buckets[bucket] || 0) + 1;
+    });
+
+    const data = Object.entries(buckets)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([iso, searches]) => {
+        const date = new Date(iso);
+        return {
+          date: formatBucketLabel(date, unit),
+          searches,
+          iso,
+        };
+      })
+      .map((point, index, all) => {
+        if (unit !== 'day') return point;
+        const window = all.slice(Math.max(0, index - 6), index + 1);
+        const avg = window.reduce((sum, item) => sum + item.searches, 0) / window.length;
+        return { ...point, avg: Math.round(avg) };
+      });
+
+    return { data, unit, title };
   };
 
   const parseState = (locationName) => {
@@ -240,17 +306,7 @@ export default function AdminDashboard() {
           .sort((a, b) => b[1] - a[1]).slice(0, 8)
           .map(([name, value]) => ({ name, value })));
 
-        const hourCounts = {};
-        for (let i = 0; i < 24; i++) hourCounts[i] = 0;
-        routesData.forEach(r => { hourCounts[new Date(r.created_at).getUTCHours()]++; });
-        setHourlyStats(Object.entries(hourCounts).map(([hour, searches]) => ({ hour: `${hour}:00`, searches })));
-
-        if (['7d', '30d', 'all'].includes(timeRange)) {
-          const dayCounts = {};
-          routesData.forEach(r => { const day = new Date(r.created_at).toISOString().split('T')[0]; dayCounts[day] = (dayCounts[day] || 0) + 1; });
-          setDailyStats(Object.entries(dayCounts).sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([date, searches]) => ({ date: date.substring(5), searches })));
-        } else { setDailyStats([]); }
+        setSearchTrend(buildSearchTrend(routesData, since));
 
         // Cache efficiency
         const routeMap = {};
@@ -885,54 +941,42 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Hourly Activity */}
+      {/* Search Trend */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-        <h2 className="font-semibold text-gray-900 mb-4">⏰ Searches by Hour (UTC)</h2>
-        <ResponsiveContainer width="100%" height={200}>
-          <AreaChart data={hourlyStats} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="colorSearches" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#0d9488" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-            <XAxis dataKey="hour" tick={{ fontSize: 10 }} tickLine={false} interval={2} />
-            <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-            <Tooltip />
-            <Area type="monotone" dataKey="searches" stroke="#0d9488" strokeWidth={2} fillOpacity={1} fill="url(#colorSearches)" />
-          </AreaChart>
-        </ResponsiveContainer>
+        <h2 className="font-semibold text-gray-900 mb-1">📈 {searchTrend.title}</h2>
+        <p className="text-xs text-gray-400 mb-4">
+          Bucketed by {searchTrend.unit}; updates with the selected time range. Times are shown in UTC.
+        </p>
+        {searchTrend.data.length > 0 ? (
+          <>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={searchTrend.data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10 }}
+                  tickLine={false}
+                  interval={searchTrend.data.length > 18 ? Math.ceil(searchTrend.data.length / 12) : 0}
+                />
+                <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip formatter={(value, name) => [value, name === 'avg' ? '7-day avg' : 'Searches']} />
+                <Line type="monotone" dataKey="searches" stroke="#3b82f6" strokeWidth={2} dot={searchTrend.data.length <= 40 ? { fill: '#3b82f6', r: 3 } : false} />
+                {searchTrend.unit === 'day' && (
+                  <Line type="monotone" dataKey="avg" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+              <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-500 inline-block"></span> Searches</span>
+              {searchTrend.unit === 'day' && (
+                <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-orange-500 inline-block border-dashed"></span> 7-day avg</span>
+              )}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-8">No search data yet</p>
+        )}
       </div>
-
-      {/* Daily Trend with Moving Average */}
-      {dailyStats.length > 1 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4">📅 Daily Searches</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={dailyStats.map((d, i, arr) => {
-              // Calculate 7-day moving average
-              const window = arr.slice(Math.max(0, i - 6), i + 1);
-              const avg = window.reduce((sum, w) => sum + w.searches, 0) / window.length;
-              // Day-over-day change
-              const prev = i > 0 ? arr[i - 1].searches : d.searches;
-              const change = prev > 0 ? ((d.searches - prev) / prev * 100).toFixed(0) : 0;
-              return { ...d, avg: Math.round(avg), change: Number(change) };
-            })} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} />
-              <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
-              <Tooltip formatter={(value, name) => [value, name === 'avg' ? '7-day avg' : name === 'searches' ? 'Searches' : name]} />
-              <Line type="monotone" dataKey="searches" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} />
-              <Line type="monotone" dataKey="avg" stroke="#f97316" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-blue-500 inline-block"></span> Daily</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-orange-500 inline-block border-dashed"></span> 7-day avg</span>
-          </div>
-        </div>
-      )}
 
       {/* Four Column Layout */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
