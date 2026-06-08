@@ -22,6 +22,8 @@ const SOURCE_COLORS = {
   paid: '#ef4444',
   unknown: '#d1d5db',
 };
+const SEARCH_TREND_PAGE_SIZE = 1000;
+const SEARCH_TREND_MAX_ROWS = 100000;
 
 export default function AdminDashboard() {
   const { user, isLoggedIn, loading: authLoading } = useAuth();
@@ -155,6 +157,32 @@ export default function AdminDashboard() {
       });
 
     return { data, unit, title };
+  };
+
+  const fetchSearchTrendRows = async (since) => {
+    const rows = [];
+
+    for (let from = 0; from < SEARCH_TREND_MAX_ROWS; from += SEARCH_TREND_PAGE_SIZE) {
+      const to = from + SEARCH_TREND_PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from('searches')
+        .select('created_at')
+        .gte('created_at', since)
+        .eq('is_internal', false)
+        .order('created_at', { ascending: true })
+        .range(from, to);
+
+      if (error) {
+        console.error('[Dashboard] Search trend fetch error:', error);
+        break;
+      }
+
+      if (!data?.length) break;
+      rows.push(...data);
+      if (data.length < SEARCH_TREND_PAGE_SIZE) break;
+    }
+
+    return rows;
   };
 
   const parseState = (locationName) => {
@@ -306,8 +334,6 @@ export default function AdminDashboard() {
           .sort((a, b) => b[1] - a[1]).slice(0, 8)
           .map(([name, value]) => ({ name, value })));
 
-        setSearchTrend(buildSearchTrend(routesData, since));
-
         // Cache efficiency
         const routeMap = {};
         routesData.forEach(r => { const key = `${r.from_name}|||${r.to_name}`; routeMap[key] = (routeMap[key] || 0) + 1; });
@@ -318,6 +344,9 @@ export default function AdminDashboard() {
         setRepeatRoutes(Object.entries(routeMap).filter(([_, c]) => c > 1).sort((a, b) => b[1] - a[1]).slice(0, 5)
           .map(([key, count]) => { const [from, to] = key.split('|||'); return { route: `${from?.split(',')[0] || '?'} → ${to?.split(',')[0] || '?'}`, count }; }));
       }
+
+      const trendRows = await fetchSearchTrendRows(since);
+      setSearchTrend(buildSearchTrend(trendRows, since));
 
       // Device & visitor breakdown
       const { data: sessionsData } = await supabase
