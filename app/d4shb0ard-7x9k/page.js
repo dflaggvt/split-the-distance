@@ -571,6 +571,15 @@ export default function AdminDashboard() {
                 (eventTypes.place_call_clicked || 0) +
                 (eventTypes.share_created || 0),
               gates: eventTypes.feature_gate_triggered || 0,
+              saveClicks: eventTypes.save_plan_clicked || 0,
+              savesCompleted: eventTypes.save_plan_completed || 0,
+              savesFailed: eventTypes.save_plan_failed || 0,
+              savesAbandoned: eventTypes.save_plan_abandoned || 0,
+              saveActivity:
+                (eventTypes.save_plan_clicked || 0) +
+                (eventTypes.save_plan_completed || 0) +
+                (eventTypes.save_plan_failed || 0) +
+                (eventTypes.save_plan_abandoned || 0),
             };
           }));
         } catch (timelineErr) {
@@ -640,6 +649,11 @@ export default function AdminDashboard() {
     if (timelineActivity === 'no_decisions' && session.decisions > 0) return false;
     if (timelineActivity === 'with_decisions' && session.decisions < 1) return false;
     if (timelineActivity === 'with_gates' && session.gates < 1) return false;
+    if (timelineActivity === 'save_activity' && session.saveActivity < 1) return false;
+    if (timelineActivity === 'save_clicked' && session.saveClicks < 1) return false;
+    if (timelineActivity === 'save_completed' && session.savesCompleted < 1) return false;
+    if (timelineActivity === 'save_abandoned' && session.savesAbandoned < 1) return false;
+    if (timelineActivity === 'save_failed' && session.savesFailed < 1) return false;
     if (timelineDevice !== 'all' && (session.device_type || 'unknown') !== timelineDevice) return false;
     if (timelineSource !== 'all' && (session.source || 'unknown') !== timelineSource) return false;
     return true;
@@ -708,6 +722,11 @@ export default function AdminDashboard() {
         return `${m.label || 'Stop'}${m.stopIndex != null ? ` (#${m.stopIndex + 1})` : ''}`;
       case 'sign_in':
         return `${m.method || 'unknown'}${m.email ? `, ${m.email}` : ''}`;
+      case 'save_plan_clicked':
+      case 'save_plan_completed':
+      case 'save_plan_failed':
+      case 'save_plan_abandoned':
+        return [m.from, m.to].filter(Boolean).join(' -> ') || m.source || '';
       default:
         return Object.keys(m).length ? JSON.stringify(m) : '';
     }
@@ -748,6 +767,11 @@ export default function AdminDashboard() {
               <option value="no_decisions">No decisions</option>
               <option value="with_decisions">With decisions</option>
               <option value="with_gates">Hit a gate</option>
+              <option value="save_activity">Any save activity</option>
+              <option value="save_clicked">Clicked save plan</option>
+              <option value="save_completed">Saved plan</option>
+              <option value="save_abandoned">Abandoned save plan</option>
+              <option value="save_failed">Save failed</option>
             </select>
           </label>
           <label className="text-xs font-medium text-gray-500">
@@ -823,6 +847,9 @@ export default function AdminDashboard() {
                     <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium">{session.decisions} decisions</span>
                     {session.gates > 0 && (
                       <span className="px-2 py-1 rounded-md bg-purple-50 text-purple-700 text-xs font-medium">{session.gates} gates</span>
+                    )}
+                    {session.saveActivity > 0 && (
+                      <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">{session.saveClicks} save clicks</span>
                     )}
                     <span className="px-2 py-1 rounded-md bg-gray-50 text-gray-500 text-xs font-medium">
                       {formatSessionDuration(session.durationSeconds)}
