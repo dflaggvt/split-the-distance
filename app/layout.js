@@ -132,28 +132,9 @@ export default function RootLayout({ children }) {
           })();`}
         </Script>
 
-        {/* Grow by Mediavine - only on public production pages */}
-        <Script id="grow-script" data-grow-initializer="" strategy="afterInteractive">
-          {`(function(){
-            var h = window.location.hostname;
-            var path = window.location.pathname || '';
-            var params = new URLSearchParams(window.location.search || '');
-            if (
-              (h !== 'splitthedistance.com' && h !== 'www.splitthedistance.com') ||
-              path.indexOf('/d4shb0ard-7x9k') === 0 ||
-              params.has('_internal')
-            ) {
-              return;
-            }
-            window.growMe || ((window.growMe = function(e) { window.growMe._.push(e); }), (window.growMe._ = []));
-            var e = document.createElement('script');
-            e.type = 'text/javascript';
-            e.src = 'https://faves.grow.me/main.js';
-            e.defer = true;
-            e.setAttribute('data-grow-faves-site-id', '${GROW_SITE_ID}');
-            var t = document.getElementsByTagName('script')[0];
-            t.parentNode.insertBefore(e, t);
-          })();`}
+        {/* Grow by Mediavine */}
+        <Script id="grow-script" data-grow-initializer="" strategy="beforeInteractive">
+          {`!(function(){window.growMe||((window.growMe=function(e){window.growMe._.push(e);}),(window.growMe._=[]));var e=document.createElement("script");(e.type="text/javascript"),(e.src="https://faves.grow.me/main.js"),(e.defer=!0),e.setAttribute("data-grow-faves-site-id","${GROW_SITE_ID}");var t=document.getElementsByTagName("script")[0];t.parentNode.insertBefore(e,t);})();`}
         </Script>
       </head>
       <body className="font-sans text-gray-800 bg-gray-50 antialiased">
