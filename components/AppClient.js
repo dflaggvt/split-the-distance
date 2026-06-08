@@ -48,7 +48,7 @@ function computeMidpoint(leg, mode) {
 export default function AppClient() {
   const searchParams = useSearchParams();
   const { refreshProfile, user, isLoggedIn, plan } = useAuth();
-  const { openPricingModal } = useFeatures();
+  const { openPricingModal, openSignIn, signInOpen } = useFeatures();
 
   // Load Google Maps
   const { isLoaded } = useJsApiLoader({
@@ -87,6 +87,8 @@ export default function AppClient() {
   const [mobileCollapsed, setMobileCollapsed] = useState(false);
   const [toast, setToast] = useState(null);
   const [isInternal, setIsInternal] = useState(false);
+  const [pendingSave, setPendingSave] = useState(null);
+  const [savePlanStatus, setSavePlanStatus] = useState('idle'); // idle | saving | saved | error
 
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
@@ -162,6 +164,110 @@ export default function AppClient() {
     setToast(null);
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
+
+  const refreshSearchHistoryList = useCallback(() => {
+    if (typeof window !== 'undefined' && window.__refreshSearchHistory) {
+      window.__refreshSearchHistory();
+    }
+  }, []);
+
+  const saveRoutePayload = useCallback(async (payload, source) => {
+    if (!payload || !user?.id) return false;
+
+    setSavePlanStatus('saving');
+    const saved = await saveSearch({
+      userId: user.id,
+      ...payload,
+      isUnlimited: plan === 'premium',
+    });
+
+    if (saved) {
+      setSavePlanStatus('saved');
+      refreshSearchHistoryList();
+      logSessionEvent('save_plan_completed', { source }, { userId: user.id });
+      return true;
+    }
+
+    setSavePlanStatus('error');
+    logSessionEvent('save_plan_failed', { source }, { userId: user.id });
+    return false;
+  }, [plan, refreshSearchHistoryList, user]);
+
+  const getCurrentRouteSavePayload = useCallback(() => {
+    if (!fromLocation || !toLocation || !route) return null;
+
+    return {
+      fromName: fromLocation.name,
+      fromLat: fromLocation.lat,
+      fromLng: fromLocation.lon,
+      toName: toLocation.name,
+      toLat: toLocation.lat,
+      toLng: toLocation.lon,
+      travelMode,
+      midpointMode,
+      distanceMiles: route.totalDistance ? route.totalDistance / 1609.344 : null,
+      durationSeconds: route.totalDuration || null,
+    };
+  }, [fromLocation, midpointMode, route, toLocation, travelMode]);
+
+  const handleSavePlanClick = useCallback(() => {
+    const payload = getCurrentRouteSavePayload();
+    if (!payload) {
+      showToast('Run a route first, then you can save it.');
+      return;
+    }
+
+    logSessionEvent('save_plan_clicked', {
+      from: payload.fromName,
+      to: payload.toName,
+      travelMode: payload.travelMode,
+      midpointMode: payload.midpointMode,
+    }, { userId: user?.id });
+
+    if (isLoggedIn && user?.id) {
+      saveRoutePayload(payload, 'manual').then((saved) => {
+        if (saved) showToast('Saved. You can find it in Recent searches.');
+      });
+      return;
+    }
+
+    setPendingSave(payload);
+    openSignIn({ mode: 'signup', context: 'save_plan' });
+  }, [getCurrentRouteSavePayload, isLoggedIn, openSignIn, saveRoutePayload, showToast, user]);
+
+  useEffect(() => {
+    if (!pendingSave || signInOpen || isLoggedIn) return;
+
+    logSessionEvent('save_plan_abandoned', {
+      from: pendingSave.fromName,
+      to: pendingSave.toName,
+    }, { userId: user?.id });
+    setPendingSave(null);
+  }, [isLoggedIn, pendingSave, signInOpen, user]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !user?.id || !pendingSave) return;
+
+    let cancelled = false;
+    const payload = pendingSave;
+
+    async function savePendingPlan() {
+      const saved = await saveRoutePayload(payload, 'post_auth');
+      if (cancelled) return;
+
+      if (saved) {
+        setPendingSave(null);
+        showToast('Saved. You can find it in Recent searches.');
+      } else {
+        showToast('We could not save that route. Please try again.');
+      }
+    }
+
+    savePendingPlan();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, pendingSave, saveRoutePayload, showToast, user]);
 
   // ---- Fetch places with client-side caching ----
   const fetchPlaces = useCallback(
@@ -270,6 +376,8 @@ export default function AppClient() {
     setRoadTripStops(null);
     setRoadTripInterval(null);
     savedMidpointRef.current = null;
+    setPendingSave(null);
+    setSavePlanStatus('idle');
 
     // Track search button click
     trackEvent('search_clicked', {
@@ -474,8 +582,7 @@ export default function AppClient() {
 
         // Auto-save to search history for logged-in users
         if (isLoggedIn && user?.id) {
-          saveSearch({
-            userId: user.id,
+          saveRoutePayload({
             fromName: from.name,
             fromLat: from.lat,
             fromLng: from.lon,
@@ -486,12 +593,10 @@ export default function AppClient() {
             midpointMode,
             distanceMiles: routeData.totalDistance / 1609.344,
             durationSeconds: routeData.totalDuration,
-            isUnlimited: plan === 'premium',
-          }).then(() => {
-            if (typeof window !== 'undefined' && window.__refreshSearchHistory) {
-              window.__refreshSearchHistory();
-            }
-          }).catch(err => console.warn('[SearchHistory] Save failed:', err));
+          }, 'auto').catch(err => {
+            console.warn('[SearchHistory] Save failed:', err);
+            setSavePlanStatus('error');
+          });
         }
       }
     } catch (err) {
@@ -522,7 +627,7 @@ export default function AppClient() {
     midpointMode,
     isLoggedIn,
     user,
-    plan,
+    saveRoutePayload,
   ]);
 
   // ---- Handle re-split from search history ----
@@ -1204,6 +1309,9 @@ export default function AppClient() {
           onActiveStopIndexChange={handleActiveStopChange}
           onActivateRoadTrip={handleActivateRoadTrip}
           onExitRoadTrip={handleExitRoadTrip}
+          isLoggedIn={isLoggedIn}
+          savePlanStatus={savePlanStatus}
+          onSavePlan={handleSavePlanClick}
         />
 
         {/* Map Container */}

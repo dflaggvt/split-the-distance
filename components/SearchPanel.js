@@ -9,6 +9,7 @@ import ComingSoonSection from './ComingSoonSection';
 import RouletteSection from './RouletteSection';
 import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
+import SavePlanCTA from './SavePlanCTA';
 import FeatureGate, { useGatedAction } from './FeatureGate';
 
 export default function SearchPanel({
@@ -56,6 +57,9 @@ export default function SearchPanel({
   onActiveStopIndexChange,
   onActivateRoadTrip,
   onExitRoadTrip,
+  isLoggedIn = false,
+  savePlanStatus = 'idle',
+  onSavePlan,
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
@@ -372,6 +376,12 @@ export default function SearchPanel({
               roadTripStops={roadTripStops}
               onActivateRoadTrip={onActivateRoadTrip}
               onExitRoadTrip={onExitRoadTrip}
+            />
+            <SavePlanCTA
+              isLoggedIn={isLoggedIn}
+              canSave={Boolean(route)}
+              status={savePlanStatus}
+              onSave={onSavePlan}
             />
             {/* Road trip stop selector (when active) */}
             {roadTripStops && (

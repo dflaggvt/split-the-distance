@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useFeatures } from './FeatureProvider';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from '@/lib/auth';
 
@@ -24,19 +24,24 @@ function isEmbeddedWebView() {
  * Offers email/password (with sign-in/sign-up toggle) and Google OAuth.
  */
 export default function SignInModal() {
-  const { signInModalFeature, signInOpen, features, closeSignInModal, closeSignIn } = useFeatures();
-  const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  const {
+    signInModalFeature,
+    signInOpen,
+    signInMode,
+    signInContext,
+    setSignInAuthMode,
+    features,
+    closeSignInModal,
+    closeSignIn,
+  } = useFeatures();
+  const [featureGateMode, setFeatureGateMode] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [inWebView, setInWebView] = useState(false);
-
-  useEffect(() => {
-    setInWebView(isEmbeddedWebView());
-  }, []);
+  const [inWebView] = useState(() => isEmbeddedWebView());
 
   const isFeatureGate = !!signInModalFeature;
   const isOpen = isFeatureGate || signInOpen;
@@ -44,6 +49,18 @@ export default function SignInModal() {
   if (!isOpen) return null;
 
   const feature = isFeatureGate ? features[signInModalFeature] : null;
+  const isSavePlan = !feature && signInContext === 'save_plan';
+  const mode = isFeatureGate ? featureGateMode : signInMode;
+
+  const updateMode = (nextMode) => {
+    if (isFeatureGate) {
+      setFeatureGateMode(nextMode);
+    } else {
+      setSignInAuthMode(nextMode);
+    }
+    setError('');
+    setMessage('');
+  };
 
   // If it's a feature gate but the feature doesn't exist, bail
   if (isFeatureGate && !feature) return null;
@@ -53,7 +70,7 @@ export default function SignInModal() {
     setMessage('');
     setEmail('');
     setPassword('');
-    setMode('signin');
+    setFeatureGateMode('signin');
     if (isFeatureGate) closeSignInModal();
     else closeSignIn();
   };
@@ -135,10 +152,14 @@ export default function SignInModal() {
             <>
               <div className="text-4xl mb-3">👋</div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">
-                {mode === 'signin' ? 'Welcome back' : 'Create an account'}
+                {isSavePlan
+                  ? (mode === 'signin' ? 'Sign in to save this plan' : 'Save this plan for free')
+                  : (mode === 'signin' ? 'Welcome back' : 'Create an account')}
               </h3>
               <p className="text-sm text-gray-500">
-                {mode === 'signin' ? 'Sign in to your account' : 'Get started for free'}
+                {isSavePlan
+                  ? (mode === 'signin' ? 'Sign in and we will save this route to Recent searches.' : 'Your route will be saved after you create an account.')
+                  : (mode === 'signin' ? 'Sign in to your account' : 'Get started for free')}
               </p>
             </>
           )}
@@ -229,7 +250,7 @@ export default function SignInModal() {
               Don&apos;t have an account?{' '}
               <button
                 type="button"
-                onClick={() => { setMode('signup'); setError(''); setMessage(''); }}
+                onClick={() => updateMode('signup')}
                 className="text-teal-600 font-medium hover:underline"
               >
                 Sign Up
@@ -240,7 +261,7 @@ export default function SignInModal() {
               Already have an account?{' '}
               <button
                 type="button"
-                onClick={() => { setMode('signin'); setError(''); setMessage(''); }}
+                onClick={() => updateMode('signin')}
                 className="text-teal-600 font-medium hover:underline"
               >
                 Sign In

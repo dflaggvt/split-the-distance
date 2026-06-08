@@ -12,12 +12,15 @@ const FeatureContext = createContext({
   // Modal state
   signInModalFeature: null,
   signInOpen: false,
+  signInMode: 'signin',
+  signInContext: null,
   pricingModalOpen: false,
   accountModalOpen: false,
   openSignInModal: () => {},
   closeSignInModal: () => {},
   openSignIn: () => {},
   closeSignIn: () => {},
+  setSignInAuthMode: () => {},
   openPricingModal: () => {},
   closePricingModal: () => {},
   openAccountModal: () => {},
@@ -29,6 +32,8 @@ export function FeatureProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [signInModalFeature, setSignInModalFeature] = useState(null); // feature key or null
   const [signInOpen, setSignInOpen] = useState(false); // generic sign-in modal (no feature context)
+  const [signInMode, setSignInMode] = useState('signin');
+  const [signInContext, setSignInContext] = useState(null);
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const auth = useAuth();
@@ -66,12 +71,20 @@ export function FeatureProvider({ children }) {
     setSignInModalFeature(null);
   }, []);
 
-  const openSignIn = useCallback(() => {
+  const openSignIn = useCallback((options = {}) => {
+    setSignInMode(options.mode === 'signup' ? 'signup' : 'signin');
+    setSignInContext(options.context || null);
     setSignInOpen(true);
   }, []);
 
   const closeSignIn = useCallback(() => {
     setSignInOpen(false);
+    setSignInMode('signin');
+    setSignInContext(null);
+  }, []);
+
+  const setSignInAuthMode = useCallback((mode) => {
+    setSignInMode(mode === 'signup' ? 'signup' : 'signin');
   }, []);
 
   const openPricingModal = useCallback(() => {
@@ -98,8 +111,14 @@ export function FeatureProvider({ children }) {
   // Close sign-in modals when user successfully logs in
   useEffect(() => {
     if (auth.isLoggedIn) {
-      if (signInModalFeature) setSignInModalFeature(null);
-      if (signInOpen) setSignInOpen(false);
+      queueMicrotask(() => {
+        if (signInModalFeature) setSignInModalFeature(null);
+        if (signInOpen) {
+          setSignInOpen(false);
+          setSignInMode('signin');
+          setSignInContext(null);
+        }
+      });
     }
   }, [auth.isLoggedIn, signInModalFeature, signInOpen]);
 
@@ -108,17 +127,20 @@ export function FeatureProvider({ children }) {
     loading,
     signInModalFeature,
     signInOpen,
+    signInMode,
+    signInContext,
     pricingModalOpen,
     accountModalOpen,
     openSignInModal,
     closeSignInModal,
     openSignIn,
     closeSignIn,
+    setSignInAuthMode,
     openPricingModal,
     closePricingModal,
     openAccountModal,
     closeAccountModal,
-  }), [features, loading, signInModalFeature, signInOpen, pricingModalOpen, accountModalOpen, openSignInModal, closeSignInModal, openSignIn, closeSignIn, openPricingModal, closePricingModal, openAccountModal, closeAccountModal]);
+  }), [features, loading, signInModalFeature, signInOpen, signInMode, signInContext, pricingModalOpen, accountModalOpen, openSignInModal, closeSignInModal, openSignIn, closeSignIn, setSignInAuthMode, openPricingModal, closePricingModal, openAccountModal, closeAccountModal]);
 
   return (
     <FeatureContext.Provider value={value}>
