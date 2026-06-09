@@ -89,6 +89,7 @@ export default function AppClient() {
   const [isInternal, setIsInternal] = useState(false);
   const [pendingSave, setPendingSave] = useState(null);
   const [savePlanStatus, setSavePlanStatus] = useState('idle'); // idle | saving | saved | error
+  const [savePlanAuthOpened, setSavePlanAuthOpened] = useState(false);
 
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
@@ -232,18 +233,26 @@ export default function AppClient() {
     }
 
     setPendingSave(payload);
+    setSavePlanAuthOpened(false);
     openSignIn({ mode: 'signup', context: 'save_plan' });
   }, [getCurrentRouteSavePayload, isLoggedIn, openSignIn, saveRoutePayload, showToast, user]);
 
   useEffect(() => {
-    if (!pendingSave || signInOpen || isLoggedIn) return;
+    if (pendingSave && signInOpen) {
+      setSavePlanAuthOpened(true);
+    }
+  }, [pendingSave, signInOpen]);
+
+  useEffect(() => {
+    if (!pendingSave || signInOpen || isLoggedIn || !savePlanAuthOpened) return;
 
     logSessionEvent('save_plan_abandoned', {
       from: pendingSave.fromName,
       to: pendingSave.toName,
     }, { userId: user?.id });
     setPendingSave(null);
-  }, [isLoggedIn, pendingSave, signInOpen, user]);
+    setSavePlanAuthOpened(false);
+  }, [isLoggedIn, pendingSave, savePlanAuthOpened, signInOpen, user]);
 
   useEffect(() => {
     if (!isLoggedIn || !user?.id || !pendingSave) return;
@@ -257,6 +266,7 @@ export default function AppClient() {
 
       if (saved) {
         setPendingSave(null);
+        setSavePlanAuthOpened(false);
         showToast('Saved. You can find it in Recent searches.');
       } else {
         showToast('We could not save that route. Please try again.');
@@ -377,6 +387,7 @@ export default function AppClient() {
     setRoadTripInterval(null);
     savedMidpointRef.current = null;
     setPendingSave(null);
+    setSavePlanAuthOpened(false);
     setSavePlanStatus('idle');
 
     // Track search button click
