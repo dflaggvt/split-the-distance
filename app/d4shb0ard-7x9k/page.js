@@ -56,6 +56,7 @@ export default function AdminDashboard() {
   // Shares tab state
   const [shareFunnel, setShareFunnel] = useState(null);
   const [shareMethodStats, setShareMethodStats] = useState([]);
+  const [shareMethodPerformance, setShareMethodPerformance] = useState([]);
   const [topSharedRoutes, setTopSharedRoutes] = useState([]);
   const [shareTimeline, setShareTimeline] = useState([]);
   // Sessions tab state
@@ -351,7 +352,7 @@ export default function AdminDashboard() {
       // Device & visitor breakdown
       const { data: sessionsData } = await supabase
         .from('sessions')
-        .select('device_type, visitor_id, source, source_detail, referrer_domain, utm_source, utm_medium, utm_campaign, created_at')
+        .select('session_id, device_type, visitor_id, source, source_detail, referrer_domain, utm_source, utm_medium, utm_campaign, created_at')
         .gte('created_at', since)
         .eq('is_internal', false).limit(10000);
 
@@ -456,33 +457,123 @@ export default function AdminDashboard() {
         .from('share_clicks').select('*', { count: 'exact', head: true })
         .gte('created_at', since)
         .eq('is_internal', false);
+      const { data: shareClicksData } = await supabase
+        .from('share_clicks')
+        .select('share_id, visitor_session_id, created_at')
+        .gte('created_at', since)
+        .eq('is_internal', false)
+        .limit(10000);
       
       // Sessions from shares
-      const shareSessionCount = sessionsData ? sessionsData.filter(s => s.source === 'share').length : 0;
+      const shareSessions = sessionsData ? sessionsData.filter(s => s.source === 'share') : [];
+      const shareSessionCount = shareSessions.length;
+      const shareSessionIds = shareSessions.map(s => s.session_id).filter(Boolean);
+      let activatedShareSessions = 0;
+
+      if (shareSessionIds.length > 0) {
+        const { data: events } = await supabase
+          .from('session_events')
+          .select('session_id, event_type')
+          .in('session_id', shareSessionIds)
+          .eq('is_internal', false)
+          .limit(10000);
+        const activationEvents = new Set([
+          'search_completed',
+          'place_click',
+          'midpoint_directions_clicked',
+          'place_directions_clicked',
+          'place_website_clicked',
+          'place_call_clicked',
+          'share_created',
+          'save_plan_clicked',
+          'save_plan_completed',
+        ]);
+        activatedShareSessions = new Set(
+          (events || [])
+            .filter(e => activationEvents.has(e.event_type))
+            .map(e => e.session_id)
+        ).size;
+      }
+
+      const { data: shareTimingEvents } = await supabase
+        .from('session_events')
+        .select('session_id, event_type, created_at')
+        .gte('created_at', since)
+        .eq('is_internal', false)
+        .in('event_type', ['search_completed', 'share_created'])
+        .order('created_at', { ascending: true })
+        .limit(10000);
+
+      const eventsBySessionForShareTiming = {};
+      (shareTimingEvents || []).forEach(e => {
+        if (!eventsBySessionForShareTiming[e.session_id]) eventsBySessionForShareTiming[e.session_id] = [];
+        eventsBySessionForShareTiming[e.session_id].push(e);
+      });
+
+      const secondsToShare = [];
+      Object.values(eventsBySessionForShareTiming).forEach(events => {
+        let latestSearchAt = null;
+        events.forEach(e => {
+          if (e.event_type === 'search_completed') {
+            latestSearchAt = new Date(e.created_at);
+          } else if (e.event_type === 'share_created' && latestSearchAt) {
+            secondsToShare.push(Math.max(0, Math.round((new Date(e.created_at) - latestSearchAt) / 1000)));
+          }
+        });
+      });
+      secondsToShare.sort((a, b) => a - b);
+      const medianTimeToShare = secondsToShare.length
+        ? secondsToShare[Math.floor(secondsToShare.length / 2)]
+        : null;
       
       setShareFunnel({
         totalShares: totalShares || 0,
         totalClicks: totalShareClicks || 0,
         conversionRate: totalShares > 0 ? ((totalShareClicks / totalShares) * 100).toFixed(1) : '0.0',
         sessionsFromShares: shareSessionCount,
+        shareRate: externalSearches > 0 ? (((totalShares || 0) / externalSearches) * 100).toFixed(1) : '0.0',
+        sharesPer100Searches: externalSearches > 0 ? (((totalShares || 0) / externalSearches) * 100).toFixed(1) : '0.0',
+        recipientActivationRate: shareSessionCount > 0 ? ((activatedShareSessions / shareSessionCount) * 100).toFixed(1) : '0.0',
+        activatedShareSessions,
+        viralLift: totalShares > 0 ? (shareSessionCount / totalShares).toFixed(2) : '0.00',
+        medianTimeToShare,
       });
 
       // Share method breakdown
       const { data: sharesData } = await supabase
         .from('shares')
-        .select('share_method, route_from_name, route_to_name, click_count, created_at, share_id')
+        .select('share_method, share_type, route_from_name, route_to_name, click_count, created_at, share_id')
         .gte('created_at', since)
         .eq('is_internal', false).limit(10000);
 
       if (sharesData) {
+        const clicksByShareId = {};
+        (shareClicksData || []).forEach(click => {
+          if (!click.share_id) return;
+          if (!clicksByShareId[click.share_id]) clicksByShareId[click.share_id] = new Set();
+          clicksByShareId[click.share_id].add(click.visitor_session_id || `click:${click.created_at}`);
+        });
+
         // Method breakdown
         const methodCounts = {};
+        const methodPerformance = {};
         sharesData.forEach(s => {
           const method = s.share_method || s.share_type || 'unknown';
           methodCounts[method] = (methodCounts[method] || 0) + 1;
+          if (!methodPerformance[method]) {
+            methodPerformance[method] = { method, shares: 0, visits: 0 };
+          }
+          methodPerformance[method].shares++;
+          methodPerformance[method].visits += clicksByShareId[s.share_id]?.size || 0;
         });
         setShareMethodStats(Object.entries(methodCounts).sort((a, b) => b[1] - a[1])
           .map(([name, value]) => ({ name, value })));
+        setShareMethodPerformance(Object.values(methodPerformance)
+          .map(row => ({
+            ...row,
+            visitsPerShare: row.shares > 0 ? row.visits / row.shares : 0,
+          }))
+          .sort((a, b) => b.shares - a.shares));
 
         // Top shared routes
         const sharedRouteCounts = {};
@@ -491,11 +582,16 @@ export default function AdminDashboard() {
             const fromShort = s.route_from_name.split(',')[0] || '?';
             const toShort = s.route_to_name.split(',')[0] || '?';
             const key = `${fromShort} → ${toShort}`;
-            sharedRouteCounts[key] = (sharedRouteCounts[key] || 0) + 1;
+            if (!sharedRouteCounts[key]) {
+              sharedRouteCounts[key] = { name: key, shares: 0, visits: 0 };
+            }
+            sharedRouteCounts[key].shares++;
+            sharedRouteCounts[key].visits += clicksByShareId[s.share_id]?.size || 0;
           }
         });
-        setTopSharedRoutes(Object.entries(sharedRouteCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
-          .map(([name, value]) => ({ name, value })));
+        setTopSharedRoutes(Object.values(sharedRouteCounts)
+          .sort((a, b) => (b.visits - a.visits) || (b.shares - a.shares))
+          .slice(0, 8));
 
         // Share timeline (daily)
         const shareByDay = {};
@@ -1299,9 +1395,13 @@ export default function AdminDashboard() {
       {/* Share Funnel KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard icon="📤" label="Total Shares" value={shareFunnel?.totalShares} tooltip="Total share button clicks" />
-        <StatCard icon="👆" label="Link Clicks" value={shareFunnel?.totalClicks} tooltip="Visits from shared links" />
-        <StatCard icon="📊" label="Conversion" value={`${shareFunnel?.conversionRate || 0}%`} subtext="Clicks / Shares" tooltip="% of shares that resulted in a visit" />
-        <StatCard icon="🔄" label="From Shares" value={shareFunnel?.sessionsFromShares} tooltip="Sessions where source = share" />
+        <StatCard icon="📊" label="Share Rate" value={`${shareFunnel?.shareRate || 0}%`} subtext="Shares / Searches" tooltip="How often completed searches turn into a share." />
+        <StatCard icon="🔄" label="Recipient Sessions" value={shareFunnel?.sessionsFromShares} tooltip="Sessions where source = share." />
+        <StatCard icon="⚡" label="Recipient Activation" value={`${shareFunnel?.recipientActivationRate || 0}%`} subtext={`${shareFunnel?.activatedShareSessions || 0} active sessions`} tooltip="Share-recipient sessions that searched, clicked a place, asked for directions, shared, or saved a plan." />
+        <StatCard icon="👆" label="Tracked Link Clicks" value={shareFunnel?.totalClicks} tooltip="Tracked visits from shared links." />
+        <StatCard icon="🧬" label="Viral Lift" value={shareFunnel?.viralLift || '0.00'} subtext="recipient sessions / share" tooltip="How many recipient sessions each share creates." />
+        <StatCard icon="⏱️" label="Time to Share" value={shareFunnel?.medianTimeToShare != null ? formatSessionDuration(shareFunnel.medianTimeToShare) : '—'} subtext="median after search" tooltip="Median time from search completion to share creation." />
+        <StatCard icon="🎯" label="Shares / 100 Searches" value={shareFunnel?.sharesPer100Searches || '0.0'} tooltip="Normalized share volume based on completed searches." />
       </div>
 
       {/* Share Method Breakdown + Top Shared Routes */}
@@ -1321,18 +1421,54 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <h2 className="font-semibold text-gray-900 mb-4">🛣️ Top Shared Routes</h2>
+          <h2 className="font-semibold text-gray-900 mb-4">🛣️ Top Shared Routes by Impact</h2>
           {topSharedRoutes.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={topSharedRoutes} layout="vertical" margin={{ left: 10, right: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
                 <XAxis type="number" tick={{ fontSize: 10 }} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={140} />
-                <Tooltip /><Bar dataKey="value" fill="#f97316" radius={[0, 4, 4, 0]} />
+                <Tooltip />
+                <Legend iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
+                <Bar dataKey="shares" name="Shares" fill="#f97316" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="visits" name="Recipient visits" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : <p className="text-sm text-gray-400 text-center py-8">No shared routes yet</p>}
         </div>
+      </div>
+
+      {/* Share Method Performance */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
+        <h2 className="font-semibold text-gray-900 mb-4 group relative inline-flex items-center gap-1.5">📨 Share Method Performance <span className="text-gray-300 cursor-help text-xs">ⓘ</span>
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">Which share methods create recipient visits.</span>
+        </h2>
+        {shareMethodPerformance.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="pb-2 font-medium">Method</th>
+                  <th className="pb-2 font-medium text-right">Shares</th>
+                  <th className="pb-2 font-medium text-right">Recipient Visits</th>
+                  <th className="pb-2 font-medium text-right">Visits / Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shareMethodPerformance.map(row => (
+                  <tr key={row.method} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2 font-medium text-gray-700 capitalize">{row.method}</td>
+                    <td className="py-2 text-right">{row.shares.toLocaleString()}</td>
+                    <td className="py-2 text-right">{row.visits.toLocaleString()}</td>
+                    <td className="py-2 text-right text-gray-500">{row.visitsPerShare.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-8">No share method data yet</p>
+        )}
       </div>
 
       {/* Share Timeline */}
@@ -1363,28 +1499,24 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="text-center p-4 bg-orange-50 rounded-lg">
             <div className="text-2xl font-bold text-orange-600">
-              {shareFunnel?.totalShares > 0 && stats?.sessions > 0 
-                ? (shareFunnel.totalShares / stats.sessions).toFixed(2) 
-                : '0.00'}
+              {shareFunnel?.sharesPer100Searches || '0.0'}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Shares per Session</div>
+            <div className="text-xs text-gray-500 mt-1">Shares / 100 Searches</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">Does the share prompt feel useful?</div>
           </div>
           <div className="text-center p-4 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">
-              {shareFunnel?.totalShares > 0 
-                ? (shareFunnel.totalClicks / shareFunnel.totalShares).toFixed(2)
-                : '0.00'}
+              {shareFunnel?.viralLift || '0.00'}
             </div>
-            <div className="text-xs text-gray-500 mt-1">Clicks per Share</div>
+            <div className="text-xs text-gray-500 mt-1">Recipient Sessions / Share</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">Does sharing create new visits?</div>
           </div>
           <div className="text-center p-4 bg-green-50 rounded-lg">
             <div className="text-2xl font-bold text-green-600">
-              {shareFunnel?.totalShares > 0 && stats?.sessions > 0
-                ? ((shareFunnel.totalShares / stats.sessions) * (shareFunnel.totalClicks / Math.max(shareFunnel.totalShares, 1))).toFixed(3)
-                : '0.000'}
+              {shareFunnel?.recipientActivationRate || '0.0'}%
             </div>
-            <div className="text-xs text-gray-500 mt-1">Viral Coefficient (K)</div>
-            <div className="text-[10px] text-gray-400 mt-0.5">K &gt; 1.0 = organic growth</div>
+            <div className="text-xs text-gray-500 mt-1">Recipient Activation</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">Do recipients take meaningful action?</div>
           </div>
         </div>
       </div>
