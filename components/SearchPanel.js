@@ -9,6 +9,7 @@ import RouletteSection from './RouletteSection';
 import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
 import SavePlanCTA from './SavePlanCTA';
+import MainPageAd from './MainPageAd';
 import FeatureGate, { useGatedAction } from './FeatureGate';
 
 export default function SearchPanel({
@@ -417,6 +418,7 @@ export default function SearchPanel({
                 />
               </FeatureGate>
             )}
+            <MainPageAd />
           </div>
         ) : (
           /* Empty State + Search History */
