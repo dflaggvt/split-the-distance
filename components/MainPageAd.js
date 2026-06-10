@@ -18,7 +18,7 @@ export default function MainPageAd() {
   }, []);
 
   return (
-    <div className="mt-6 border-t border-gray-100 pt-6 min-h-[120px]">
+    <div className="mt-6 mb-6 border-t border-gray-100 pt-6 min-h-[120px] max-md:mt-4 max-md:mb-5 max-md:pt-4 max-md:min-h-[100px]">
       {/* main-page */}
       <ins
         className="adsbygoogle"

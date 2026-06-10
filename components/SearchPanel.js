@@ -357,6 +357,8 @@ export default function SearchPanel({
           </button>
         </div>
 
+        <MainPageAd />
+
         {/* Results */}
         {hasResults && (route || multiResult) ? (
           <div className="animate-fadeInUp">
@@ -488,7 +490,6 @@ export default function SearchPanel({
             </div>
           </div>
         )}
-        <MainPageAd />
       </div>
     </div>
   );
