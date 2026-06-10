@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import HorizontalAd from '@/components/HorizontalAd';
 
 const faqs = [
   {
@@ -148,6 +149,8 @@ export default function HalfwayPointCalculatorPage() {
           </p>
         </div>
       </section>
+
+      <HorizontalAd />
 
       <main>
         <section className="border-b border-gray-200 bg-white px-5 py-14">
