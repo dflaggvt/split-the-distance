@@ -418,7 +418,6 @@ export default function SearchPanel({
                 />
               </FeatureGate>
             )}
-            <MainPageAd />
           </div>
         ) : (
           /* Empty State + Search History */
@@ -489,6 +488,7 @@ export default function SearchPanel({
             </div>
           </div>
         )}
+        <MainPageAd />
       </div>
     </div>
   );
