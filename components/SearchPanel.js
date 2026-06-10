@@ -5,7 +5,6 @@ import LocationInput from './LocationInput';
 import RouteInfo from './RouteInfo';
 import FilterChips from './FilterChips';
 import PlacesList from './PlacesList';
-import ComingSoonSection from './ComingSoonSection';
 import RouletteSection from './RouletteSection';
 import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
@@ -418,8 +417,6 @@ export default function SearchPanel({
                 />
               </FeatureGate>
             )}
-            {/* Coming Soon features teaser */}
-            <ComingSoonSection show={true} />
           </div>
         ) : (
           /* Empty State + Search History */
