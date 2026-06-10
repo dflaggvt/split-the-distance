@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import LocationInput from './LocationInput';
 import RouteInfo from './RouteInfo';
 import FilterChips from './FilterChips';
@@ -66,6 +66,7 @@ export default function SearchPanel({
   const distanceToggleGate = useGatedAction('distance_toggle');
   const group3Gate = useGatedAction('group_gravity_3');
   const group4Gate = useGatedAction('group_gravity_4plus');
+  const [isMobileViewport, setIsMobileViewport] = useState(null);
 
   // Display max: always show button up to the highest theoretical tier
   // so the gate can prompt login/upgrade when clicked
@@ -152,6 +153,20 @@ export default function SearchPanel({
   }, [maxPairwiseMiles, travelMode, onTravelModeChange]);
 
   const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 767px)');
+    const updateViewport = () => setIsMobileViewport(media.matches);
+    updateViewport();
+
+    if (media.addEventListener) {
+      media.addEventListener('change', updateViewport);
+      return () => media.removeEventListener('change', updateViewport);
+    }
+
+    media.addListener(updateViewport);
+    return () => media.removeListener(updateViewport);
+  }, []);
 
   return (
     <div
@@ -357,7 +372,7 @@ export default function SearchPanel({
           </button>
         </div>
 
-        <MainPageAd />
+        {isMobileViewport === true && <MainPageAd />}
 
         {/* Results */}
         {hasResults && (route || multiResult) ? (
@@ -490,6 +505,7 @@ export default function SearchPanel({
             </div>
           </div>
         )}
+        {isMobileViewport === false && <MainPageAd />}
       </div>
     </div>
   );
