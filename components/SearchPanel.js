@@ -10,6 +10,7 @@ import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
 import SavePlanCTA from './SavePlanCTA';
 import MainPageAd from './MainPageAd';
+import CallHeldPromo from './CallHeldPromo';
 import FeatureGate, { useGatedAction } from './FeatureGate';
 
 export default function SearchPanel({
@@ -401,7 +402,12 @@ export default function SearchPanel({
           </div>
         </div>
 
-        {isMobileViewport === true && <MainPageAd />}
+        {isMobileViewport === true && (
+          <>
+            <CallHeldPromo placement="search_panel_mobile" />
+            <MainPageAd />
+          </>
+        )}
 
         {/* Results */}
         {hasResults && (route || multiResult) ? (
@@ -471,70 +477,14 @@ export default function SearchPanel({
             {/* Search History (for logged-in users) */}
             <SearchHistory onResplit={onResplit} show={!hasResults} />
 
-            <div className="flex flex-col items-center text-center pt-4">
-            <div className="mb-5 opacity-90">
-              <svg
-                width="120"
-                height="120"
-                viewBox="0 0 120 120"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="50"
-                  fill="#f0fdfa"
-                  stroke="#99f6e4"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M35 70 Q60 30 85 70"
-                  stroke="#0d9488"
-                  strokeWidth="3"
-                  fill="none"
-                  strokeLinecap="round"
-                />
-                <circle cx="35" cy="70" r="6" fill="#0d9488" />
-                <circle cx="85" cy="70" r="6" fill="#0d9488" />
-                <circle
-                  cx="60"
-                  cy="45"
-                  r="8"
-                  fill="#f97316"
-                  stroke="white"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M57 45h6M60 42v6"
-                  stroke="white"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-            <p className="text-[15px] text-gray-500 mb-6">
-              Enter two locations above to find the perfect meeting point
-            </p>
-            <div className="flex flex-col gap-3 w-full max-w-[280px]">
-              {[
-                { icon: '🛣️', text: 'Based on real travel time' },
-                { icon: '📍', text: 'Discover places at the midpoint' },
-                { icon: '🔗', text: 'Share results with a link' },
-              ].map((feature) => (
-                <div
-                  key={feature.text}
-                  className="flex items-center gap-2.5 text-sm text-gray-600"
-                >
-                  <span className="text-lg">{feature.icon}</span>
-                  <span>{feature.text}</span>
-                </div>
-              ))}
-            </div>
-            </div>
           </div>
         )}
-        {isMobileViewport === false && <MainPageAd />}
+        {isMobileViewport === false && (
+          <>
+            <CallHeldPromo placement="search_panel_desktop" />
+            <MainPageAd />
+          </>
+        )}
       </div>
     </div>
   );

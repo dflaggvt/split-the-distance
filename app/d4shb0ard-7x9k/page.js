@@ -726,6 +726,11 @@ export default function AdminDashboard() {
                 (eventTypes.save_plan_completed || 0) +
                 (eventTypes.save_plan_failed || 0) +
                 (eventTypes.save_plan_abandoned || 0),
+              callHeldPromoViews: eventTypes.call_held_promo_viewed || 0,
+              callHeldPromoClicks: eventTypes.call_held_promo_clicked || 0,
+              callHeldPromoActivity:
+                (eventTypes.call_held_promo_viewed || 0) +
+                (eventTypes.call_held_promo_clicked || 0),
             };
           }));
         } catch (timelineErr) {
@@ -813,6 +818,8 @@ export default function AdminDashboard() {
     if (timelineActivity === 'save_completed' && session.savesCompleted < 1) return false;
     if (timelineActivity === 'save_abandoned' && session.savesAbandoned < 1) return false;
     if (timelineActivity === 'save_failed' && session.savesFailed < 1) return false;
+    if (timelineActivity === 'call_held_promo' && session.callHeldPromoActivity < 1) return false;
+    if (timelineActivity === 'call_held_clicked' && session.callHeldPromoClicks < 1) return false;
     if (timelineDevice !== 'all' && (session.device_type || 'unknown') !== timelineDevice) return false;
     if (timelineSource !== 'all' && (session.source || 'unknown') !== timelineSource) return false;
     return true;
@@ -833,6 +840,7 @@ export default function AdminDashboard() {
     premium: 'bg-purple-500',
     monetization: 'bg-pink-500',
     auth: 'bg-slate-500',
+    cross_promo: 'bg-blue-500',
   };
 
   const describeSessionEvent = (event) => {
@@ -906,6 +914,9 @@ export default function AdminDashboard() {
       case 'save_plan_failed':
       case 'save_plan_abandoned':
         return [m.from, m.to].filter(Boolean).join(' -> ') || m.source || '';
+      case 'call_held_promo_viewed':
+      case 'call_held_promo_clicked':
+        return [m.placement, m.url].filter(Boolean).join(', ');
       default:
         return Object.keys(m).length ? JSON.stringify(m) : '';
     }
@@ -964,6 +975,8 @@ export default function AdminDashboard() {
               <option value="save_completed">Saved plan</option>
               <option value="save_abandoned">Abandoned save plan</option>
               <option value="save_failed">Save failed</option>
+              <option value="call_held_promo">Call Held promo</option>
+              <option value="call_held_clicked">Clicked Call Held</option>
             </select>
           </label>
           <label className="text-xs font-medium text-gray-500">
