@@ -107,117 +107,12 @@ export default function AppClient() {
   const initialLoadDone = useRef(false);
   const cachedMidpointRef = useRef(null); // Track which midpoint the cache is for
 
-  // Check internal user status on mount
-  useEffect(() => {
-    setIsInternal(checkInternalUser());
-  }, []);
-
   // ---- Welcome Modal (signup / upgrade walkthrough) ----
   const [welcomeModalType, setWelcomeModalType] = useState(null); // 'signup' | 'upgrade' | null
   const prevLoggedIn = useRef(false);
 
   // ---- Handle Stripe redirect (upgrade success/cancel) ----
   const [upgradeStatus, setUpgradeStatus] = useState(null); // 'success' | 'cancelled' | null
-  useEffect(() => {
-    const status = searchParams.get('upgrade');
-    if (!status) return;
-
-    if (status === 'success') {
-      setUpgradeStatus('success');
-      // Show upgrade walkthrough modal
-      setWelcomeModalType('upgrade');
-      // Refresh profile to pick up the new plan from DB
-      refreshProfile();
-      // Log upgrade event
-      logSessionEvent('upgrade_completed', { plan: 'premium' }, { userId: user?.id });
-      if (user?.id) {
-        logUserEvent(user.id, 'upgrade_completed', { plan: 'premium' });
-      }
-    } else if (status === 'cancelled') {
-      setUpgradeStatus('cancelled');
-    }
-
-    // Clean the URL params so reloads don't re-trigger
-    const url = new URL(window.location.href);
-    url.searchParams.delete('upgrade');
-    window.history.replaceState({}, '', url.pathname + (url.search || ''));
-
-    // Auto-dismiss upgrade banner after 8 seconds (if they close the modal first)
-    const dismissTimer = setTimeout(() => setUpgradeStatus(null), 8000);
-    return () => clearTimeout(dismissTimer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ---- Handle Stripe redirect (credit purchase success/cancel) ----
-  useEffect(() => {
-    const status = searchParams.get('credits');
-    if (!status) return;
-
-    if (status === 'success') {
-      setCreditsBannerStatus('success');
-      refreshCredits().then(() => {
-        setRunPendingSearchAfterCredits(true);
-      });
-      logSessionEvent('credits_purchased', {}, { userId: user?.id });
-    } else if (status === 'cancelled') {
-      setCreditsBannerStatus('cancelled');
-    }
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete('credits');
-    window.history.replaceState({}, '', url.pathname + (url.search || ''));
-
-    const dismissTimer = setTimeout(() => setCreditsBannerStatus(null), 8000);
-    return () => clearTimeout(dismissTimer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ---- Show signup walkthrough when user first signs in ----
-  useEffect(() => {
-    // Detect transition from anonymous to logged-in
-    if (isLoggedIn && !prevLoggedIn.current) {
-      // Only show if user hasn't seen the welcome modal before
-      const hasSeenWelcome = localStorage.getItem('std_welcome_seen');
-      if (!hasSeenWelcome) {
-        // Small delay to let sign-in modal close first
-        const timer = setTimeout(() => {
-          setWelcomeModalType('signup');
-          localStorage.setItem('std_welcome_seen', '1');
-        }, 600);
-        return () => clearTimeout(timer);
-      }
-    }
-    prevLoggedIn.current = isLoggedIn;
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    if (!isLoggedIn) return;
-
-    try {
-      if (localStorage.getItem('std_open_credits_after_signin') === '1') {
-        localStorage.removeItem('std_open_credits_after_signin');
-        setTimeout(() => openPricingModal(), 250);
-      }
-    } catch {}
-  }, [isLoggedIn, openPricingModal]);
-
-  useEffect(() => {
-    if (!runPendingSearchAfterCredits || !hasSearchCredits) return;
-
-    const restored = restorePendingSearch();
-    setRunPendingSearchAfterCredits(false);
-
-    if (!restored) {
-      showToast('Credits added. Enter two locations to start planning.');
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      document.querySelector('[data-split-btn]')?.click();
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [hasSearchCredits, restorePendingSearch, runPendingSearchAfterCredits, showToast]);
 
   // ---- Toast ----
   const showToast = useCallback((message) => {
@@ -302,6 +197,139 @@ export default function AppClient() {
       localStorage.removeItem('std_pending_credit_search');
     } catch {}
   }, []);
+
+  // Check internal user status on mount
+  useEffect(() => {
+    setIsInternal(checkInternalUser());
+  }, []);
+
+  // ---- Handle Stripe redirect (upgrade success/cancel) ----
+  useEffect(() => {
+    const status = searchParams.get('upgrade');
+    if (!status) return;
+
+    if (status === 'success') {
+      setUpgradeStatus('success');
+      // Show upgrade walkthrough modal
+      setWelcomeModalType('upgrade');
+      // Refresh profile to pick up the new plan from DB
+      refreshProfile();
+      // Log upgrade event
+      logSessionEvent('upgrade_completed', { plan: 'premium' }, { userId: user?.id });
+      if (user?.id) {
+        logUserEvent(user.id, 'upgrade_completed', { plan: 'premium' });
+      }
+    } else if (status === 'cancelled') {
+      setUpgradeStatus('cancelled');
+    }
+
+    // Clean the URL params so reloads don't re-trigger
+    const url = new URL(window.location.href);
+    url.searchParams.delete('upgrade');
+    window.history.replaceState({}, '', url.pathname + (url.search || ''));
+
+    // Auto-dismiss upgrade banner after 8 seconds (if they close the modal first)
+    const dismissTimer = setTimeout(() => setUpgradeStatus(null), 8000);
+    return () => clearTimeout(dismissTimer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- Handle Stripe redirect (credit purchase success/cancel) ----
+  useEffect(() => {
+    const status = searchParams.get('credits');
+    if (!status) return;
+
+    let cancelled = false;
+    const timers = [];
+
+    const refreshCreditsAfterCheckout = async () => {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const latest = await refreshCredits();
+        if (cancelled) return;
+        if (latest?.hasActiveSubscription || (latest?.credits || 0) > 0) {
+          setRunPendingSearchAfterCredits(true);
+          return;
+        }
+
+        await new Promise((resolve) => {
+          const timer = setTimeout(resolve, 1200);
+          timers.push(timer);
+        });
+      }
+
+      if (!cancelled) {
+        showToast('Payment received. Credits are still syncing; refresh in a moment.');
+      }
+    };
+
+    if (status === 'success') {
+      setCreditsBannerStatus('success');
+      refreshCreditsAfterCheckout();
+      logSessionEvent('credits_purchased', {}, { userId: user?.id });
+    } else if (status === 'cancelled') {
+      setCreditsBannerStatus('cancelled');
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('credits');
+    window.history.replaceState({}, '', url.pathname + (url.search || ''));
+
+    const dismissTimer = setTimeout(() => setCreditsBannerStatus(null), 8000);
+    timers.push(dismissTimer);
+
+    return () => {
+      cancelled = true;
+      timers.forEach((timer) => clearTimeout(timer));
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- Show signup walkthrough when user first signs in ----
+  useEffect(() => {
+    // Detect transition from anonymous to logged-in
+    if (isLoggedIn && !prevLoggedIn.current) {
+      // Only show if user hasn't seen the welcome modal before
+      const hasSeenWelcome = localStorage.getItem('std_welcome_seen');
+      if (!hasSeenWelcome) {
+        // Small delay to let sign-in modal close first
+        const timer = setTimeout(() => {
+          setWelcomeModalType('signup');
+          localStorage.setItem('std_welcome_seen', '1');
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    }
+    prevLoggedIn.current = isLoggedIn;
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    try {
+      if (localStorage.getItem('std_open_credits_after_signin') === '1') {
+        localStorage.removeItem('std_open_credits_after_signin');
+        setTimeout(() => openPricingModal(), 250);
+      }
+    } catch {}
+  }, [isLoggedIn, openPricingModal]);
+
+  useEffect(() => {
+    if (!runPendingSearchAfterCredits || !hasSearchCredits) return;
+
+    const restored = restorePendingSearch();
+    setRunPendingSearchAfterCredits(false);
+
+    if (!restored) {
+      showToast('Credits added. Enter two locations to start planning.');
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      document.querySelector('[data-split-btn]')?.click();
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [hasSearchCredits, restorePendingSearch, runPendingSearchAfterCredits, showToast]);
 
   const refreshSearchHistoryList = useCallback(() => {
     if (typeof window !== 'undefined' && window.__refreshSearchHistory) {
