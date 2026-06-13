@@ -154,7 +154,7 @@ export default function SignInModal() {
               <div className="text-4xl mb-3">👋</div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">
                 {isSavePlan
-                  ? (mode === 'signin' ? 'Sign in to save this plan' : 'Save this plan for free')
+                  ? (mode === 'signin' ? 'Sign in to save this plan' : 'Create an account to save this plan')
                   : isSearchCredits
                     ? (mode === 'signin' ? 'Sign in to continue' : 'Create an account to buy credits')
                   : (mode === 'signin' ? 'Welcome back' : 'Create an account')}
@@ -164,7 +164,7 @@ export default function SignInModal() {
                   ? (mode === 'signin' ? 'Sign in and we will save this route to Recent searches.' : 'Your route will be saved after you create an account.')
                   : isSearchCredits
                     ? (mode === 'signin' ? 'Use your credits or buy more searches.' : 'Your search credits will be saved to your account.')
-                  : (mode === 'signin' ? 'Sign in to your account' : 'Get started for free')}
+                  : (mode === 'signin' ? 'Sign in to your account' : 'Create your account to continue.')}
               </p>
             </>
           )}
@@ -276,14 +276,11 @@ export default function SignInModal() {
         </p>
 
         {/* Reassurance */}
-        {isSearchCredits && (
+        {(isSearchCredits || isSavePlan) && (
           <p className="text-center text-xs text-gray-400 mt-3">
-            No subscription required
+            {isSearchCredits ? 'No subscription required' : 'No payment required to save this route'}
           </p>
         )}
-        <p className={`text-center text-xs text-gray-400 mt-3 ${isSearchCredits ? 'hidden' : ''}`}>
-          It&apos;s free — no credit card needed
-        </p>
       </div>
     </div>
   );

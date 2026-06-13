@@ -526,7 +526,7 @@ export default function AppClient() {
         setPlacesLoading(false);
       }
     },
-    [activeFilters]
+    [activeFilters, user?.id]
   );
 
   const finalizeSearchCreditUse = useCallback(async (metadata) => {
@@ -886,8 +886,6 @@ export default function AppClient() {
     extraLocations,
     loading,
     showToast,
-    fetchPlaces,
-    activeFilters,
     travelMode,
     midpointMode,
     isLoggedIn,
