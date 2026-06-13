@@ -193,9 +193,14 @@ export default function PricingModal() {
 
         <div className="text-center mb-6 pr-8 pl-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {isBlockedSearch ? 'Finish this midpoint plan' : 'Buy Search Credits'}
+            {isBlockedSearch ? 'Finish this midpoint search' : 'Buy Search Credits'}
           </h2>
-          <p className="text-sm text-gray-500">
+          {isBlockedSearch && (
+            <p className="text-sm font-semibold text-teal-700 mb-1">
+              One-time purchase. No subscription.
+            </p>
+          )}
+          <p className="text-sm text-gray-500 max-w-2xl mx-auto">
             {isBlockedSearch
               ? 'Find the fairest place to meet, compare the drive, and discover places near the midpoint.'
               : 'Credits unlock midpoint calculations, route comparisons, and nearby place discovery.'}
@@ -238,7 +243,7 @@ export default function PricingModal() {
                 <h3 className="text-lg font-bold text-gray-900">{pack.name}</h3>
                 <div className="text-3xl font-bold text-gray-900 mt-2">{pack.price}</div>
                 <div className="text-sm text-gray-500 mt-1">
-                  {pack.searches} {isBlockedSearch ? 'midpoint plans' : 'searches'}
+                  {pack.searches} searches
                 </div>
               </div>
 
@@ -250,7 +255,7 @@ export default function PricingModal() {
               <button
                 onClick={() => handleCheckout(pack.priceType)}
                 disabled={Boolean(loadingPack)}
-                className={`w-full py-2.5 px-4 text-sm font-semibold rounded-lg cursor-pointer transition-all disabled:opacity-50 ${
+                className={`w-full py-2.5 px-4 text-sm font-semibold rounded-lg cursor-pointer transition-all disabled:opacity-50 whitespace-nowrap ${
                   pack.featured
                     ? 'text-white bg-teal-600 hover:bg-teal-700 shadow-sm'
                     : 'text-teal-700 bg-teal-50 hover:bg-teal-100'
@@ -259,7 +264,7 @@ export default function PricingModal() {
                 {loadingPack === pack.priceType
                   ? 'Redirecting...'
                   : isBlockedSearch
-                    ? `${pack.price === '$1.99' ? 'Finish My Plan' : 'Continue'} for ${pack.price}`
+                    ? `Continue for ${pack.price}`
                     : 'Buy Credits'}
               </button>
             </div>
@@ -270,7 +275,7 @@ export default function PricingModal() {
           <ul className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-600">
             <li className="flex items-start gap-2">
               <span className="text-teal-600 font-bold">✓</span>
-              <span>One credit is used after a successful search.</span>
+              <span>One credit is used only after a successful search.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-teal-600 font-bold">✓</span>
@@ -278,7 +283,7 @@ export default function PricingModal() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-teal-600 font-bold">✓</span>
-              <span>No subscription or surprise bill.</span>
+              <span>Your current route calculates after checkout.</span>
             </li>
           </ul>
         </div>
@@ -290,7 +295,7 @@ export default function PricingModal() {
         )}
 
         <p className="text-center text-xs text-gray-400">
-          Secure checkout by Stripe. Existing Premium subscribers keep access while their subscription is active.
+          Secure checkout by Stripe.
         </p>
       </div>
     </div>
