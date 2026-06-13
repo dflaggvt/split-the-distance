@@ -24,6 +24,31 @@ const SOURCE_COLORS = {
 };
 const SEARCH_TREND_PAGE_SIZE = 1000;
 const SEARCH_TREND_MAX_ROWS = 100000;
+const EMPTY_CREDIT_SUMMARY = {
+  balance: 0,
+  lifetimePurchased: 0,
+  lifetimeUsed: 0,
+  purchaseCount: 0,
+  creditsPurchased: 0,
+  totalSpend: { cents: 0, currency: 'usd' },
+  lastPurchaseAt: null,
+  lastPurchaseDescription: null,
+  lastPurchaseCredits: 0,
+};
+
+function formatMoney(money) {
+  const cents = Number(money?.cents || 0);
+  const currency = (money?.currency || 'usd').toUpperCase();
+
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+    }).format(cents / 100);
+  } catch {
+    return `$${(cents / 100).toFixed(2)}`;
+  }
+}
 
 export default function AdminDashboard() {
   const { user, isLoggedIn, loading: authLoading } = useAuth();
@@ -1712,6 +1737,29 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false });
       if (error) throw error;
 
+      let creditsByUser = {};
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const response = await fetch('/api/admin/user-credits', {
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          });
+
+          if (response.ok) {
+            const payload = await response.json();
+            creditsByUser = Object.fromEntries(
+              (payload.users || []).map((creditSummary) => [creditSummary.userId, creditSummary])
+            );
+          } else {
+            console.warn('User credits fetch failed:', await response.text());
+          }
+        }
+      } catch (creditErr) {
+        console.warn('User credits fetch failed:', creditErr);
+      }
+
       // For each user, get event counts
       const enriched = await Promise.all((profiles || []).map(async (p) => {
         const [
@@ -1726,6 +1774,7 @@ export default function AdminDashboard() {
           eventCount: eventCount || 0,
           lastActive: lastEvent?.[0]?.created_at || p.updated_at || p.created_at,
           lastEventType: lastEvent?.[0]?.event_type || null,
+          credits: creditsByUser[p.id] || EMPTY_CREDIT_SUMMARY,
         };
       }));
 
@@ -1742,13 +1791,17 @@ export default function AdminDashboard() {
     setSelectedUserId(userId);
 
     try {
+      const existingUser = usersList.find((u) => u.id === userId);
       // Fetch profile
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', userId)
         .single();
-      setSelectedUserProfile(profile);
+      setSelectedUserProfile({
+        ...(profile || existingUser || {}),
+        credits: existingUser?.credits || EMPTY_CREDIT_SUMMARY,
+      });
 
       // Fetch all events for this user
       const { data: events } = await supabase
@@ -1811,7 +1864,8 @@ export default function AdminDashboard() {
   const filteredUsers = usersSearch.trim()
     ? usersList.filter(u =>
         (u.display_name || '').toLowerCase().includes(usersSearch.toLowerCase()) ||
-        (u.email || '').toLowerCase().includes(usersSearch.toLowerCase())
+        (u.email || '').toLowerCase().includes(usersSearch.toLowerCase()) ||
+        (u.credits?.purchaseCount > 0 && 'credit buyer paid purchased'.includes(usersSearch.toLowerCase()))
       )
     : usersList;
 
@@ -1819,6 +1873,7 @@ export default function AdminDashboard() {
   const UserDetailView = () => {
     if (!selectedUserProfile) return null;
     const p = selectedUserProfile;
+    const credits = p.credits || EMPTY_CREDIT_SUMMARY;
 
     // Compute stats from events
     const eventsByType = {};
@@ -1870,7 +1925,45 @@ export default function AdminDashboard() {
                 <span className="text-xs text-gray-400">
                   {userEvents.length} events tracked
                 </span>
+                {credits.purchaseCount > 0 && (
+                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    {formatMoney(credits.totalSpend)} spent
+                  </span>
+                )}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Credit Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+          <div className="bg-white rounded-lg border border-gray-100 p-3">
+            <div className="text-[10px] text-gray-400 font-medium uppercase">Balance</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{credits.balance}</div>
+            <div className="text-xs text-gray-400">credits left</div>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-100 p-3">
+            <div className="text-[10px] text-gray-400 font-medium uppercase">Purchased</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{credits.lifetimePurchased}</div>
+            <div className="text-xs text-gray-400">{credits.purchaseCount} purchases</div>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-100 p-3">
+            <div className="text-[10px] text-gray-400 font-medium uppercase">Used</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{credits.lifetimeUsed}</div>
+            <div className="text-xs text-gray-400">successful searches</div>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-100 p-3">
+            <div className="text-[10px] text-gray-400 font-medium uppercase">Total Spend</div>
+            <div className="text-2xl font-bold text-emerald-700 mt-1">{formatMoney(credits.totalSpend)}</div>
+            <div className="text-xs text-gray-400">Stripe purchases</div>
+          </div>
+          <div className="bg-white rounded-lg border border-gray-100 p-3">
+            <div className="text-[10px] text-gray-400 font-medium uppercase">Last Purchase</div>
+            <div className="text-sm font-bold text-gray-900 mt-2">
+              {credits.lastPurchaseAt ? new Date(credits.lastPurchaseAt).toLocaleDateString() : 'None'}
+            </div>
+            <div className="text-xs text-gray-400">
+              {credits.lastPurchaseCredits ? `${credits.lastPurchaseCredits} credits` : 'No purchases yet'}
             </div>
           </div>
         </div>
@@ -2012,6 +2105,8 @@ export default function AdminDashboard() {
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">User</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Plan</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Credits</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Spent</th>
                 <th className="text-center px-4 py-3 font-semibold text-gray-600">Events</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Last Active</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Joined</th>
@@ -2036,6 +2131,9 @@ export default function AdminDashboard() {
                       <div>
                         <div className="font-medium text-gray-900">{u.display_name || 'No name'}</div>
                         <div className="text-xs text-gray-400">{u.email}</div>
+                        {u.credits?.purchaseCount > 0 && (
+                          <div className="text-[10px] font-bold text-emerald-700 mt-1">BOUGHT CREDITS</div>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -2045,6 +2143,20 @@ export default function AdminDashboard() {
                     }`}>
                       {(u.plan || 'free').toUpperCase()}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="font-semibold text-gray-900">{u.credits?.balance || 0}</div>
+                    <div className="text-[11px] text-gray-400">
+                      {u.credits?.lifetimePurchased || 0} bought / {u.credits?.lifetimeUsed || 0} used
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className={`font-semibold ${(u.credits?.purchaseCount || 0) > 0 ? 'text-emerald-700' : 'text-gray-400'}`}>
+                      {formatMoney(u.credits?.totalSpend)}
+                    </div>
+                    <div className="text-[11px] text-gray-400">
+                      {u.credits?.purchaseCount || 0} purchases
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="font-medium text-gray-900">{u.eventCount}</span>
