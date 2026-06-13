@@ -94,7 +94,7 @@ export async function POST(request) {
             p_transaction_type: 'purchase',
             p_stripe_checkout_session_id: session.id,
             p_stripe_payment_intent_id: getStripeId(session.payment_intent),
-            p_stripe_price_id: pack.envKey ? process.env[pack.envKey] : null,
+            p_stripe_price_id: pack.envKey ? process.env[pack.envKey]?.trim() : null,
             p_description: `${pack.label} credit pack`,
             p_metadata: {
               credit_pack: creditPack,

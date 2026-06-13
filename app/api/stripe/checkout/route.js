@@ -66,11 +66,12 @@ export async function POST(request) {
     }
 
     // Map price type to Stripe Price ID (set these in env vars)
-    const priceId = isCreditPack
+    const rawPriceId = isCreditPack
       ? process.env[CREDIT_PACKS[priceType].envKey]
       : priceType === 'yearly'
         ? process.env.STRIPE_PRICE_YEARLY
         : process.env.STRIPE_PRICE_MONTHLY;
+    const priceId = rawPriceId?.trim();
 
     if (!priceId) {
       return Response.json(
