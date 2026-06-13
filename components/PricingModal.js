@@ -13,7 +13,7 @@ const CREDIT_PACKS = [
     price: '$1.99',
     searches: 10,
     perSearch: '$0.20/search',
-    note: 'For one quick plan',
+    note: 'Quick meetups, pickups, dates, and errands',
   },
   {
     priceType: 'credits_30',
@@ -21,7 +21,7 @@ const CREDIT_PACKS = [
     price: '$4.99',
     searches: 30,
     perSearch: '$0.17/search',
-    note: 'Best for meetups and trips',
+    note: 'Multiple meetups, family plans, and short trips',
     featured: true,
   },
   {
@@ -30,8 +30,14 @@ const CREDIT_PACKS = [
     price: '$9.99',
     searches: 100,
     perSearch: '$0.10/search',
-    note: 'Best value',
+    note: 'Best value for road trips and frequent planning',
   },
+];
+
+const PLAN_VALUE_POINTS = [
+  'Fair midpoint based on real travel time',
+  'Nearby food, coffee, parks, gas, hotels, and activities',
+  'Google Maps directions plus saved and shareable plans',
 ];
 
 export default function PricingModal() {
@@ -187,14 +193,30 @@ export default function PricingModal() {
 
         <div className="text-center mb-6 pr-8 pl-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {isBlockedSearch ? 'Finish this midpoint search' : 'Buy Search Credits'}
+            {isBlockedSearch ? 'Finish this midpoint plan' : 'Buy Search Credits'}
           </h2>
           <p className="text-sm text-gray-500">
             {isBlockedSearch
-              ? 'Create an account and buy credits to calculate this route. Starts at $1.99 for 10 searches.'
+              ? 'Find the fairest place to meet, compare the drive, and discover places near the midpoint.'
               : 'Credits unlock midpoint calculations, route comparisons, and nearby place discovery.'}
           </p>
         </div>
+
+        {isBlockedSearch && (
+          <div className="rounded-xl bg-teal-50/50 border border-teal-100 p-4 mb-5">
+            <div className="text-xs font-bold uppercase tracking-wide text-teal-700 mb-3">
+              Your credits include
+            </div>
+            <ul className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-700">
+              {PLAN_VALUE_POINTS.map((point) => (
+                <li key={point} className="flex items-start gap-2">
+                  <span className="text-teal-600 font-bold">✓</span>
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
           {packs.map((pack) => (
@@ -215,7 +237,9 @@ export default function PricingModal() {
               <div className="mb-4">
                 <h3 className="text-lg font-bold text-gray-900">{pack.name}</h3>
                 <div className="text-3xl font-bold text-gray-900 mt-2">{pack.price}</div>
-                <div className="text-sm text-gray-500 mt-1">{pack.searches} searches</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  {pack.searches} {isBlockedSearch ? 'midpoint plans' : 'searches'}
+                </div>
               </div>
 
               <div className="rounded-lg bg-white border border-gray-100 p-3 mb-4">
@@ -235,7 +259,7 @@ export default function PricingModal() {
                 {loadingPack === pack.priceType
                   ? 'Redirecting...'
                   : isBlockedSearch
-                    ? `Continue for ${pack.price}`
+                    ? `${pack.price === '$1.99' ? 'Finish My Plan' : 'Continue'} for ${pack.price}`
                     : 'Buy Credits'}
               </button>
             </div>
