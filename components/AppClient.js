@@ -269,6 +269,10 @@ export default function AppClient() {
       logSessionEvent('credits_purchased', {}, { userId: user?.id });
     } else if (status === 'cancelled') {
       setCreditsBannerStatus('cancelled');
+      logSessionEvent('checkout_returned_without_purchase', {
+        status,
+        source: 'stripe_redirect',
+      }, { userId: user?.id });
     }
 
     const url = new URL(window.location.href);
@@ -312,11 +316,22 @@ export default function AppClient() {
         localStorage.removeItem('std_pending_credit_pack');
         localStorage.removeItem('std_open_credits_after_signin');
 
+        logSessionEvent('blocked_search_auth_completed', {
+          pendingPack,
+          source: 'pending_credit_pack',
+        }, { userId: user?.id });
+
         const timer = setTimeout(async () => {
           try {
             const session = await getSession();
             if (!session?.access_token) {
               showToast('Session expired. Please sign in again to buy credits.');
+              logSessionEvent('checkout_failed', {
+                priceType: pendingPack,
+                context: 'blocked_search',
+                source: 'post_signup_handoff',
+                reason: 'missing_session',
+              }, { userId: user?.id });
               openPricingModal({ context: 'blocked_search' });
               return;
             }
@@ -341,10 +356,24 @@ export default function AppClient() {
             }
 
             showToast(data.error || 'Could not start checkout. Please choose a credit pack.');
+            logSessionEvent('checkout_failed', {
+              priceType: pendingPack,
+              context: 'blocked_search',
+              source: 'post_signup_handoff',
+              reason: 'checkout_session_failed',
+              error: data.error || null,
+            }, { userId: user?.id });
             openPricingModal({ context: 'blocked_search' });
           } catch (err) {
             console.error('[Credits] Pending checkout error:', err);
             showToast('Could not start checkout. Please choose a credit pack.');
+            logSessionEvent('checkout_failed', {
+              priceType: pendingPack,
+              context: 'blocked_search',
+              source: 'post_signup_handoff',
+              reason: 'exception',
+              error: err.message,
+            }, { userId: user?.id });
             openPricingModal({ context: 'blocked_search' });
           }
         }, 300);
@@ -354,6 +383,9 @@ export default function AppClient() {
 
       if (localStorage.getItem('std_open_credits_after_signin') === '1') {
         localStorage.removeItem('std_open_credits_after_signin');
+        logSessionEvent('blocked_search_auth_completed', {
+          source: 'legacy_pricing_handoff',
+        }, { userId: user?.id });
         const timer = setTimeout(() => openPricingModal({ context: 'blocked_search' }), 250);
         return () => clearTimeout(timer);
       }

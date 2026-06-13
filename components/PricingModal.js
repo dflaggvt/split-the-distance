@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import { useFeatures } from './FeatureProvider';
 import { getSession } from '@/lib/auth';
@@ -39,17 +39,55 @@ export default function PricingModal() {
   const { isLoggedIn, user } = useAuth();
   const [loadingPack, setLoadingPack] = useState(null);
   const [error, setError] = useState('');
+  const viewLoggedForOpenRef = useRef(false);
+
+  const isBlockedSearch = pricingModalContext === 'blocked_search';
+  const packs = useMemo(
+    () => CREDIT_PACKS.map((pack) => ({
+      ...pack,
+      featured: isBlockedSearch ? pack.priceType === 'credits_10' : pack.featured,
+      badge: isBlockedSearch
+        ? (pack.priceType === 'credits_10' ? 'START HERE' : null)
+        : (pack.featured ? 'MOST POPULAR' : null),
+    })),
+    [isBlockedSearch]
+  );
+
+  useEffect(() => {
+    if (!pricingModalOpen) {
+      viewLoggedForOpenRef.current = false;
+      return;
+    }
+
+    if (viewLoggedForOpenRef.current) return;
+    viewLoggedForOpenRef.current = true;
+
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : null;
+    const isMobile = typeof viewportWidth === 'number' ? viewportWidth < 768 : false;
+
+    logSessionEvent('credit_pack_cards_viewed', {
+      context: pricingModalContext || null,
+      isMobile,
+      viewportWidth,
+      highlightedPack: packs.find((pack) => pack.featured)?.priceType || null,
+      packs: packs.map((pack) => ({
+        priceType: pack.priceType,
+        price: pack.price,
+        searches: pack.searches,
+        featured: Boolean(pack.featured),
+      })),
+    }, { userId: user?.id });
+  }, [packs, pricingModalContext, pricingModalOpen, user?.id]);
 
   if (!pricingModalOpen) return null;
 
-  const isBlockedSearch = pricingModalContext === 'blocked_search';
-  const packs = CREDIT_PACKS.map((pack) => ({
-    ...pack,
-    featured: isBlockedSearch ? pack.priceType === 'credits_10' : pack.featured,
-    badge: isBlockedSearch
-      ? (pack.priceType === 'credits_10' ? 'START HERE' : null)
-      : (pack.featured ? 'MOST POPULAR' : null),
-  }));
+  const handleClose = (reason) => {
+    logSessionEvent('pricing_modal_closed', {
+      context: pricingModalContext || null,
+      reason,
+    }, { userId: user?.id });
+    closePricingModal();
+  };
 
   const handleCheckout = async (priceType) => {
     logSessionEvent('credit_pack_selected', {
@@ -63,7 +101,12 @@ export default function PricingModal() {
         localStorage.setItem('std_open_credits_after_signin', '1');
       } catch {}
       closePricingModal();
-      openSignIn({ mode: 'signup', context: 'search_credits' });
+      openSignIn({
+        mode: 'signup',
+        context: 'search_credits',
+        source: pricingModalContext || null,
+        pendingPack: priceType,
+      });
       return;
     }
 
@@ -74,6 +117,11 @@ export default function PricingModal() {
       const session = await getSession();
       if (!session?.access_token) {
         setError('Session expired. Please sign out and sign back in.');
+        logSessionEvent('checkout_failed', {
+          priceType,
+          context: pricingModalContext || null,
+          reason: 'missing_session',
+        }, { userId: user?.id });
         setLoadingPack(null);
         return;
       }
@@ -97,11 +145,24 @@ export default function PricingModal() {
         return;
       }
 
-      setError(data.error || 'Failed to start checkout. Please try again.');
+      const errorMessage = data.error || 'Failed to start checkout. Please try again.';
+      setError(errorMessage);
+      logSessionEvent('checkout_failed', {
+        priceType,
+        context: pricingModalContext || null,
+        reason: 'checkout_session_failed',
+        error: errorMessage,
+      }, { userId: user?.id });
       setLoadingPack(null);
     } catch (err) {
       console.error('[Pricing] Checkout error:', err);
       setError('Something went wrong. Please try again.');
+      logSessionEvent('checkout_failed', {
+        priceType,
+        context: pricingModalContext || null,
+        reason: 'exception',
+        error: err.message,
+      }, { userId: user?.id });
       setLoadingPack(null);
     }
   };
@@ -110,12 +171,12 @@ export default function PricingModal() {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={closePricingModal}
+        onClick={() => handleClose('backdrop')}
       />
 
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 max-h-[90vh] overflow-y-auto animate-fadeInUp">
         <button
-          onClick={closePricingModal}
+          onClick={() => handleClose('close_button')}
           className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           aria-label="Close pricing"
         >

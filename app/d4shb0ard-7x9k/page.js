@@ -692,6 +692,31 @@ export default function AdminDashboard() {
                 (eventTypes.place_call_clicked || 0) +
                 (eventTypes.share_created || 0),
               gates: eventTypes.feature_gate_triggered || 0,
+              paywallBlocks: eventTypes.search_blocked_no_credits || 0,
+              pricingOpens: eventTypes.pricing_modal_opened || 0,
+              pricingCloses: eventTypes.pricing_modal_closed || 0,
+              packViews: eventTypes.credit_pack_cards_viewed || 0,
+              packSelections: eventTypes.credit_pack_selected || 0,
+              checkoutStarts: eventTypes.checkout_started || 0,
+              checkoutFailures: eventTypes.checkout_failed || 0,
+              checkoutCancels: eventTypes.checkout_returned_without_purchase || 0,
+              creditPurchases: eventTypes.credits_purchased || 0,
+              signInModalOpens: eventTypes.sign_in_modal_opened || 0,
+              signInModalCloses: eventTypes.sign_in_modal_closed || 0,
+              blockedSearchAuths: eventTypes.blocked_search_auth_completed || 0,
+              monetizationActivity:
+                (eventTypes.search_blocked_no_credits || 0) +
+                (eventTypes.pricing_modal_opened || 0) +
+                (eventTypes.pricing_modal_closed || 0) +
+                (eventTypes.credit_pack_cards_viewed || 0) +
+                (eventTypes.credit_pack_selected || 0) +
+                (eventTypes.checkout_started || 0) +
+                (eventTypes.checkout_failed || 0) +
+                (eventTypes.checkout_returned_without_purchase || 0) +
+                (eventTypes.credits_purchased || 0) +
+                (eventTypes.sign_in_modal_opened || 0) +
+                (eventTypes.sign_in_modal_closed || 0) +
+                (eventTypes.blocked_search_auth_completed || 0),
               saveClicks: eventTypes.save_plan_clicked || 0,
               savesCompleted: eventTypes.save_plan_completed || 0,
               savesFailed: eventTypes.save_plan_failed || 0,
@@ -770,6 +795,19 @@ export default function AdminDashboard() {
     if (timelineActivity === 'no_decisions' && session.decisions > 0) return false;
     if (timelineActivity === 'with_decisions' && session.decisions < 1) return false;
     if (timelineActivity === 'with_gates' && session.gates < 1) return false;
+    if (timelineActivity === 'monetization_activity' && session.monetizationActivity < 1) return false;
+    if (timelineActivity === 'paywall_blocked' && session.paywallBlocks < 1) return false;
+    if (timelineActivity === 'pricing_opened' && session.pricingOpens < 1) return false;
+    if (timelineActivity === 'pricing_closed' && session.pricingCloses < 1) return false;
+    if (timelineActivity === 'pack_viewed' && session.packViews < 1) return false;
+    if (timelineActivity === 'pack_selected' && session.packSelections < 1) return false;
+    if (timelineActivity === 'checkout_started' && session.checkoutStarts < 1) return false;
+    if (timelineActivity === 'checkout_failed' && session.checkoutFailures < 1) return false;
+    if (timelineActivity === 'checkout_cancelled' && session.checkoutCancels < 1) return false;
+    if (timelineActivity === 'credits_purchased' && session.creditPurchases < 1) return false;
+    if (timelineActivity === 'signin_modal_opened' && session.signInModalOpens < 1) return false;
+    if (timelineActivity === 'signin_modal_closed' && session.signInModalCloses < 1) return false;
+    if (timelineActivity === 'blocked_auth_completed' && session.blockedSearchAuths < 1) return false;
     if (timelineActivity === 'save_activity' && session.saveActivity < 1) return false;
     if (timelineActivity === 'save_clicked' && session.saveClicks < 1) return false;
     if (timelineActivity === 'save_completed' && session.savesCompleted < 1) return false;
@@ -837,6 +875,26 @@ export default function AdminDashboard() {
         return `${m.placeName || 'Pick'}${m.rollNumber ? `, roll #${m.rollNumber}` : ''}`;
       case 'feature_gate_triggered':
         return `${m.feature || 'feature'} (${m.reason || 'locked'})`;
+      case 'search_blocked_no_credits':
+        return `${[m.from, m.to].filter(Boolean).join(' -> ')}${m.isLoggedIn === false ? ' (anonymous)' : ''}`;
+      case 'pricing_modal_opened':
+      case 'pricing_modal_closed':
+        return [m.context, m.reason].filter(Boolean).join(', ');
+      case 'credit_pack_cards_viewed':
+        return `${m.context || 'pricing'}${m.isMobile ? ', mobile' : ''}${m.highlightedPack ? `, highlighted ${m.highlightedPack}` : ''}`;
+      case 'credit_pack_selected':
+      case 'checkout_started':
+      case 'checkout_failed':
+        return [m.priceType, m.context, m.reason || m.source].filter(Boolean).join(', ');
+      case 'checkout_returned_without_purchase':
+        return [m.status || 'cancelled', m.source].filter(Boolean).join(', ');
+      case 'credits_purchased':
+        return m.priceType || '';
+      case 'sign_in_modal_opened':
+      case 'sign_in_modal_closed':
+        return [m.context, m.mode, m.pendingPack].filter(Boolean).join(', ');
+      case 'blocked_search_auth_completed':
+        return [m.pendingPack, m.source].filter(Boolean).join(', ');
       case 'road_trip_activated':
         return `${m.stopCount || 0} stops every ${m.intervalValue || '?'} ${m.intervalMode || ''}`;
       case 'road_trip_stop_selected':
@@ -888,6 +946,19 @@ export default function AdminDashboard() {
               <option value="no_decisions">No decisions</option>
               <option value="with_decisions">With decisions</option>
               <option value="with_gates">Hit a gate</option>
+              <option value="monetization_activity">Any monetization activity</option>
+              <option value="paywall_blocked">Blocked by paywall</option>
+              <option value="pricing_opened">Opened pricing</option>
+              <option value="pricing_closed">Closed pricing</option>
+              <option value="pack_viewed">Viewed credit packs</option>
+              <option value="pack_selected">Selected credit pack</option>
+              <option value="checkout_started">Started checkout</option>
+              <option value="checkout_failed">Checkout failed</option>
+              <option value="checkout_cancelled">Returned without purchase</option>
+              <option value="credits_purchased">Purchased credits</option>
+              <option value="signin_modal_opened">Opened sign-in modal</option>
+              <option value="signin_modal_closed">Closed sign-in modal</option>
+              <option value="blocked_auth_completed">Signed in after paywall</option>
               <option value="save_activity">Any save activity</option>
               <option value="save_clicked">Clicked save plan</option>
               <option value="save_completed">Saved plan</option>

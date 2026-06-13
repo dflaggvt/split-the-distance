@@ -77,7 +77,13 @@ export function FeatureProvider({ children }) {
     setSignInMode(options.mode === 'signup' ? 'signup' : 'signin');
     setSignInContext(options.context || null);
     setSignInOpen(true);
-  }, []);
+    logSessionEvent('sign_in_modal_opened', {
+      context: options.context || 'general',
+      mode: options.mode === 'signup' ? 'signup' : 'signin',
+      source: options.source || null,
+      pendingPack: options.pendingPack || null,
+    }, { userId: auth.user?.id });
+  }, [auth.user?.id]);
 
   const closeSignIn = useCallback(() => {
     setSignInOpen(false);

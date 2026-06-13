@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useFeatures } from './FeatureProvider';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail } from '@/lib/auth';
+import { logSessionEvent } from '@/lib/sessionEvents';
 
 /**
  * Detect if the user is in an embedded WebView (Reddit, Facebook, Instagram, etc.)
@@ -67,6 +68,17 @@ export default function SignInModal() {
   if (isFeatureGate && !feature) return null;
 
   const handleClose = () => {
+    let pendingPack = null;
+    try {
+      pendingPack = localStorage.getItem('std_pending_credit_pack');
+    } catch {}
+
+    logSessionEvent('sign_in_modal_closed', {
+      context: isFeatureGate ? 'feature_gate' : signInContext || 'general',
+      featureKey: signInModalFeature || null,
+      mode,
+      pendingPack,
+    });
     setError('');
     setMessage('');
     setEmail('');
