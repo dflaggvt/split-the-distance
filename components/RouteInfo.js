@@ -230,11 +230,13 @@ export default function RouteInfo({
   // Reverse geocode midpoint to get city/state label
   useEffect(() => {
     if (!midpoint?.lat || !midpoint?.lon) {
-      setMidpointLabel(null);
+      queueMicrotask(() => setMidpointLabel(null));
       return;
     }
     let cancelled = false;
-    setMidpointLabel(null);
+    queueMicrotask(() => {
+      if (!cancelled) setMidpointLabel(null);
+    });
     reverseGeocode(midpoint.lat, midpoint.lon).then((label) => {
       if (!cancelled) setMidpointLabel(label);
     });

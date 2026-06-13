@@ -84,6 +84,24 @@ export async function DELETE(request) {
     console.log('[Account Delete] Deleted subscriptions for user:', userId);
 
     await expectSupabaseResult(
+      supabase.from('credit_transactions').delete().eq('user_id', userId),
+      'Failed to delete credit transactions'
+    );
+    console.log('[Account Delete] Deleted credit transactions for user:', userId);
+
+    await expectSupabaseResult(
+      supabase.from('user_search_credits').delete().eq('user_id', userId),
+      'Failed to delete search credits'
+    );
+    console.log('[Account Delete] Deleted search credits for user:', userId);
+
+    await expectSupabaseResult(
+      supabase.from('stripe_customers').delete().eq('user_id', userId),
+      'Failed to delete Stripe customer mapping'
+    );
+    console.log('[Account Delete] Deleted Stripe customer mapping for user:', userId);
+
+    await expectSupabaseResult(
       supabase.from('user_profiles').delete().eq('id', userId),
       'Failed to delete user profile'
     );

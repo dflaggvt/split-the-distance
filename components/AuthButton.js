@@ -6,7 +6,7 @@ import { useFeatures } from './FeatureProvider';
 
 const PLAN_BADGES = {
   anonymous: null,
-  free: { label: 'FREE', className: 'bg-gray-100 text-gray-600' },
+  free: { label: 'CREDITS', className: 'bg-teal-100 text-teal-700' },
   premium: { label: 'PRO', className: 'bg-purple-100 text-purple-700' },
   enterprise: { label: 'ENT', className: 'bg-blue-100 text-blue-700' },
 };
@@ -107,10 +107,10 @@ export default function AuthButton() {
           {plan !== 'premium' && (
             <button
               onClick={() => { setMenuOpen(false); openPricingModal(); }}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-[13px] font-medium text-purple-600 hover:bg-purple-50 transition-colors"
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-[13px] font-medium text-teal-700 hover:bg-teal-50 transition-colors"
             >
               <span>✨</span>
-              <span>Upgrade to Premium</span>
+              <span>Buy Search Credits</span>
             </button>
           )}
 

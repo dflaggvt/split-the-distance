@@ -50,6 +50,7 @@ export default function SignInModal() {
 
   const feature = isFeatureGate ? features[signInModalFeature] : null;
   const isSavePlan = !feature && signInContext === 'save_plan';
+  const isSearchCredits = !feature && signInContext === 'search_credits';
   const mode = isFeatureGate ? featureGateMode : signInMode;
 
   const updateMode = (nextMode) => {
@@ -154,11 +155,15 @@ export default function SignInModal() {
               <h3 className="text-lg font-bold text-gray-900 mb-1">
                 {isSavePlan
                   ? (mode === 'signin' ? 'Sign in to save this plan' : 'Save this plan for free')
+                  : isSearchCredits
+                    ? (mode === 'signin' ? 'Sign in to continue' : 'Create an account to buy credits')
                   : (mode === 'signin' ? 'Welcome back' : 'Create an account')}
               </h3>
               <p className="text-sm text-gray-500">
                 {isSavePlan
                   ? (mode === 'signin' ? 'Sign in and we will save this route to Recent searches.' : 'Your route will be saved after you create an account.')
+                  : isSearchCredits
+                    ? (mode === 'signin' ? 'Use your credits or buy more searches.' : 'Your search credits will be saved to your account.')
                   : (mode === 'signin' ? 'Sign in to your account' : 'Get started for free')}
               </p>
             </>
@@ -271,7 +276,12 @@ export default function SignInModal() {
         </p>
 
         {/* Reassurance */}
-        <p className="text-center text-xs text-gray-400 mt-3">
+        {isSearchCredits && (
+          <p className="text-center text-xs text-gray-400 mt-3">
+            No subscription required
+          </p>
+        )}
+        <p className={`text-center text-xs text-gray-400 mt-3 ${isSearchCredits ? 'hidden' : ''}`}>
           It&apos;s free — no credit card needed
         </p>
       </div>

@@ -285,7 +285,7 @@ export default function MapView({
     const place = places.find((p) => p.id === activePlaceId);
     if (place) {
       mapRef.current.panTo({ lat: place.lat, lng: place.lon });
-      setActiveInfoWindow(activePlaceId);
+      queueMicrotask(() => setActiveInfoWindow(activePlaceId));
     }
   }, [activePlaceId, places]);
 

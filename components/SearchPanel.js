@@ -60,6 +60,9 @@ export default function SearchPanel({
   isLoggedIn = false,
   savePlanStatus = 'idle',
   onSavePlan,
+  creditStatus,
+  creditsLoading = false,
+  onBuyCredits,
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
@@ -370,6 +373,32 @@ export default function SearchPanel({
               'Split The Distance'
             )}
           </button>
+
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-gray-700">
+                {creditStatus?.hasActiveSubscription
+                  ? 'Premium subscriber'
+                  : creditsLoading
+                    ? 'Checking credits...'
+                    : `${creditStatus?.credits || 0} search credits`}
+              </p>
+              <p className="text-[11px] text-gray-400">
+                {creditStatus?.hasActiveSubscription
+                  ? 'Searches included while your subscription is active'
+                  : 'Credits are used after successful searches'}
+              </p>
+            </div>
+            {!creditStatus?.hasActiveSubscription && (
+              <button
+                type="button"
+                onClick={onBuyCredits}
+                className="shrink-0 text-xs font-semibold text-teal-700 bg-white border border-teal-100 rounded-md px-2.5 py-1.5 hover:bg-teal-50 transition"
+              >
+                Buy
+              </button>
+            )}
+          </div>
         </div>
 
         {isMobileViewport === true && <MainPageAd />}

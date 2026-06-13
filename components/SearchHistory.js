@@ -37,6 +37,7 @@ function shortName(name) {
 export default function SearchHistory({ onResplit, show }) {
   const { isLoggedIn, user } = useAuth();
   const historyGate = useGatedAction('search_history');
+  const userId = user?.id;
 
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -44,16 +45,16 @@ export default function SearchHistory({ onResplit, show }) {
 
   // Fetch history when component shows and user is logged in
   const loadHistory = useCallback(async () => {
-    if (!isLoggedIn || !user?.id) return;
+    if (!isLoggedIn || !userId) return;
     setLoading(true);
-    const data = await fetchHistory(user.id);
+    const data = await fetchHistory(userId);
     setHistory(data);
     setLoading(false);
-  }, [isLoggedIn, user?.id]);
+  }, [isLoggedIn, userId]);
 
   useEffect(() => {
     if (show && isLoggedIn) {
-      loadHistory();
+      queueMicrotask(() => loadHistory());
     }
   }, [show, isLoggedIn, loadHistory]);
 

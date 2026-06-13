@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from './AuthProvider';
 import { useFeatures } from './FeatureProvider';
 import { getSession, fetchSubscription } from '@/lib/auth';
+import { fetchCreditStatus } from '@/lib/credits';
 
 /**
  * AccountModal — user account settings with plan info,
@@ -14,6 +15,7 @@ export default function AccountModal() {
   const { user, profile, plan, isLoggedIn, signOut } = useAuth();
 
   const [subscription, setSubscription] = useState(null);
+  const [credits, setCredits] = useState(null);
   const [subLoading, setSubLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [deleteStep, setDeleteStep] = useState('idle'); // 'idle' | 'confirm' | 'deleting'
@@ -22,12 +24,32 @@ export default function AccountModal() {
   // Fetch subscription details when modal opens
   useEffect(() => {
     if (!accountModalOpen || !user) return;
-    setSubLoading(true);
-    setError('');
-    setDeleteStep('idle');
-    fetchSubscription(user.id)
-      .then(setSubscription)
-      .finally(() => setSubLoading(false));
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setSubLoading(true);
+      setError('');
+      setDeleteStep('idle');
+      fetchSubscription(user.id)
+        .then((data) => {
+          if (!cancelled) setSubscription(data);
+        })
+        .finally(() => {
+          if (!cancelled) setSubLoading(false);
+        });
+      fetchCreditStatus()
+        .then((data) => {
+          if (!cancelled) setCredits(data);
+        })
+        .catch(() => {
+          if (!cancelled) setCredits(null);
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [accountModalOpen, user]);
 
   if (!accountModalOpen || !isLoggedIn) return null;
@@ -164,13 +186,46 @@ export default function AccountModal() {
               ? 'text-purple-700 bg-purple-100'
               : 'text-teal-700 bg-teal-100'
           }`}>
-            {isPremium ? 'PRO' : 'FREE'}
+            {isPremium ? 'PRO' : 'CREDITS'}
           </span>
+        </div>
+
+        {/* Credits section */}
+        <div className="mb-6">
+          <h3 className="text-sm font-bold text-gray-700 mb-3">Search Credits</h3>
+          <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {credits?.hasActiveSubscription ? 'Included with Premium' : `${credits?.credits || 0} credits available`}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {credits?.hasActiveSubscription
+                    ? 'Your active subscription is grandfathered into search access.'
+                    : 'One credit is used after each successful search.'}
+                </p>
+              </div>
+              {!credits?.hasActiveSubscription && (
+                <button
+                  onClick={() => { closeAccountModal(); openPricingModal(); }}
+                  className="shrink-0 py-2 px-3 text-xs font-semibold text-white bg-teal-600 rounded-lg cursor-pointer transition-all hover:bg-teal-700"
+                >
+                  Buy More
+                </button>
+              )}
+            </div>
+            {!credits?.hasActiveSubscription && (
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-500">
+                <div>Purchased: <span className="font-semibold text-gray-700">{credits?.lifetimePurchased || 0}</span></div>
+                <div>Used: <span className="font-semibold text-gray-700">{credits?.lifetimeUsed || 0}</span></div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Plan & Subscription section */}
         <div className="mb-6">
-          <h3 className="text-sm font-bold text-gray-700 mb-3">Subscription</h3>
+          <h3 className="text-sm font-bold text-gray-700 mb-3">Legacy Subscription</h3>
 
           {subLoading ? (
             <div className="flex items-center justify-center py-4">
@@ -213,14 +268,13 @@ export default function AccountModal() {
           ) : (
             <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 mb-3">
               <p className="text-sm text-gray-600 mb-3">
-                You&apos;re on the <span className="font-semibold">Free</span> plan.
-                Upgrade to unlock premium features.
+                Subscriptions are no longer sold on the main site. Buy search credits to keep planning.
               </p>
               <button
                 onClick={() => { closeAccountModal(); openPricingModal(); }}
-                className="w-full py-2.5 px-4 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg cursor-pointer transition-all hover:from-purple-700 hover:to-purple-800 shadow-sm"
+                className="w-full py-2.5 px-4 text-sm font-semibold text-white bg-teal-600 rounded-lg cursor-pointer transition-all hover:bg-teal-700 shadow-sm"
               >
-                Upgrade to Premium
+                Buy Search Credits
               </button>
             </div>
           )}

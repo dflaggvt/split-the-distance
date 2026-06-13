@@ -22,6 +22,7 @@ import { saveSearch } from '@/lib/searchHistory';
 import { generateDriftCircle, filterPlacesInZone } from '@/lib/isochrone';
 import { logUserEvent } from '@/lib/userEvents';
 import { logSessionEvent } from '@/lib/sessionEvents';
+import { consumeSearchCredit, fetchCreditStatus } from '@/lib/credits';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -90,6 +91,17 @@ export default function AppClient() {
   const [pendingSave, setPendingSave] = useState(null);
   const [savePlanStatus, setSavePlanStatus] = useState('idle'); // idle | saving | saved | error
   const [savePlanAuthOpened, setSavePlanAuthOpened] = useState(false);
+  const [creditStatus, setCreditStatus] = useState({
+    credits: 0,
+    lifetimePurchased: 0,
+    lifetimeUsed: 0,
+    hasActiveSubscription: false,
+    authenticated: false,
+  });
+  const [creditsLoading, setCreditsLoading] = useState(true);
+  const [creditsBannerStatus, setCreditsBannerStatus] = useState(null); // success | cancelled | null
+  const [runPendingSearchAfterCredits, setRunPendingSearchAfterCredits] = useState(false);
+  const hasSearchCredits = creditStatus.hasActiveSubscription || creditStatus.credits > 0;
 
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
@@ -136,6 +148,30 @@ export default function AppClient() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ---- Handle Stripe redirect (credit purchase success/cancel) ----
+  useEffect(() => {
+    const status = searchParams.get('credits');
+    if (!status) return;
+
+    if (status === 'success') {
+      setCreditsBannerStatus('success');
+      refreshCredits().then(() => {
+        setRunPendingSearchAfterCredits(true);
+      });
+      logSessionEvent('credits_purchased', {}, { userId: user?.id });
+    } else if (status === 'cancelled') {
+      setCreditsBannerStatus('cancelled');
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete('credits');
+    window.history.replaceState({}, '', url.pathname + (url.search || ''));
+
+    const dismissTimer = setTimeout(() => setCreditsBannerStatus(null), 8000);
+    return () => clearTimeout(dismissTimer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ---- Show signup walkthrough when user first signs in ----
   useEffect(() => {
     // Detect transition from anonymous to logged-in
@@ -154,6 +190,35 @@ export default function AppClient() {
     prevLoggedIn.current = isLoggedIn;
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    try {
+      if (localStorage.getItem('std_open_credits_after_signin') === '1') {
+        localStorage.removeItem('std_open_credits_after_signin');
+        setTimeout(() => openPricingModal(), 250);
+      }
+    } catch {}
+  }, [isLoggedIn, openPricingModal]);
+
+  useEffect(() => {
+    if (!runPendingSearchAfterCredits || !hasSearchCredits) return;
+
+    const restored = restorePendingSearch();
+    setRunPendingSearchAfterCredits(false);
+
+    if (!restored) {
+      showToast('Credits added. Enter two locations to start planning.');
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      document.querySelector('[data-split-btn]')?.click();
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [hasSearchCredits, restorePendingSearch, runPendingSearchAfterCredits, showToast]);
+
   // ---- Toast ----
   const showToast = useCallback((message) => {
     setToast(message);
@@ -164,6 +229,78 @@ export default function AppClient() {
   const hideToast = useCallback(() => {
     setToast(null);
     if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
+
+  const refreshCredits = useCallback(async () => {
+    if (!isLoggedIn) {
+      setCreditStatus({
+        credits: 0,
+        lifetimePurchased: 0,
+        lifetimeUsed: 0,
+        hasActiveSubscription: false,
+        authenticated: false,
+      });
+      setCreditsLoading(false);
+      return null;
+    }
+
+    setCreditsLoading(true);
+    try {
+      const status = await fetchCreditStatus();
+      setCreditStatus(status);
+      return status;
+    } catch (err) {
+      console.error('[Credits] Failed to refresh:', err);
+      return null;
+    } finally {
+      setCreditsLoading(false);
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    refreshCredits();
+  }, [refreshCredits]);
+
+  const storePendingSearch = useCallback(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      localStorage.setItem('std_pending_credit_search', JSON.stringify({
+        fromValue,
+        toValue,
+        fromLocation,
+        toLocation,
+        extraLocations,
+        travelMode,
+        midpointMode,
+      }));
+    } catch {}
+  }, [extraLocations, fromLocation, fromValue, midpointMode, toLocation, toValue, travelMode]);
+
+  const restorePendingSearch = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+
+    try {
+      const raw = localStorage.getItem('std_pending_credit_search');
+      if (!raw) return false;
+      const pending = JSON.parse(raw);
+      setFromValue(pending.fromValue || '');
+      setToValue(pending.toValue || '');
+      setFromLocation(pending.fromLocation || null);
+      setToLocation(pending.toLocation || null);
+      setExtraLocations(Array.isArray(pending.extraLocations) ? pending.extraLocations : []);
+      if (pending.travelMode) setTravelMode(pending.travelMode);
+      if (pending.midpointMode) setMidpointMode(pending.midpointMode);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const clearPendingSearch = useCallback(() => {
+    try {
+      localStorage.removeItem('std_pending_credit_search');
+    } catch {}
   }, []);
 
   const refreshSearchHistoryList = useCallback(() => {
@@ -364,6 +501,43 @@ export default function AppClient() {
     [activeFilters]
   );
 
+  const finalizeSearchCreditUse = useCallback(async (metadata) => {
+    try {
+      const result = await consumeSearchCredit(metadata);
+
+      if (!result.allowed) {
+        logSessionEvent('search_credit_debit_failed', {
+          reason: result.reason,
+          ...metadata,
+        }, { userId: user?.id });
+        openPricingModal();
+        return false;
+      }
+
+      setCreditStatus((prev) => ({
+        ...prev,
+        credits: result.credits,
+        hasActiveSubscription: result.grandfathered || prev.hasActiveSubscription,
+        authenticated: true,
+      }));
+
+      logSessionEvent('search_credit_used', {
+        reason: result.reason,
+        creditsRemaining: result.credits,
+        grandfathered: result.grandfathered,
+        ...metadata,
+      }, { userId: user?.id });
+      return true;
+    } catch (err) {
+      console.error('[Credits] Debit failed:', err);
+      logSessionEvent('search_credit_debit_failed', {
+        error: err.message,
+        ...metadata,
+      }, { userId: user?.id });
+      return false;
+    }
+  }, [openPricingModal, user]);
+
   // ---- Handle split ----
   const handleSplit = useCallback(async () => {
     if (loading) return;
@@ -379,6 +553,36 @@ export default function AppClient() {
     // Check extra locations all have values
     const validExtras = extraLocations.filter(el => el.value.trim());
     const isMulti = validExtras.length > 0;
+
+    let currentCreditStatus = creditStatus;
+    if (isLoggedIn && !hasSearchCredits) {
+      currentCreditStatus = await refreshCredits() || creditStatus;
+    }
+
+    const canRunSearch =
+      currentCreditStatus?.hasActiveSubscription || (currentCreditStatus?.credits || 0) > 0;
+
+    if (!canRunSearch) {
+      storePendingSearch();
+      logSessionEvent('search_blocked_no_credits', {
+        from: fromVal,
+        to: toVal,
+        locationCount: 2 + validExtras.length,
+        travelMode,
+        midpointMode,
+        isLoggedIn,
+      }, { userId: user?.id });
+
+      if (!isLoggedIn) {
+        try {
+          localStorage.setItem('std_open_credits_after_signin', '1');
+        } catch {}
+        openSignIn({ mode: 'signup', context: 'search_credits' });
+      } else {
+        openPricingModal();
+      }
+      return;
+    }
 
     // Clear route cache and road trip state for new search
     routeCacheRef.current = {};
@@ -524,6 +728,16 @@ export default function AppClient() {
           midpointLat: result.midpoint.lat,
           midpointLng: result.midpoint.lon || result.midpoint.lng,
         }, { userId: user?.id });
+
+        await finalizeSearchCreditUse({
+          from: from.name,
+          to: to.name,
+          locationCount: allLocations.length,
+          travelMode,
+          midpointMode,
+          resultType: 'group',
+        });
+        clearPendingSearch();
       } else {
         // ---- STANDARD 2-LOCATION PATH ----
         const cacheKey = `${from.lat},${from.lon}|${to.lat},${to.lon}|${travelMode}`;
@@ -609,6 +823,18 @@ export default function AppClient() {
             setSavePlanStatus('error');
           });
         }
+
+        await finalizeSearchCreditUse({
+          from: from.name,
+          to: to.name,
+          locationCount: 2,
+          travelMode,
+          midpointMode,
+          resultType: 'standard',
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+        });
+        clearPendingSearch();
       }
     } catch (err) {
       console.error('Split error:', err);
@@ -639,6 +865,14 @@ export default function AppClient() {
     isLoggedIn,
     user,
     saveRoutePayload,
+    creditStatus,
+    hasSearchCredits,
+    refreshCredits,
+    storePendingSearch,
+    openSignIn,
+    openPricingModal,
+    finalizeSearchCreditUse,
+    clearPendingSearch,
   ]);
 
   // ---- Handle re-split from search history ----
@@ -1020,7 +1254,7 @@ export default function AppClient() {
 
   // ---- Auto-run from URL params on mount ----
   useEffect(() => {
-    if (!isLoaded || initialLoadDone.current) return;
+    if (!isLoaded || initialLoadDone.current || creditsLoading) return;
     initialLoadDone.current = true;
 
     // Check for shared route data (from ?s= share links)
@@ -1057,11 +1291,44 @@ export default function AppClient() {
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded]);
+  }, [isLoaded, creditsLoading, hasSearchCredits, isLoggedIn]);
 
   // ---- Auto split from URL params ----
   const autoSplit = useCallback(
     async (fromVal, toVal) => {
+      if (!hasSearchCredits) {
+        setFromValue(fromVal);
+        setToValue(toVal);
+        try {
+          localStorage.setItem('std_pending_credit_search', JSON.stringify({
+            fromValue: fromVal,
+            toValue: toVal,
+            fromLocation: null,
+            toLocation: null,
+            extraLocations: [],
+            travelMode,
+            midpointMode,
+          }));
+        } catch {}
+        logSessionEvent('search_blocked_no_credits', {
+          from: fromVal,
+          to: toVal,
+          resultType: 'url_autoload',
+          travelMode,
+          midpointMode,
+          isLoggedIn,
+        }, { userId: user?.id });
+        if (!isLoggedIn) {
+          try {
+            localStorage.setItem('std_open_credits_after_signin', '1');
+          } catch {}
+          openSignIn({ mode: 'signup', context: 'search_credits' });
+        } else {
+          openPricingModal();
+        }
+        return;
+      }
+
       setLoading(true);
       try {
         const fromResults = await searchLocations(fromVal);
@@ -1110,6 +1377,18 @@ export default function AppClient() {
           midpointLat: routeData.midpoint.lat,
           midpointLng: routeData.midpoint.lon,
         }, { userId: user?.id });
+
+        await finalizeSearchCreditUse({
+          from: from.name,
+          to: to.name,
+          locationCount: 2,
+          travelMode,
+          midpointMode,
+          resultType: 'url_autoload',
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+        });
+        clearPendingSearch();
       } catch (err) {
         console.error('Auto-split error:', err);
         logSessionEvent('search_failed', {
@@ -1123,30 +1402,61 @@ export default function AppClient() {
         setLoading(false);
       }
     },
-    [showToast]
+    [clearPendingSearch, finalizeSearchCreditUse, hasSearchCredits, isLoggedIn, midpointMode, openPricingModal, openSignIn, showToast, travelMode, user]
   );
 
   // ---- Auto split from shared route coordinates ----
   const autoSplitFromCoords = useCallback(
     async (sharedRoute) => {
+      const from = {
+        lat: sharedRoute.fromLat,
+        lon: sharedRoute.fromLng,
+        name: sharedRoute.fromName || `${sharedRoute.fromLat.toFixed(4)}, ${sharedRoute.fromLng.toFixed(4)}`,
+      };
+      const to = {
+        lat: sharedRoute.toLat,
+        lon: sharedRoute.toLng,
+        name: sharedRoute.toName || `${sharedRoute.toLat.toFixed(4)}, ${sharedRoute.toLng.toFixed(4)}`,
+      };
+
+      setFromValue(sharedRoute.fromName || from.name);
+      setToValue(sharedRoute.toName || to.name);
+      setFromLocation(from);
+      setToLocation(to);
+
+      if (!hasSearchCredits) {
+        try {
+          localStorage.setItem('std_pending_credit_search', JSON.stringify({
+            fromValue: sharedRoute.fromName || from.name,
+            toValue: sharedRoute.toName || to.name,
+            fromLocation: from,
+            toLocation: to,
+            extraLocations: [],
+            travelMode,
+            midpointMode,
+          }));
+        } catch {}
+        logSessionEvent('search_blocked_no_credits', {
+          from: from.name,
+          to: to.name,
+          resultType: 'share_autoload',
+          travelMode,
+          midpointMode,
+          isLoggedIn,
+        }, { userId: user?.id });
+        if (!isLoggedIn) {
+          try {
+            localStorage.setItem('std_open_credits_after_signin', '1');
+          } catch {}
+          openSignIn({ mode: 'signup', context: 'search_credits' });
+        } else {
+          openPricingModal();
+        }
+        return;
+      }
+
       setLoading(true);
       try {
-        const from = {
-          lat: sharedRoute.fromLat,
-          lon: sharedRoute.fromLng,
-          name: sharedRoute.fromName || `${sharedRoute.fromLat.toFixed(4)}, ${sharedRoute.fromLng.toFixed(4)}`,
-        };
-        const to = {
-          lat: sharedRoute.toLat,
-          lon: sharedRoute.toLng,
-          name: sharedRoute.toName || `${sharedRoute.toLat.toFixed(4)}, ${sharedRoute.toLng.toFixed(4)}`,
-        };
-
-        setFromValue(sharedRoute.fromName || from.name);
-        setToValue(sharedRoute.toName || to.name);
-        setFromLocation(from);
-        setToLocation(to);
-
         const routeData = await getRoute(from, to);
         setRoute(routeData);
         setMidpoint(routeData.midpoint);
@@ -1176,6 +1486,18 @@ export default function AppClient() {
           midpointLat: routeData.midpoint.lat,
           midpointLng: routeData.midpoint.lon,
         }, { userId: user?.id });
+
+        await finalizeSearchCreditUse({
+          from: from.name,
+          to: to.name,
+          locationCount: 2,
+          travelMode,
+          midpointMode,
+          resultType: 'share_autoload',
+          distanceMiles: routeData.totalDistance / 1609.344,
+          durationSeconds: routeData.totalDuration,
+        });
+        clearPendingSearch();
       } catch (err) {
         console.error('Shared route error:', err);
         logSessionEvent('search_failed', {
@@ -1187,7 +1509,7 @@ export default function AppClient() {
         setLoading(false);
       }
     },
-    [showToast]
+    [clearPendingSearch, finalizeSearchCreditUse, hasSearchCredits, isLoggedIn, midpointMode, openPricingModal, openSignIn, showToast, travelMode, user]
   );
 
   // ---- Loading state while Google Maps loads ----
@@ -1323,6 +1645,9 @@ export default function AppClient() {
           isLoggedIn={isLoggedIn}
           savePlanStatus={savePlanStatus}
           onSavePlan={handleSavePlanClick}
+          creditStatus={creditStatus}
+          creditsLoading={creditsLoading}
+          onBuyCredits={openPricingModal}
         />
 
         {/* Map Container */}
@@ -1431,6 +1756,41 @@ export default function AppClient() {
             </div>
             <button
               onClick={() => setUpgradeStatus(null)}
+              className="bg-transparent border-none text-amber-400 text-lg cursor-pointer leading-none hover:text-amber-700 p-0"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
+
+      {creditsBannerStatus === 'success' && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-md animate-slideUp">
+          <div className="mx-4 bg-emerald-50 border border-emerald-200 rounded-xl shadow-lg px-5 py-4 flex items-start gap-3">
+            <span className="text-2xl leading-none mt-0.5">&#x2705;</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-emerald-800">Credits added</p>
+              <p className="text-xs text-emerald-600 mt-0.5">Your search credits are ready to use.</p>
+            </div>
+            <button
+              onClick={() => setCreditsBannerStatus(null)}
+              className="bg-transparent border-none text-emerald-400 text-lg cursor-pointer leading-none hover:text-emerald-700 p-0"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
+      {creditsBannerStatus === 'cancelled' && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9999] w-full max-w-md animate-slideUp">
+          <div className="mx-4 bg-amber-50 border border-amber-200 rounded-xl shadow-lg px-5 py-4 flex items-start gap-3">
+            <span className="text-2xl leading-none mt-0.5">&#x2139;&#xFE0F;</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800">Checkout cancelled</p>
+              <p className="text-xs text-amber-600 mt-0.5">No credits were purchased.</p>
+            </div>
+            <button
+              onClick={() => setCreditsBannerStatus(null)}
               className="bg-transparent border-none text-amber-400 text-lg cursor-pointer leading-none hover:text-amber-700 p-0"
             >
               &times;

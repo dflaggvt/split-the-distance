@@ -48,10 +48,10 @@ export default function TermsPage() {
       </p>
 
       {/* ------------------------------------------------------------------ */}
-      <h2>4. Free &amp; Paid Features</h2>
+      <h2>4. Paid Features &amp; Search Credits</h2>
       <p>
-        The Service offers both free and paid features. Free features may be used without a subscription. Premium
-        features require an active paid subscription.
+        Certain parts of the Service require prepaid search credits, a legacy active subscription, or another paid
+        entitlement. Search credits are used to calculate midpoint routes and related results.
       </p>
       <h3>4.1 Pricing</h3>
       <p>
@@ -59,17 +59,17 @@ export default function TermsPage() {
         will provide advance notice before the change takes effect. All prices are in U.S. dollars unless otherwise
         stated.
       </p>
-      <h3>4.2 Subscriptions &amp; Billing</h3>
+      <h3>4.2 Search Credits, Subscriptions &amp; Billing</h3>
       <p>
-        Paid subscriptions automatically renew at the end of each billing period (monthly or yearly) until cancelled. You
-        authorize us and our payment processor, Stripe, to charge the payment method on file for all recurring
-        subscription fees and applicable taxes. You must cancel before the renewal date to avoid being charged for the
-        next period.
+        Search credits are prepaid and are generally consumed after successful searches. If you have a legacy paid
+        subscription, it may automatically renew at the end of each billing period until cancelled. You authorize us and
+        our payment processor, Stripe, to charge the payment method on file for purchases, subscription fees, and
+        applicable taxes.
       </p>
       <h3>4.3 Refunds</h3>
       <p>
-        Subscription fees are generally non-refundable except as required by applicable law. If you believe you were
-        charged in error, contact us and we will review your request.
+        Search credit purchases and subscription fees are generally non-refundable except as required by applicable law.
+        If you believe you were charged in error, contact us and we will review your request.
       </p>
 
       {/* ------------------------------------------------------------------ */}

@@ -1,5 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
-import { expectSupabaseResult, getStripeId, throwIfMissingEnv } from '@/lib/stripeServer';
+import {
+  CREDIT_PACKS,
+  expectSupabaseResult,
+  getStripeId,
+  throwIfMissingEnv,
+} from '@/lib/stripeServer';
 
 async function authUserExists(supabase, userId) {
   const { data, error } = await supabase.auth.admin.getUserById(userId);
@@ -12,7 +17,7 @@ async function authUserExists(supabase, userId) {
 
 /**
  * POST /api/stripe/webhook
- * Handles Stripe webhook events for subscription lifecycle.
+ * Handles Stripe webhook events for credit purchases and subscription lifecycle.
  * 
  * Events handled:
  *   - checkout.session.completed — new subscription created
@@ -49,14 +54,72 @@ export async function POST(request) {
     console.log('[Stripe Webhook] Event:', event.type);
 
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded': {
         const session = event.data.object;
         const userId = session.metadata?.supabase_user_id;
         const customerId = getStripeId(session.customer);
-        const subscriptionId = getStripeId(session.subscription);
 
-        if (!userId || !customerId || !subscriptionId) {
+        if (!userId || !customerId) {
           console.error('[Stripe Webhook] Missing checkout session metadata or Stripe IDs');
+          break;
+        }
+
+        await expectSupabaseResult(
+          supabase.from('stripe_customers').upsert({
+            user_id: userId,
+            stripe_customer_id: customerId,
+          }, { onConflict: 'user_id' }).select('user_id').single(),
+          'Failed to upsert Stripe customer'
+        );
+
+        if (session.mode === 'payment' && session.metadata?.type === 'search_credits') {
+          if (session.payment_status !== 'paid') {
+            console.log('[Stripe Webhook] Credit checkout completed before payment; waiting for payment success:', session.id);
+            break;
+          }
+
+          const creditPack = session.metadata.credit_pack;
+          const pack = CREDIT_PACKS[creditPack];
+          const credits = Number(session.metadata.credits || pack?.credits || 0);
+
+          if (!pack || credits <= 0) {
+            console.error('[Stripe Webhook] Invalid credit pack metadata:', session.metadata);
+            break;
+          }
+
+          const { data: grantResult, error: grantError } = await supabase.rpc('grant_search_credits', {
+            p_user_id: userId,
+            p_amount: credits,
+            p_transaction_type: 'purchase',
+            p_stripe_checkout_session_id: session.id,
+            p_stripe_payment_intent_id: getStripeId(session.payment_intent),
+            p_stripe_price_id: pack.envKey ? process.env[pack.envKey] : null,
+            p_description: `${pack.label} credit pack`,
+            p_metadata: {
+              credit_pack: creditPack,
+              stripe_customer_id: customerId,
+              stripe_amount_total: session.amount_total,
+              stripe_currency: session.currency,
+            },
+          });
+
+          if (grantError) {
+            throw new Error(`Failed to grant credits: ${grantError.message}`);
+          }
+
+          const grant = Array.isArray(grantResult) ? grantResult[0] : grantResult;
+          console.log('[Stripe Webhook] Credits processed for user:', userId, {
+            credits,
+            granted: grant?.granted,
+            balance: grant?.balance,
+          });
+          break;
+        }
+
+        const subscriptionId = getStripeId(session.subscription);
+        if (!subscriptionId) {
+          console.log('[Stripe Webhook] Completed checkout without subscription; no subscription action needed.');
           break;
         }
 
