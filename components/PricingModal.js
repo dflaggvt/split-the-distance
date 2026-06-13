@@ -35,18 +35,31 @@ const CREDIT_PACKS = [
 ];
 
 export default function PricingModal() {
-  const { pricingModalOpen, closePricingModal, openSignIn } = useFeatures();
+  const { pricingModalOpen, pricingModalContext, closePricingModal, openSignIn } = useFeatures();
   const { isLoggedIn, user } = useAuth();
   const [loadingPack, setLoadingPack] = useState(null);
   const [error, setError] = useState('');
 
   if (!pricingModalOpen) return null;
 
+  const isBlockedSearch = pricingModalContext === 'blocked_search';
+  const packs = CREDIT_PACKS.map((pack) => ({
+    ...pack,
+    featured: isBlockedSearch ? pack.priceType === 'credits_10' : pack.featured,
+    badge: isBlockedSearch
+      ? (pack.priceType === 'credits_10' ? 'START HERE' : null)
+      : (pack.featured ? 'MOST POPULAR' : null),
+  }));
+
   const handleCheckout = async (priceType) => {
-    logSessionEvent('credit_pack_selected', { priceType }, { userId: user?.id });
+    logSessionEvent('credit_pack_selected', {
+      priceType,
+      context: pricingModalContext || null,
+    }, { userId: user?.id });
 
     if (!isLoggedIn) {
       try {
+        localStorage.setItem('std_pending_credit_pack', priceType);
         localStorage.setItem('std_open_credits_after_signin', '1');
       } catch {}
       closePricingModal();
@@ -76,7 +89,10 @@ export default function PricingModal() {
 
       const data = await res.json();
       if (data.url) {
-        logSessionEvent('checkout_started', { priceType }, { userId: user?.id });
+        logSessionEvent('checkout_started', {
+          priceType,
+          context: pricingModalContext || null,
+        }, { userId: user?.id });
         window.location.assign(data.url);
         return;
       }
@@ -109,14 +125,18 @@ export default function PricingModal() {
         </button>
 
         <div className="text-center mb-6 pr-8 pl-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Buy Search Credits</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {isBlockedSearch ? 'Finish this midpoint search' : 'Buy Search Credits'}
+          </h2>
           <p className="text-sm text-gray-500">
-            Credits unlock midpoint calculations, route comparisons, and nearby place discovery.
+            {isBlockedSearch
+              ? 'Create an account and buy credits to calculate this route. Starts at $1.99 for 10 searches.'
+              : 'Credits unlock midpoint calculations, route comparisons, and nearby place discovery.'}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-          {CREDIT_PACKS.map((pack) => (
+          {packs.map((pack) => (
             <div
               key={pack.priceType}
               className={`relative rounded-xl border-2 p-5 ${
@@ -125,9 +145,9 @@ export default function PricingModal() {
                   : 'border-gray-200 bg-white'
               }`}
             >
-              {pack.featured && (
+              {pack.badge && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold text-white bg-teal-600 px-3 py-1 rounded-full">
-                  MOST POPULAR
+                  {pack.badge}
                 </span>
               )}
 
@@ -151,7 +171,11 @@ export default function PricingModal() {
                     : 'text-teal-700 bg-teal-50 hover:bg-teal-100'
                 }`}
               >
-                {loadingPack === pack.priceType ? 'Redirecting...' : 'Buy Credits'}
+                {loadingPack === pack.priceType
+                  ? 'Redirecting...'
+                  : isBlockedSearch
+                    ? `Continue for ${pack.price}`
+                    : 'Buy Credits'}
               </button>
             </div>
           ))}

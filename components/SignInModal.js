@@ -243,7 +243,9 @@ export default function SignInModal() {
           >
             {submitting
               ? (mode === 'signin' ? 'Signing in...' : 'Creating account...')
-              : (mode === 'signin' ? 'Sign In' : 'Create Account')
+              : isSearchCredits
+                ? (mode === 'signin' ? 'Sign In & Continue' : 'Create Account & Continue')
+                : (mode === 'signin' ? 'Sign In' : 'Create Account')
             }
           </button>
         </form>
@@ -278,7 +280,7 @@ export default function SignInModal() {
         {/* Reassurance */}
         {(isSearchCredits || isSavePlan) && (
           <p className="text-center text-xs text-gray-400 mt-3">
-            {isSearchCredits ? 'Choose a credit pack after creating your account' : 'No payment required to save this route'}
+            {isSearchCredits ? 'Your selected credit pack will continue to checkout after sign-in.' : 'No payment required to save this route'}
           </p>
         )}
       </div>

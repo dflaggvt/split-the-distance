@@ -23,6 +23,7 @@ import { generateDriftCircle, filterPlacesInZone } from '@/lib/isochrone';
 import { logUserEvent } from '@/lib/userEvents';
 import { logSessionEvent } from '@/lib/sessionEvents';
 import { consumeSearchCredit, fetchCreditStatus } from '@/lib/credits';
+import { getSession } from '@/lib/auth';
 
 // Dynamic import for MapView — Google Maps doesn't work with SSR either
 const MapView = dynamic(() => import('./MapView'), {
@@ -306,12 +307,58 @@ export default function AppClient() {
     if (!isLoggedIn) return;
 
     try {
+      const pendingPack = localStorage.getItem('std_pending_credit_pack');
+      if (pendingPack) {
+        localStorage.removeItem('std_pending_credit_pack');
+        localStorage.removeItem('std_open_credits_after_signin');
+
+        const timer = setTimeout(async () => {
+          try {
+            const session = await getSession();
+            if (!session?.access_token) {
+              showToast('Session expired. Please sign in again to buy credits.');
+              openPricingModal({ context: 'blocked_search' });
+              return;
+            }
+
+            const res = await fetch('/api/stripe/checkout', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ priceType: pendingPack }),
+            });
+
+            const data = await res.json();
+            if (data.url) {
+              logSessionEvent('checkout_started', {
+                priceType: pendingPack,
+                source: 'post_signup_handoff',
+              }, { userId: user?.id });
+              window.location.assign(data.url);
+              return;
+            }
+
+            showToast(data.error || 'Could not start checkout. Please choose a credit pack.');
+            openPricingModal({ context: 'blocked_search' });
+          } catch (err) {
+            console.error('[Credits] Pending checkout error:', err);
+            showToast('Could not start checkout. Please choose a credit pack.');
+            openPricingModal({ context: 'blocked_search' });
+          }
+        }, 300);
+
+        return () => clearTimeout(timer);
+      }
+
       if (localStorage.getItem('std_open_credits_after_signin') === '1') {
         localStorage.removeItem('std_open_credits_after_signin');
-        setTimeout(() => openPricingModal(), 250);
+        const timer = setTimeout(() => openPricingModal({ context: 'blocked_search' }), 250);
+        return () => clearTimeout(timer);
       }
     } catch {}
-  }, [isLoggedIn, openPricingModal]);
+  }, [isLoggedIn, openPricingModal, showToast, user?.id]);
 
   useEffect(() => {
     if (!runPendingSearchAfterCredits || !hasSearchCredits) return;
@@ -538,7 +585,7 @@ export default function AppClient() {
           reason: result.reason,
           ...metadata,
         }, { userId: user?.id });
-        openPricingModal();
+        openPricingModal({ context: 'blocked_search' });
         return false;
       }
 
@@ -601,14 +648,7 @@ export default function AppClient() {
         isLoggedIn,
       }, { userId: user?.id });
 
-      if (!isLoggedIn) {
-        try {
-          localStorage.setItem('std_open_credits_after_signin', '1');
-        } catch {}
-        openSignIn({ mode: 'signup', context: 'search_credits' });
-      } else {
-        openPricingModal();
-      }
+      openPricingModal({ context: 'blocked_search' });
       return;
     }
 
@@ -895,7 +935,6 @@ export default function AppClient() {
     hasSearchCredits,
     refreshCredits,
     storePendingSearch,
-    openSignIn,
     openPricingModal,
     finalizeSearchCreditUse,
     clearPendingSearch,
@@ -1344,14 +1383,7 @@ export default function AppClient() {
           midpointMode,
           isLoggedIn,
         }, { userId: user?.id });
-        if (!isLoggedIn) {
-          try {
-            localStorage.setItem('std_open_credits_after_signin', '1');
-          } catch {}
-          openSignIn({ mode: 'signup', context: 'search_credits' });
-        } else {
-          openPricingModal();
-        }
+        openPricingModal({ context: 'blocked_search' });
         return;
       }
 
@@ -1428,7 +1460,7 @@ export default function AppClient() {
         setLoading(false);
       }
     },
-    [clearPendingSearch, finalizeSearchCreditUse, hasSearchCredits, isLoggedIn, midpointMode, openPricingModal, openSignIn, showToast, travelMode, user]
+    [clearPendingSearch, finalizeSearchCreditUse, hasSearchCredits, isLoggedIn, midpointMode, openPricingModal, showToast, travelMode, user]
   );
 
   // ---- Auto split from shared route coordinates ----
@@ -1470,14 +1502,7 @@ export default function AppClient() {
           midpointMode,
           isLoggedIn,
         }, { userId: user?.id });
-        if (!isLoggedIn) {
-          try {
-            localStorage.setItem('std_open_credits_after_signin', '1');
-          } catch {}
-          openSignIn({ mode: 'signup', context: 'search_credits' });
-        } else {
-          openPricingModal();
-        }
+        openPricingModal({ context: 'blocked_search' });
         return;
       }
 
@@ -1535,7 +1560,7 @@ export default function AppClient() {
         setLoading(false);
       }
     },
-    [clearPendingSearch, finalizeSearchCreditUse, hasSearchCredits, isLoggedIn, midpointMode, openPricingModal, openSignIn, showToast, travelMode, user]
+    [clearPendingSearch, finalizeSearchCreditUse, hasSearchCredits, isLoggedIn, midpointMode, openPricingModal, showToast, travelMode, user]
   );
 
   // ---- Loading state while Google Maps loads ----
