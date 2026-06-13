@@ -278,7 +278,7 @@ export default function SignInModal() {
         {/* Reassurance */}
         {(isSearchCredits || isSavePlan) && (
           <p className="text-center text-xs text-gray-400 mt-3">
-            {isSearchCredits ? 'No subscription required' : 'No payment required to save this route'}
+            {isSearchCredits ? 'Choose a credit pack after creating your account' : 'No payment required to save this route'}
           </p>
         )}
       </div>
