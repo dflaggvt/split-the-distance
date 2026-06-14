@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -40,6 +40,7 @@ const FUNNEL_EVENT_TYPES = [
   'credits_purchased',
   'search_credit_used',
   'search_completed',
+  'places_loaded',
 ];
 const FUNNEL_STAGES = [
   {
@@ -152,6 +153,11 @@ const REVENUE_DEFAULTS = {
   stripeFixedFee: 0.3,
   fixedMonthlyCost: 0,
 };
+const CREDIT_PACK_INPUT_KEYS = {
+  credits_10: 'starterMix',
+  credits_30: 'plannerMix',
+  credits_100: 'roadTripMix',
+};
 
 function formatMoney(money) {
   const cents = Number(money?.cents || 0);
@@ -183,6 +189,65 @@ function formatNumber(value, decimals = 0) {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   }).format(amount);
+}
+
+function roundInputValue(value, decimals = 1) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return null;
+  return Number(amount.toFixed(decimals));
+}
+
+function buildObservedRevenueInputs(funnelStats, revenueBaseline) {
+  if (!funnelStats) return null;
+
+  const rawCounts = funnelStats.rawCounts || funnelStats.counts || {};
+  const eventCounts = funnelStats.eventCounts || {};
+  const selectedRange = revenueBaseline?.selectedRange || {};
+  const monthly = revenueBaseline?.monthly || {};
+  const packCounts = selectedRange.packCounts || {};
+  const knownPackTotal = Object.keys(CREDIT_PACK_INPUT_KEYS)
+    .reduce((sum, packKey) => sum + Number(packCounts[packKey] || 0), 0);
+
+  const packMix = knownPackTotal > 0
+    ? Object.entries(CREDIT_PACK_INPUT_KEYS).reduce((acc, [packKey, inputKey]) => ({
+        ...acc,
+        [inputKey]: roundInputValue((Number(packCounts[packKey] || 0) / knownPackTotal) * 100, 1),
+      }), {})
+    : {
+        starterMix: REVENUE_DEFAULTS.starterMix,
+        plannerMix: REVENUE_DEFAULTS.plannerMix,
+        roadTripMix: REVENUE_DEFAULTS.roadTripMix,
+      };
+
+  const observedBuyers = selectedRange.buyers !== undefined && selectedRange.buyers !== null
+    ? Number(selectedRange.buyers)
+    : Number(rawCounts.purchased || 0);
+  const observedPaywallConversion = rawCounts.paywallReached > 0
+    ? roundInputValue((observedBuyers / rawCounts.paywallReached) * 100, 1)
+    : '';
+  const hasObservedPaidSearchesPerBuyer =
+    selectedRange.paidSearchesPerBuyer !== undefined &&
+    selectedRange.paidSearchesPerBuyer !== null &&
+    Number.isFinite(Number(selectedRange.paidSearchesPerBuyer));
+  const observedPaidSearchesPerBuyer = hasObservedPaidSearchesPerBuyer
+    ? roundInputValue(selectedRange.paidSearchesPerBuyer, 2)
+    : REVENUE_DEFAULTS.paidSearchesPerBuyer;
+  const observedGeocodesPerAttempt = rawCounts.searchAttempted > 0 && eventCounts.input_selected > 0
+    ? roundInputValue(eventCounts.input_selected / rawCounts.searchAttempted, 2)
+    : REVENUE_DEFAULTS.geocodeCallsPerAttempt;
+  const observedPlacesPerPaidSearch = eventCounts.search_credit_used > 0 && eventCounts.places_loaded > 0
+    ? roundInputValue(eventCounts.places_loaded / eventCounts.search_credit_used, 2)
+    : REVENUE_DEFAULTS.placesCallsPerPaidSearch;
+
+  return {
+    ...REVENUE_DEFAULTS,
+    monthlyVisits: monthly.sessions || '',
+    paywallConversionRate: observedPaywallConversion,
+    ...packMix,
+    paidSearchesPerBuyer: observedPaidSearchesPerBuyer,
+    geocodeCallsPerAttempt: observedGeocodesPerAttempt,
+    placesCallsPerPaidSearch: observedPlacesPerPaidSearch,
+  };
 }
 
 export default function AdminDashboard() {
@@ -230,10 +295,25 @@ export default function AdminDashboard() {
   const [funnelStats, setFunnelStats] = useState(null);
   // Revenue tab state
   const [revenueInputs, setRevenueInputs] = useState(REVENUE_DEFAULTS);
+  const [revenueInputsEdited, setRevenueInputsEdited] = useState(false);
+  const [revenueBaseline, setRevenueBaseline] = useState(null);
+  const observedRevenueInputs = useMemo(
+    () => buildObservedRevenueInputs(funnelStats, revenueBaseline),
+    [funnelStats, revenueBaseline]
+  );
 
   useEffect(() => {
     fetchStats();
   }, [timeRange, customValue, customUnit, activeTab]);
+
+  useEffect(() => {
+    setRevenueInputsEdited(false);
+  }, [timeRange, customValue, customUnit]);
+
+  useEffect(() => {
+    if (!observedRevenueInputs || revenueInputsEdited) return;
+    setRevenueInputs(observedRevenueInputs);
+  }, [observedRevenueInputs, revenueInputsEdited]);
 
   const getTimeFilter = () => {
     const now = new Date();
@@ -421,6 +501,7 @@ export default function AdminDashboard() {
 
   const buildFunnelStats = (sessionsData = [], eventRows = []) => {
     const bySession = {};
+    const eventCounts = {};
 
     (sessionsData || []).forEach((session) => {
       if (!session.session_id) return;
@@ -441,6 +522,7 @@ export default function AdminDashboard() {
     });
 
     (eventRows || []).forEach((event) => {
+      eventCounts[event.event_type] = (eventCounts[event.event_type] || 0) + 1;
       const row = bySession[event.session_id];
       if (!row) return;
 
@@ -605,6 +687,7 @@ export default function AdminDashboard() {
     return {
       counts,
       rawCounts,
+      eventCounts,
       stages: mainStageRows,
       optionalStages: optionalStageRows,
       deviceBreakdown: summarizeGroups((session) => session.device_type || 'unknown', 6),
@@ -636,6 +719,7 @@ export default function AdminDashboard() {
     const since = getTimeFilter();
     const shouldLoadSessions = activeTab === 'sessions';
     const shouldLoadFunnel = activeTab === 'funnel' || activeTab === 'revenue';
+    const shouldLoadRevenue = activeTab === 'revenue';
 
     try {
       // ==================== OVERVIEW DATA ====================
@@ -862,6 +946,31 @@ export default function AdminDashboard() {
         } catch (funnelErr) {
           console.warn('Funnel fetch skipped:', funnelErr.message);
           setFunnelStats(null);
+        }
+      }
+
+      if (shouldLoadRevenue) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.access_token) {
+            setRevenueBaseline(null);
+          } else {
+            const response = await fetch(`/api/admin/revenue-baseline?since=${encodeURIComponent(since)}`, {
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+              },
+            });
+
+            if (!response.ok) {
+              console.warn('Revenue baseline fetch failed:', await response.text());
+              setRevenueBaseline(null);
+            } else {
+              setRevenueBaseline(await response.json());
+            }
+          }
+        } catch (revenueErr) {
+          console.warn('Revenue baseline fetch failed:', revenueErr.message);
+          setRevenueBaseline(null);
         }
       }
 
@@ -2002,18 +2111,26 @@ export default function AdminDashboard() {
   };
 
   const updateRevenueInput = (key, value) => {
+    setRevenueInputsEdited(true);
     setRevenueInputs((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const resetRevenueInputs = () => {
+    setRevenueInputs(observedRevenueInputs || REVENUE_DEFAULTS);
+    setRevenueInputsEdited(false);
   };
 
   const buildRevenueModel = () => {
     if (!funnelStats) return null;
 
     const rawCounts = funnelStats.rawCounts || funnelStats.counts || {};
+    const selectedRange = revenueBaseline?.selectedRange || {};
     const baselineVisits = rawCounts.visits || stats?.sessions || 0;
     const baselineIntent = rawCounts.intent || 0;
     const baselineSearchAttempts = rawCounts.searchAttempted || 0;
     const baselinePaywall = rawCounts.paywallReached || 0;
-    const baselineBuyers = rawCounts.purchased || 0;
+    const transactionBuyers = Number(selectedRange.buyers);
+    const baselineBuyers = Number.isFinite(transactionBuyers) ? transactionBuyers : rawCounts.purchased || 0;
     const multiplier = getRevenueNumber('trafficMultiplier', 1) || 1;
     const manualVisits = getRevenueNumber('monthlyVisits', 0);
     const projectedVisits = manualVisits > 0 ? manualVisits : baselineVisits * multiplier;
@@ -2134,7 +2251,16 @@ export default function AdminDashboard() {
       packMix,
       prePaymentCosts,
       postPaymentCosts,
-      rowLimitReached: funnelStats.rowLimitReached,
+      observed: {
+        monthlyVisits: revenueBaseline?.monthly?.sessions || 0,
+        monthlyPageViews: revenueBaseline?.monthly?.pageViews || 0,
+        transactionPurchases: selectedRange.purchases || 0,
+        transactionBuyers: selectedRange.buyers || 0,
+        paidSearches: selectedRange.paidSearches || 0,
+        totalCreditsPurchased: selectedRange.totalCreditsPurchased || 0,
+        totalSpendCents: selectedRange.totalSpendCents || 0,
+      },
+      rowLimitReached: funnelStats.rowLimitReached || Boolean(selectedRange.rowLimitReached),
       usingManualTraffic: manualVisits > 0,
     };
   };
@@ -2268,14 +2394,18 @@ export default function AdminDashboard() {
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">What-if Revenue Calculator</h2>
-                <p className="text-sm text-gray-500">Uses the selected time range as the baseline, then applies your traffic, conversion, and cost assumptions.</p>
+                <p className="text-sm text-gray-500">Starts with observed traffic, funnel, and purchase data, then applies editable cost assumptions.</p>
               </div>
               <button
-                onClick={() => setRevenueInputs(REVENUE_DEFAULTS)}
+                onClick={resetRevenueInputs}
                 className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
               >
-                Reset
+                Reset to observed
               </button>
+            </div>
+
+            <div className="mb-5 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+              Initialized from {formatNumber(model.observed.monthlyVisits)} visits in the last 30 days, {formatNumber(model.observed.transactionPurchases)} credit purchases, {formatCurrency(model.observed.totalSpendCents / 100)} collected, and {formatNumber(model.observed.paidSearches)} paid searches in the selected range.
             </div>
 
             <div className="grid md:grid-cols-2 gap-5">
@@ -2286,7 +2416,7 @@ export default function AdminDashboard() {
                     label="Manual monthly visits"
                     field="monthlyVisits"
                     suffix="visits"
-                    helper={model.usingManualTraffic ? 'Manual traffic is active.' : 'Leave blank to use the multiplier.'}
+                    helper={model.usingManualTraffic ? 'Using observed/editable monthly traffic.' : 'Leave blank to use the multiplier.'}
                   />
                   <div>
                     <span className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Traffic multiplier</span>
@@ -2311,13 +2441,13 @@ export default function AdminDashboard() {
                     field="paywallConversionRate"
                     suffix="%"
                     step="0.1"
-                    helper={`Blank uses current ${formatPct(model.baseline.currentPaywallConversionRate)}.`}
+                    helper={`Initialized from current ${formatPct(model.baseline.currentPaywallConversionRate)} conversion.`}
                   />
                   <RevenueInput
                     label="Paid searches per buyer"
                     field="paidSearchesPerBuyer"
                     step="0.1"
-                    helper="This controls post-payment API usage."
+                    helper="Initialized from credit debits per buyer when available."
                   />
                 </div>
               </div>
@@ -2387,11 +2517,11 @@ export default function AdminDashboard() {
               <RevenueInput label="Map load rate" field="mapLoadCpm" suffix="/ 1K" step="0.01" />
               <RevenueInput label="Autocomplete calls / intent" field="autocompleteCallsPerIntent" step="0.1" />
               <RevenueInput label="Autocomplete rate" field="autocompleteCpm" suffix="/ 1K" step="0.01" />
-              <RevenueInput label="Geocodes / attempt" field="geocodeCallsPerAttempt" step="0.1" />
+              <RevenueInput label="Geocodes / attempt" field="geocodeCallsPerAttempt" step="0.1" helper="Observed from selected location events / search attempts." />
               <RevenueInput label="Geocoding rate" field="geocodeCpm" suffix="/ 1K" step="0.01" />
               <RevenueInput label="Directions / paid search" field="directionsCallsPerPaidSearch" step="0.1" />
               <RevenueInput label="Directions rate" field="directionsCpm" suffix="/ 1K" step="0.01" />
-              <RevenueInput label="Places / paid search" field="placesCallsPerPaidSearch" step="0.1" />
+              <RevenueInput label="Places / paid search" field="placesCallsPerPaidSearch" step="0.1" helper="Observed from places loaded / paid search events." />
               <RevenueInput label="Places rate" field="placesCpm" suffix="/ 1K" step="0.01" />
               <RevenueInput label="Stripe percent" field="stripePercent" suffix="%" step="0.1" />
               <RevenueInput label="Stripe fixed fee" field="stripeFixedFee" suffix="/ buyer" step="0.01" />
