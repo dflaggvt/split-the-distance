@@ -20,7 +20,7 @@ export default function DevEnvironmentBadge() {
   if (!showBadge) return null;
 
   return (
-    <span className="ml-2 rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700">
+    <span className="ml-2 rounded border border-amber-500 bg-amber-300 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-sm">
       DEV
     </span>
   );
