@@ -24,6 +24,95 @@ const SOURCE_COLORS = {
 };
 const SEARCH_TREND_PAGE_SIZE = 1000;
 const SEARCH_TREND_MAX_ROWS = 100000;
+const FUNNEL_PAGE_SIZE = 1000;
+const FUNNEL_MAX_ROWS = 100000;
+const FUNNEL_EVENT_TYPES = [
+  'input_started',
+  'input_selected',
+  'search_clicked',
+  'search_blocked_no_credits',
+  'pricing_modal_opened',
+  'credit_pack_cards_viewed',
+  'credit_pack_selected',
+  'sign_in_modal_opened',
+  'blocked_search_auth_completed',
+  'checkout_started',
+  'credits_purchased',
+  'search_credit_used',
+  'search_completed',
+];
+const FUNNEL_STAGES = [
+  {
+    key: 'visits',
+    label: 'Site visits',
+    shortLabel: 'Visits',
+    description: 'Non-internal sessions in the selected time range.',
+    color: '#3b82f6',
+  },
+  {
+    key: 'intent',
+    label: 'Search intent',
+    shortLabel: 'Intent',
+    description: 'Started typing or selected a location.',
+    color: '#0d9488',
+  },
+  {
+    key: 'searchAttempted',
+    label: 'Search attempted',
+    shortLabel: 'Search',
+    description: 'Clicked Split The Distance.',
+    color: '#14b8a6',
+  },
+  {
+    key: 'paywallReached',
+    label: 'Paywall reached',
+    shortLabel: 'Paywall',
+    description: 'Search was blocked because credits were needed.',
+    color: '#f97316',
+  },
+  {
+    key: 'pricingViewed',
+    label: 'Pricing viewed',
+    shortLabel: 'Pricing',
+    description: 'Pricing modal opened or credit packs were viewed.',
+    color: '#8b5cf6',
+  },
+  {
+    key: 'packSelected',
+    label: 'Pack selected',
+    shortLabel: 'Pack',
+    description: 'Selected Starter, Planner, or Road Trip.',
+    color: '#ec4899',
+  },
+  {
+    key: 'accountStep',
+    label: 'Account step',
+    shortLabel: 'Account',
+    description: 'Opened sign-in/sign-up or completed auth after paywall.',
+    color: '#64748b',
+  },
+  {
+    key: 'checkoutStarted',
+    label: 'Checkout started',
+    shortLabel: 'Checkout',
+    description: 'Reached Stripe Checkout.',
+    color: '#06b6d4',
+  },
+  {
+    key: 'purchased',
+    label: 'Purchased credits',
+    shortLabel: 'Purchase',
+    description: 'Credits purchase completed.',
+    color: '#22c55e',
+  },
+  {
+    key: 'paidSearchUsed',
+    label: 'Paid search used',
+    shortLabel: 'Activated',
+    description: 'Used a credit after checkout.',
+    color: '#16a34a',
+  },
+];
 const EMPTY_CREDIT_SUMMARY = {
   balance: 0,
   lifetimePurchased: 0,
@@ -91,6 +180,8 @@ export default function AdminDashboard() {
   const [timelineActivity, setTimelineActivity] = useState('all');
   const [timelineDevice, setTimelineDevice] = useState('all');
   const [timelineSource, setTimelineSource] = useState('all');
+  // Funnel tab state
+  const [funnelStats, setFunnelStats] = useState(null);
 
   useEffect(() => {
     fetchStats();
@@ -211,6 +302,249 @@ export default function AdminDashboard() {
     return rows;
   };
 
+  const fetchFunnelEventRows = async (since) => {
+    const rows = [];
+
+    for (let from = 0; from < FUNNEL_MAX_ROWS; from += FUNNEL_PAGE_SIZE) {
+      const to = from + FUNNEL_PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from('session_events')
+        .select('session_id, event_type, created_at, metadata')
+        .gte('created_at', since)
+        .eq('is_internal', false)
+        .in('event_type', FUNNEL_EVENT_TYPES)
+        .order('created_at', { ascending: true })
+        .range(from, to);
+
+      if (error) {
+        console.error('[Dashboard] Funnel events fetch error:', error);
+        break;
+      }
+
+      if (!data?.length) break;
+      rows.push(...data);
+      if (data.length < FUNNEL_PAGE_SIZE) break;
+    }
+
+    return rows;
+  };
+
+  const fetchFunnelSessionRows = async (since) => {
+    const rows = [];
+
+    for (let from = 0; from < FUNNEL_MAX_ROWS; from += FUNNEL_PAGE_SIZE) {
+      const to = from + FUNNEL_PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('session_id, device_type, source, landing_page, created_at')
+        .gte('created_at', since)
+        .eq('is_internal', false)
+        .order('created_at', { ascending: true })
+        .range(from, to);
+
+      if (error) {
+        console.error('[Dashboard] Funnel sessions fetch error:', error);
+        break;
+      }
+
+      if (!data?.length) break;
+      rows.push(...data);
+      if (data.length < FUNNEL_PAGE_SIZE) break;
+    }
+
+    return rows;
+  };
+
+  const pct = (numerator, denominator, decimals = 1) => {
+    if (!denominator || denominator <= 0) return 0;
+    return Number(((numerator / denominator) * 100).toFixed(decimals));
+  };
+
+  const formatPct = (value, decimals = 1) => `${Number(value || 0).toFixed(decimals)}%`;
+
+  const friendlyPackName = (priceType) => {
+    switch (priceType) {
+      case 'credits_10': return 'Starter';
+      case 'credits_30': return 'Planner';
+      case 'credits_100': return 'Road Trip';
+      default: return priceType || 'Unknown';
+    }
+  };
+
+  const buildFunnelStats = (sessionsData = [], eventRows = []) => {
+    const bySession = {};
+
+    (sessionsData || []).forEach((session) => {
+      if (!session.session_id) return;
+      bySession[session.session_id] = {
+        session,
+        visits: true,
+        intent: false,
+        searchAttempted: false,
+        paywallReached: false,
+        pricingViewed: false,
+        packSelected: false,
+        accountStep: false,
+        checkoutStarted: false,
+        purchased: false,
+        paidSearchUsed: false,
+        selectedPack: null,
+      };
+    });
+
+    (eventRows || []).forEach((event) => {
+      const row = bySession[event.session_id];
+      if (!row) return;
+
+      const metadata = event.metadata || {};
+      if (metadata.priceType) row.selectedPack = metadata.priceType;
+
+      switch (event.event_type) {
+        case 'input_started':
+        case 'input_selected':
+          row.intent = true;
+          break;
+        case 'search_clicked':
+          row.searchAttempted = true;
+          break;
+        case 'search_blocked_no_credits':
+          row.paywallReached = true;
+          break;
+        case 'pricing_modal_opened':
+        case 'credit_pack_cards_viewed':
+          row.pricingViewed = true;
+          break;
+        case 'credit_pack_selected':
+          row.packSelected = true;
+          break;
+        case 'sign_in_modal_opened':
+        case 'blocked_search_auth_completed':
+          row.accountStep = true;
+          break;
+        case 'checkout_started':
+          row.checkoutStarted = true;
+          break;
+        case 'credits_purchased':
+          row.purchased = true;
+          break;
+        case 'search_credit_used':
+          row.paidSearchUsed = true;
+          break;
+        default:
+          break;
+      }
+    });
+
+    const sessions = Object.values(bySession);
+    const counts = FUNNEL_STAGES.reduce((acc, stage) => {
+      acc[stage.key] = sessions.filter((session) => session[stage.key]).length;
+      return acc;
+    }, {});
+
+    const stageRows = FUNNEL_STAGES.map((stage, index) => {
+      const count = counts[stage.key] || 0;
+      const previousStage = FUNNEL_STAGES[index - 1];
+      const previousCount = previousStage ? counts[previousStage.key] || 0 : count;
+      const lostFromPrevious = previousStage ? Math.max(previousCount - count, 0) : 0;
+
+      return {
+        ...stage,
+        count,
+        fromPreviousPct: index === 0 ? 100 : pct(count, previousCount),
+        fromVisitPct: pct(count, counts.visits),
+        lostFromPrevious,
+      };
+    });
+
+    const summarizeGroups = (getKey, limit = 8) => {
+      const groups = {};
+
+      sessions.forEach((row) => {
+        const key = getKey(row.session) || 'Unknown';
+        if (!groups[key]) {
+          groups[key] = {
+            name: key,
+            visits: 0,
+            intent: 0,
+            searchAttempted: 0,
+            paywallReached: 0,
+            pricingViewed: 0,
+            packSelected: 0,
+            checkoutStarted: 0,
+            purchased: 0,
+            paidSearchUsed: 0,
+          };
+        }
+
+        FUNNEL_STAGES.forEach((stage) => {
+          if (row[stage.key]) groups[key][stage.key] += 1;
+        });
+      });
+
+      return Object.values(groups)
+        .map((group) => ({
+          ...group,
+          searchRate: pct(group.searchAttempted, group.visits),
+          pricingRate: pct(group.pricingViewed, group.paywallReached),
+          purchaseRate: pct(group.purchased, group.visits),
+          checkoutPurchaseRate: pct(group.purchased, group.checkoutStarted),
+        }))
+        .sort((a, b) => b.visits - a.visits)
+        .slice(0, limit);
+    };
+
+    const packGroups = {};
+    sessions.forEach((row) => {
+      const pack = row.selectedPack || (row.packSelected ? 'unknown' : null);
+      if (!pack) return;
+      if (!packGroups[pack]) {
+        packGroups[pack] = {
+          priceType: pack,
+          name: friendlyPackName(pack),
+          selected: 0,
+          checkoutStarted: 0,
+          purchased: 0,
+          paidSearchUsed: 0,
+        };
+      }
+      if (row.packSelected) packGroups[pack].selected += 1;
+      if (row.checkoutStarted) packGroups[pack].checkoutStarted += 1;
+      if (row.purchased) packGroups[pack].purchased += 1;
+      if (row.paidSearchUsed) packGroups[pack].paidSearchUsed += 1;
+    });
+
+    const packBreakdown = Object.values(packGroups)
+      .map((group) => ({
+        ...group,
+        selectToCheckoutRate: pct(group.checkoutStarted, group.selected),
+        checkoutToPurchaseRate: pct(group.purchased, group.checkoutStarted),
+      }))
+      .sort((a, b) => b.selected - a.selected);
+
+    const biggestDrop = stageRows
+      .slice(1)
+      .reduce((biggest, row) => (
+        row.lostFromPrevious > (biggest?.lostFromPrevious || 0) ? row : biggest
+      ), null);
+
+    return {
+      counts,
+      stages: stageRows,
+      deviceBreakdown: summarizeGroups((session) => session.device_type || 'unknown', 6),
+      sourceBreakdown: summarizeGroups((session) => session.source || 'unknown', 8),
+      landingPageBreakdown: summarizeGroups((session) => session.landing_page || '/', 8),
+      packBreakdown,
+      insights: {
+        biggestDrop,
+        visitToPurchaseRate: pct(counts.purchased, counts.visits),
+        paywallToPricingRate: pct(counts.pricingViewed, counts.paywallReached),
+        pricingToPackRate: pct(counts.packSelected, counts.pricingViewed),
+        checkoutToPurchaseRate: pct(counts.purchased, counts.checkoutStarted),
+      },
+      rowLimitReached: sessionsData.length >= FUNNEL_MAX_ROWS || eventRows.length >= FUNNEL_MAX_ROWS,
+    };
+  };
+
   const parseState = (locationName) => {
     if (!locationName) return 'Unknown';
     const parts = locationName.split(',').map(p => p.trim());
@@ -224,6 +558,7 @@ export default function AdminDashboard() {
     setLoading(true);
     const since = getTimeFilter();
     const shouldLoadSessions = activeTab === 'sessions';
+    const shouldLoadFunnel = activeTab === 'funnel';
 
     try {
       // ==================== OVERVIEW DATA ====================
@@ -377,7 +712,7 @@ export default function AdminDashboard() {
       // Device & visitor breakdown
       const { data: sessionsData } = await supabase
         .from('sessions')
-        .select('session_id, device_type, visitor_id, source, source_detail, referrer_domain, utm_source, utm_medium, utm_campaign, created_at')
+        .select('session_id, device_type, visitor_id, source, source_detail, referrer_domain, utm_source, utm_medium, utm_campaign, landing_page, created_at')
         .gte('created_at', since)
         .eq('is_internal', false).limit(10000);
 
@@ -440,6 +775,17 @@ export default function AdminDashboard() {
         });
         setSourceQuality(Object.entries(srcSessionCounts).sort((a, b) => b[1] - a[1])
           .map(([name, sessions]) => ({ name, sessions })));
+      }
+
+      if (shouldLoadFunnel) {
+        try {
+          const funnelSessions = await fetchFunnelSessionRows(since);
+          const funnelEvents = await fetchFunnelEventRows(since);
+          setFunnelStats(buildFunnelStats(funnelSessions, funnelEvents));
+        } catch (funnelErr) {
+          console.warn('Funnel fetch skipped:', funnelErr.message);
+          setFunnelStats(null);
+        }
       }
 
       // Recent searches
@@ -1355,6 +1701,215 @@ export default function AdminDashboard() {
       </div>
     </>
   );
+
+  const FunnelMetricCard = ({ label, value, subtext, tone = 'teal' }) => {
+    const toneClasses = {
+      teal: 'bg-teal-50 text-teal-700',
+      blue: 'bg-blue-50 text-blue-700',
+      purple: 'bg-purple-50 text-purple-700',
+      green: 'bg-green-50 text-green-700',
+      orange: 'bg-orange-50 text-orange-700',
+    };
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <p className="text-sm font-semibold text-gray-500">{label}</p>
+        <div className={`mt-3 inline-flex rounded-lg px-3 py-1 text-2xl font-bold ${toneClasses[tone] || toneClasses.teal}`}>
+          {value}
+        </div>
+        {subtext && <p className="mt-3 text-xs text-gray-400">{subtext}</p>}
+      </div>
+    );
+  };
+
+  const FunnelBreakdownTable = ({ title, rows, nameLabel = 'Segment' }) => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <h3 className="font-semibold text-gray-900 mb-4">{title}</h3>
+      {rows?.length ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-500 border-b">
+                <th className="pb-2 font-medium">{nameLabel}</th>
+                <th className="pb-2 font-medium text-right">Visits</th>
+                <th className="pb-2 font-medium text-right">Search</th>
+                <th className="pb-2 font-medium text-right">Pricing</th>
+                <th className="pb-2 font-medium text-right">Checkout</th>
+                <th className="pb-2 font-medium text-right">Paid</th>
+                <th className="pb-2 font-medium text-right">Visit &gt; Paid</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.name} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="py-2 pr-3 text-gray-700 max-w-[260px] truncate">{row.name}</td>
+                  <td className="py-2 text-right">{row.visits.toLocaleString()}</td>
+                  <td className="py-2 text-right">{row.searchAttempted.toLocaleString()}</td>
+                  <td className="py-2 text-right">{row.pricingViewed.toLocaleString()}</td>
+                  <td className="py-2 text-right">{row.checkoutStarted.toLocaleString()}</td>
+                  <td className="py-2 text-right font-semibold text-green-600">{row.purchased.toLocaleString()}</td>
+                  <td className="py-2 text-right text-gray-500">{formatPct(row.purchaseRate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-400 text-center py-8">No data for this range</p>
+      )}
+    </div>
+  );
+
+  const FunnelTab = () => {
+    const stages = funnelStats?.stages || [];
+    const insight = funnelStats?.insights || {};
+
+    if (!funnelStats) {
+      return (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+          <h2 className="text-lg font-bold text-gray-900 mb-2">No funnel data loaded</h2>
+          <p className="text-sm text-gray-500">Refresh the dashboard or choose a wider time range.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        {funnelStats.rowLimitReached && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Funnel event row limit reached. Use a shorter time range for exact counts.
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <FunnelMetricCard
+            label="Visit -> Purchase"
+            value={formatPct(insight.visitToPurchaseRate)}
+            subtext={`${(funnelStats.counts.purchased || 0).toLocaleString()} purchases from ${(funnelStats.counts.visits || 0).toLocaleString()} sessions`}
+            tone="green"
+          />
+          <FunnelMetricCard
+            label="Paywall -> Pricing"
+            value={formatPct(insight.paywallToPricingRate)}
+            subtext="How many blocked users see credit packs"
+            tone="orange"
+          />
+          <FunnelMetricCard
+            label="Pricing -> Pack"
+            value={formatPct(insight.pricingToPackRate)}
+            subtext="How compelling the offer is"
+            tone="purple"
+          />
+          <FunnelMetricCard
+            label="Checkout -> Purchase"
+            value={formatPct(insight.checkoutToPurchaseRate)}
+            subtext="Stripe completion rate"
+            tone="blue"
+          />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Conversion Funnel</h2>
+              <p className="text-sm text-gray-500">Session-based funnel for the selected time range.</p>
+            </div>
+            {insight.biggestDrop && (
+              <div className="rounded-lg bg-red-50 px-3 py-2 text-right">
+                <p className="text-xs font-semibold text-red-500 uppercase">Biggest drop</p>
+                <p className="text-sm font-bold text-red-700">{insight.biggestDrop.label}</p>
+                <p className="text-xs text-red-500">{insight.biggestDrop.lostFromPrevious.toLocaleString()} sessions lost</p>
+              </div>
+            )}
+          </div>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart layout="vertical" data={stages} margin={{ left: 80, right: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f0f0f0" />
+              <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+              <YAxis type="category" dataKey="shortLabel" tick={{ fontSize: 12 }} width={80} />
+              <Tooltip
+                formatter={(value) => value.toLocaleString()}
+                labelFormatter={(label) => FUNNEL_STAGES.find(s => s.shortLabel === label)?.label || label}
+              />
+              <Bar dataKey="count" radius={[0, 5, 5, 0]}>
+                {stages.map((entry) => <Cell key={entry.key} fill={entry.color} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Drop-off by Stage</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-500 border-b">
+                  <th className="pb-2 font-medium">Stage</th>
+                  <th className="pb-2 font-medium">What it means</th>
+                  <th className="pb-2 font-medium text-right">Sessions</th>
+                  <th className="pb-2 font-medium text-right">From previous</th>
+                  <th className="pb-2 font-medium text-right">From visit</th>
+                  <th className="pb-2 font-medium text-right">Lost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stages.map((stage) => (
+                  <tr key={stage.key} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-3 pr-4 font-semibold text-gray-800">{stage.label}</td>
+                    <td className="py-3 pr-4 text-gray-500">{stage.description}</td>
+                    <td className="py-3 text-right">{stage.count.toLocaleString()}</td>
+                    <td className="py-3 text-right">{formatPct(stage.fromPreviousPct)}</td>
+                    <td className="py-3 text-right">{formatPct(stage.fromVisitPct)}</td>
+                    <td className="py-3 text-right text-red-500">{stage.lostFromPrevious ? stage.lostFromPrevious.toLocaleString() : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <FunnelBreakdownTable title="By Device" rows={funnelStats.deviceBreakdown} />
+          <FunnelBreakdownTable title="By Source" rows={funnelStats.sourceBreakdown} />
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <FunnelBreakdownTable title="By Landing Page" rows={funnelStats.landingPageBreakdown} nameLabel="Landing page" />
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">By Credit Pack</h3>
+            {funnelStats.packBreakdown.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b">
+                      <th className="pb-2 font-medium">Pack</th>
+                      <th className="pb-2 font-medium text-right">Selected</th>
+                      <th className="pb-2 font-medium text-right">Checkout</th>
+                      <th className="pb-2 font-medium text-right">Purchased</th>
+                      <th className="pb-2 font-medium text-right">Checkout &gt; Paid</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {funnelStats.packBreakdown.map((pack) => (
+                      <tr key={pack.priceType} className="border-b border-gray-50 hover:bg-gray-50">
+                        <td className="py-2 font-semibold text-gray-800">{pack.name}</td>
+                        <td className="py-2 text-right">{pack.selected.toLocaleString()}</td>
+                        <td className="py-2 text-right">{pack.checkoutStarted.toLocaleString()}</td>
+                        <td className="py-2 text-right font-semibold text-green-600">{pack.purchased.toLocaleString()}</td>
+                        <td className="py-2 text-right text-gray-500">{formatPct(pack.checkoutToPurchaseRate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-8">No pack selections yet</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ==================== TAB: ATTRIBUTION ====================
   const AttributionTab = () => (
@@ -2417,6 +2972,7 @@ export default function AdminDashboard() {
   const tabs = [
     { id: 'sessions', label: 'Timeline' },
     { id: 'overview', label: '📊 Overview' },
+    { id: 'funnel', label: 'Funnel' },
     { id: 'attribution', label: '🔗 Attribution' },
     { id: 'shares', label: '📤 Shares' },
     { id: 'users', label: '👤 Users' },
@@ -2501,6 +3057,7 @@ export default function AdminDashboard() {
           <>
             {activeTab === 'overview' && <OverviewTab />}
             {activeTab === 'sessions' && <SessionsTab />}
+            {activeTab === 'funnel' && <FunnelTab />}
             {activeTab === 'attribution' && <AttributionTab />}
             {activeTab === 'shares' && <SharesTab />}
             {activeTab === 'users' && <UsersTab />}
