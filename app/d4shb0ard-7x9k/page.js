@@ -125,6 +125,33 @@ const EMPTY_CREDIT_SUMMARY = {
   lastPurchaseDescription: null,
   lastPurchaseCredits: 0,
 };
+const CREDIT_PACKS = [
+  { key: 'starter', label: 'Starter', price: 1.99, credits: 10 },
+  { key: 'planner', label: 'Planner', price: 4.99, credits: 30 },
+  { key: 'roadTrip', label: 'Road Trip', price: 9.99, credits: 100 },
+];
+const REVENUE_DEFAULTS = {
+  monthlyVisits: '',
+  trafficMultiplier: 1,
+  paywallConversionRate: '',
+  starterMix: 70,
+  plannerMix: 20,
+  roadTripMix: 10,
+  paidSearchesPerBuyer: 1,
+  mapLoadsPerVisit: 1,
+  mapLoadCpm: 7,
+  autocompleteCallsPerIntent: 4,
+  autocompleteCpm: 2.83,
+  geocodeCallsPerAttempt: 2,
+  geocodeCpm: 5,
+  directionsCallsPerPaidSearch: 1,
+  directionsCpm: 5,
+  placesCallsPerPaidSearch: 1,
+  placesCpm: 32,
+  stripePercent: 2.9,
+  stripeFixedFee: 0.3,
+  fixedMonthlyCost: 0,
+};
 
 function formatMoney(money) {
   const cents = Number(money?.cents || 0);
@@ -138,6 +165,24 @@ function formatMoney(money) {
   } catch {
     return `$${(cents / 100).toFixed(2)}`;
   }
+}
+
+function formatCurrency(value, decimals = 2) {
+  const amount = Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(amount);
+}
+
+function formatNumber(value, decimals = 0) {
+  const amount = Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(amount);
 }
 
 export default function AdminDashboard() {
@@ -183,6 +228,8 @@ export default function AdminDashboard() {
   const [timelineSource, setTimelineSource] = useState('all');
   // Funnel tab state
   const [funnelStats, setFunnelStats] = useState(null);
+  // Revenue tab state
+  const [revenueInputs, setRevenueInputs] = useState(REVENUE_DEFAULTS);
 
   useEffect(() => {
     fetchStats();
@@ -588,7 +635,7 @@ export default function AdminDashboard() {
     setLoading(true);
     const since = getTimeFilter();
     const shouldLoadSessions = activeTab === 'sessions';
-    const shouldLoadFunnel = activeTab === 'funnel';
+    const shouldLoadFunnel = activeTab === 'funnel' || activeTab === 'revenue';
 
     try {
       // ==================== OVERVIEW DATA ====================
@@ -1949,6 +1996,439 @@ export default function AdminDashboard() {
     );
   };
 
+  const getRevenueNumber = (key, fallback = 0) => {
+    const value = Number(revenueInputs[key]);
+    return Number.isFinite(value) ? value : fallback;
+  };
+
+  const updateRevenueInput = (key, value) => {
+    setRevenueInputs((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const buildRevenueModel = () => {
+    if (!funnelStats) return null;
+
+    const rawCounts = funnelStats.rawCounts || funnelStats.counts || {};
+    const baselineVisits = rawCounts.visits || stats?.sessions || 0;
+    const baselineIntent = rawCounts.intent || 0;
+    const baselineSearchAttempts = rawCounts.searchAttempted || 0;
+    const baselinePaywall = rawCounts.paywallReached || 0;
+    const baselineBuyers = rawCounts.purchased || 0;
+    const multiplier = getRevenueNumber('trafficMultiplier', 1) || 1;
+    const manualVisits = getRevenueNumber('monthlyVisits', 0);
+    const projectedVisits = manualVisits > 0 ? manualVisits : baselineVisits * multiplier;
+    const intentRate = baselineVisits > 0 ? baselineIntent / baselineVisits : 0;
+    const searchAttemptRate = baselineVisits > 0 ? baselineSearchAttempts / baselineVisits : 0;
+    const paywallRate = baselineVisits > 0 ? baselinePaywall / baselineVisits : 0;
+    const currentPaywallConversionRate = baselinePaywall > 0 ? (baselineBuyers / baselinePaywall) * 100 : 0;
+    const paywallConversionRate = revenueInputs.paywallConversionRate === ''
+      ? currentPaywallConversionRate
+      : getRevenueNumber('paywallConversionRate', currentPaywallConversionRate);
+
+    const projectedIntent = projectedVisits * intentRate;
+    const projectedSearchAttempts = projectedVisits * searchAttemptRate;
+    const projectedPaywall = projectedVisits * paywallRate;
+    const projectedBuyers = projectedPaywall * (paywallConversionRate / 100);
+
+    const mixTotal = Math.max(
+      getRevenueNumber('starterMix') + getRevenueNumber('plannerMix') + getRevenueNumber('roadTripMix'),
+      1
+    );
+    const packMix = {
+      starter: getRevenueNumber('starterMix') / mixTotal,
+      planner: getRevenueNumber('plannerMix') / mixTotal,
+      roadTrip: getRevenueNumber('roadTripMix') / mixTotal,
+    };
+    const averageOrderValue = CREDIT_PACKS.reduce((sum, pack) => (
+      sum + pack.price * (packMix[pack.key] || 0)
+    ), 0);
+    const weightedCredits = CREDIT_PACKS.reduce((sum, pack) => (
+      sum + pack.credits * (packMix[pack.key] || 0)
+    ), 0);
+
+    const paidSearchesPerBuyer = Math.max(getRevenueNumber('paidSearchesPerBuyer', 1), 0);
+    const projectedPaidSearches = projectedBuyers * paidSearchesPerBuyer;
+    const stripeFeePerBuyer = (averageOrderValue * (getRevenueNumber('stripePercent', 2.9) / 100)) +
+      getRevenueNumber('stripeFixedFee', 0.3);
+
+    const makeCostLine = (label, driver, volume, callsPerUnit, unitCostPerThousand, timing) => {
+      const calls = Math.max(volume, 0) * Math.max(callsPerUnit, 0);
+      return {
+        label,
+        driver,
+        timing,
+        calls,
+        callsPerUnit,
+        unitCostPerThousand,
+        cost: calls * (Math.max(unitCostPerThousand, 0) / 1000),
+      };
+    };
+
+    const prePaymentCosts = [
+      makeCostLine('Map loads', 'Visits', projectedVisits, getRevenueNumber('mapLoadsPerVisit', 1), getRevenueNumber('mapLoadCpm', 7), 'pre'),
+      makeCostLine('Places autocomplete', 'Search intent sessions', projectedIntent, getRevenueNumber('autocompleteCallsPerIntent', 4), getRevenueNumber('autocompleteCpm', 2.83), 'pre'),
+      makeCostLine('Geocoding', 'Search attempts', projectedSearchAttempts, getRevenueNumber('geocodeCallsPerAttempt', 2), getRevenueNumber('geocodeCpm', 5), 'pre'),
+    ];
+
+    const postPaymentCosts = [
+      makeCostLine('Directions', 'Paid searches used', projectedPaidSearches, getRevenueNumber('directionsCallsPerPaidSearch', 1), getRevenueNumber('directionsCpm', 5), 'post'),
+      makeCostLine('Nearby places', 'Paid searches used', projectedPaidSearches, getRevenueNumber('placesCallsPerPaidSearch', 1), getRevenueNumber('placesCpm', 32), 'post'),
+    ];
+    const postPaymentCostPerBuyer = paidSearchesPerBuyer * (
+      (getRevenueNumber('directionsCallsPerPaidSearch', 1) * (getRevenueNumber('directionsCpm', 5) / 1000)) +
+      (getRevenueNumber('placesCallsPerPaidSearch', 1) * (getRevenueNumber('placesCpm', 32) / 1000))
+    );
+
+    const prePaymentCost = prePaymentCosts.reduce((sum, row) => sum + row.cost, 0);
+    const postPaymentCost = postPaymentCosts.reduce((sum, row) => sum + row.cost, 0);
+    const stripeFees = projectedBuyers * stripeFeePerBuyer;
+    const fixedMonthlyCost = Math.max(getRevenueNumber('fixedMonthlyCost', 0), 0);
+    const grossRevenue = projectedBuyers * averageOrderValue;
+    const totalCost = prePaymentCost + postPaymentCost + stripeFees + fixedMonthlyCost;
+    const netRevenue = grossRevenue - totalCost;
+    const contributionPerBuyer = averageOrderValue - stripeFeePerBuyer - postPaymentCostPerBuyer;
+    const breakEvenBuyers = contributionPerBuyer > 0
+      ? (prePaymentCost + fixedMonthlyCost) / contributionPerBuyer
+      : 0;
+
+    return {
+      baseline: {
+        visits: baselineVisits,
+        intent: baselineIntent,
+        searchAttempts: baselineSearchAttempts,
+        paywall: baselinePaywall,
+        buyers: baselineBuyers,
+        currentPaywallConversionRate,
+      },
+      projected: {
+        visits: projectedVisits,
+        intent: projectedIntent,
+        searchAttempts: projectedSearchAttempts,
+        paywall: projectedPaywall,
+        buyers: projectedBuyers,
+        paidSearches: projectedPaidSearches,
+      },
+      unitEconomics: {
+        averageOrderValue,
+        weightedCredits,
+        grossRevenue,
+        prePaymentCost,
+        postPaymentCost,
+        stripeFees,
+        fixedMonthlyCost,
+        totalCost,
+        netRevenue,
+        grossMargin: grossRevenue > 0 ? (netRevenue / grossRevenue) * 100 : 0,
+        revenuePerVisit: projectedVisits > 0 ? grossRevenue / projectedVisits : 0,
+        costPerVisit: projectedVisits > 0 ? totalCost / projectedVisits : 0,
+        contributionPerBuyer,
+        breakEvenBuyers,
+        breakEvenPaywallConversionRate: projectedPaywall > 0 ? (breakEvenBuyers / projectedPaywall) * 100 : 0,
+      },
+      rates: {
+        intentRate: intentRate * 100,
+        searchAttemptRate: searchAttemptRate * 100,
+        paywallRate: paywallRate * 100,
+        paywallConversionRate,
+      },
+      packMix,
+      prePaymentCosts,
+      postPaymentCosts,
+      rowLimitReached: funnelStats.rowLimitReached,
+      usingManualTraffic: manualVisits > 0,
+    };
+  };
+
+  const RevenueMetricCard = ({ label, value, subtext, tone = 'teal' }) => {
+    const toneClasses = {
+      teal: 'bg-teal-50 text-teal-700',
+      blue: 'bg-blue-50 text-blue-700',
+      green: 'bg-green-50 text-green-700',
+      orange: 'bg-orange-50 text-orange-700',
+      red: 'bg-red-50 text-red-700',
+      gray: 'bg-gray-100 text-gray-700',
+    };
+
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <p className="text-sm font-semibold text-gray-500">{label}</p>
+        <div className={`mt-3 inline-flex rounded-lg px-3 py-1 text-2xl font-bold ${toneClasses[tone] || toneClasses.teal}`}>
+          {value}
+        </div>
+        {subtext && <p className="mt-3 text-xs text-gray-400">{subtext}</p>}
+      </div>
+    );
+  };
+
+  const RevenueInput = ({ label, field, suffix, min = 0, step = 1, helper }) => (
+    <label className="block">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1">{label}</span>
+      <div className="flex items-center rounded-lg border border-gray-200 bg-white focus-within:border-teal-400">
+        <input
+          type="number"
+          min={min}
+          step={step}
+          value={revenueInputs[field]}
+          onChange={(event) => updateRevenueInput(field, event.target.value)}
+          className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+        />
+        {suffix && <span className="pr-3 text-xs text-gray-400">{suffix}</span>}
+      </div>
+      {helper && <span className="mt-1 block text-xs text-gray-400">{helper}</span>}
+    </label>
+  );
+
+  const RevenueCostTable = ({ title, rows }) => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+      <h3 className="font-semibold text-gray-900 mb-4">{title}</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-gray-500 border-b">
+              <th className="pb-2 font-medium">Cost driver</th>
+              <th className="pb-2 font-medium">Based on</th>
+              <th className="pb-2 font-medium text-right">Calls</th>
+              <th className="pb-2 font-medium text-right">Rate / 1K</th>
+              <th className="pb-2 font-medium text-right">Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label} className="border-b border-gray-50 hover:bg-gray-50">
+                <td className="py-2 pr-3 font-semibold text-gray-800">{row.label}</td>
+                <td className="py-2 pr-3 text-gray-500">{row.driver}</td>
+                <td className="py-2 text-right">{formatNumber(row.calls)}</td>
+                <td className="py-2 text-right">{formatCurrency(row.unitCostPerThousand)}</td>
+                <td className="py-2 text-right font-semibold text-gray-900">{formatCurrency(row.cost)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const RevenueTab = () => {
+    const model = buildRevenueModel();
+
+    if (!model) {
+      return (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+          <h2 className="text-lg font-bold text-gray-900 mb-2">No revenue data loaded</h2>
+          <p className="text-sm text-gray-500">Refresh the dashboard or choose a wider time range.</p>
+        </div>
+      );
+    }
+
+    const netTone = model.unitEconomics.netRevenue >= 0 ? 'green' : 'red';
+
+    return (
+      <div className="space-y-6">
+        {model.rowLimitReached && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Revenue model row limit reached. Use a shorter time range for exact baseline counts.
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <RevenueMetricCard
+            label="Baseline Visits"
+            value={formatNumber(model.baseline.visits)}
+            subtext="Selected dashboard range"
+            tone="blue"
+          />
+          <RevenueMetricCard
+            label="Paywall Attempts"
+            value={formatNumber(model.baseline.paywall)}
+            subtext={`${formatPct(model.rates.paywallRate)} of visits`}
+            tone="orange"
+          />
+          <RevenueMetricCard
+            label="Current Buyers"
+            value={formatNumber(model.baseline.buyers)}
+            subtext={`${formatPct(model.baseline.currentPaywallConversionRate)} paywall conversion`}
+            tone="green"
+          />
+          <RevenueMetricCard
+            label="Avg Order"
+            value={formatCurrency(model.unitEconomics.averageOrderValue)}
+            subtext={`${formatNumber(model.unitEconomics.weightedCredits, 1)} avg credits sold`}
+            tone="teal"
+          />
+          <RevenueMetricCard
+            label="Projected Net"
+            value={formatCurrency(model.unitEconomics.netRevenue)}
+            subtext={`${formatPct(model.unitEconomics.grossMargin)} gross margin after modeled costs`}
+            tone={netTone}
+          />
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 lg:col-span-2">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">What-if Revenue Calculator</h2>
+                <p className="text-sm text-gray-500">Uses the selected time range as the baseline, then applies your traffic, conversion, and cost assumptions.</p>
+              </div>
+              <button
+                onClick={() => setRevenueInputs(REVENUE_DEFAULTS)}
+                className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Reset
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-5">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Traffic and conversion</h3>
+                <div className="space-y-4">
+                  <RevenueInput
+                    label="Manual monthly visits"
+                    field="monthlyVisits"
+                    suffix="visits"
+                    helper={model.usingManualTraffic ? 'Manual traffic is active.' : 'Leave blank to use the multiplier.'}
+                  />
+                  <div>
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Traffic multiplier</span>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[1, 2, 5, 10].map((multiplier) => (
+                        <button
+                          key={multiplier}
+                          onClick={() => updateRevenueInput('trafficMultiplier', multiplier)}
+                          className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                            Number(revenueInputs.trafficMultiplier) === multiplier && !model.usingManualTraffic
+                              ? 'border-teal-500 bg-teal-50 text-teal-700'
+                              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {multiplier}x
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <RevenueInput
+                    label="Paywall -> buyer"
+                    field="paywallConversionRate"
+                    suffix="%"
+                    step="0.1"
+                    helper={`Blank uses current ${formatPct(model.baseline.currentPaywallConversionRate)}.`}
+                  />
+                  <RevenueInput
+                    label="Paid searches per buyer"
+                    field="paidSearchesPerBuyer"
+                    step="0.1"
+                    helper="This controls post-payment API usage."
+                  />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Credit pack mix</h3>
+                <div className="space-y-4">
+                  <RevenueInput label="Starter mix" field="starterMix" suffix="%" />
+                  <RevenueInput label="Planner mix" field="plannerMix" suffix="%" />
+                  <RevenueInput label="Road Trip mix" field="roadTripMix" suffix="%" />
+                  <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                    Mix is normalized automatically. Current model: Starter {formatPct(model.packMix.starter * 100)}, Planner {formatPct(model.packMix.planner * 100)}, Road Trip {formatPct(model.packMix.roadTrip * 100)}.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-semibold text-gray-900 mb-3">Projected Results</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Visits</span>
+                <span className="font-semibold">{formatNumber(model.projected.visits)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Paywall attempts</span>
+                <span className="font-semibold">{formatNumber(model.projected.paywall)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Buyers</span>
+                <span className="font-semibold">{formatNumber(model.projected.buyers, 1)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Gross revenue</span>
+                <span className="font-semibold text-green-600">{formatCurrency(model.unitEconomics.grossRevenue)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-gray-500">Total modeled cost</span>
+                <span className="font-semibold text-red-500">{formatCurrency(model.unitEconomics.totalCost)}</span>
+              </div>
+              <div className="flex justify-between gap-4 border-t pt-3">
+                <span className="text-gray-900 font-semibold">Net revenue</span>
+                <span className={`font-bold ${model.unitEconomics.netRevenue >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(model.unitEconomics.netRevenue)}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs text-gray-400">Revenue / visit</p>
+                  <p className="font-bold text-gray-900">{formatCurrency(model.unitEconomics.revenuePerVisit, 4)}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs text-gray-400">Cost / visit</p>
+                  <p className="font-bold text-gray-900">{formatCurrency(model.unitEconomics.costPerVisit, 4)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">Cost Assumptions</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <RevenueInput label="Map loads / visit" field="mapLoadsPerVisit" step="0.1" />
+              <RevenueInput label="Map load rate" field="mapLoadCpm" suffix="/ 1K" step="0.01" />
+              <RevenueInput label="Autocomplete calls / intent" field="autocompleteCallsPerIntent" step="0.1" />
+              <RevenueInput label="Autocomplete rate" field="autocompleteCpm" suffix="/ 1K" step="0.01" />
+              <RevenueInput label="Geocodes / attempt" field="geocodeCallsPerAttempt" step="0.1" />
+              <RevenueInput label="Geocoding rate" field="geocodeCpm" suffix="/ 1K" step="0.01" />
+              <RevenueInput label="Directions / paid search" field="directionsCallsPerPaidSearch" step="0.1" />
+              <RevenueInput label="Directions rate" field="directionsCpm" suffix="/ 1K" step="0.01" />
+              <RevenueInput label="Places / paid search" field="placesCallsPerPaidSearch" step="0.1" />
+              <RevenueInput label="Places rate" field="placesCpm" suffix="/ 1K" step="0.01" />
+              <RevenueInput label="Stripe percent" field="stripePercent" suffix="%" step="0.1" />
+              <RevenueInput label="Stripe fixed fee" field="stripeFixedFee" suffix="/ buyer" step="0.01" />
+              <RevenueInput label="Fixed monthly cost" field="fixedMonthlyCost" suffix="/ month" step="1" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 className="font-semibold text-gray-900 mb-4">Break-even</h3>
+            <div className="grid gap-4">
+              <div className="rounded-xl bg-teal-50 p-4">
+                <p className="text-sm font-semibold text-teal-700">Buyers needed</p>
+                <p className="mt-2 text-3xl font-bold text-teal-800">{formatNumber(model.unitEconomics.breakEvenBuyers, 1)}</p>
+                <p className="mt-1 text-xs text-teal-600">Covers pre-payment costs plus fixed monthly overhead.</p>
+              </div>
+              <div className="rounded-xl bg-orange-50 p-4">
+                <p className="text-sm font-semibold text-orange-700">Required paywall conversion</p>
+                <p className="mt-2 text-3xl font-bold text-orange-800">{formatPct(model.unitEconomics.breakEvenPaywallConversionRate)}</p>
+                <p className="mt-1 text-xs text-orange-600">Based on projected paywall attempts and current cost assumptions.</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-gray-700">Contribution / buyer</p>
+                <p className="mt-2 text-2xl font-bold text-gray-900">{formatCurrency(model.unitEconomics.contributionPerBuyer)}</p>
+                <p className="mt-1 text-xs text-gray-500">Average order after Stripe and post-payment API usage.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-6">
+          <RevenueCostTable title="Pre-payment Costs" rows={model.prePaymentCosts} />
+          <RevenueCostTable title="Post-payment Costs" rows={model.postPaymentCosts} />
+        </div>
+      </div>
+    );
+  };
+
   // ==================== TAB: ATTRIBUTION ====================
   const AttributionTab = () => (
     <>
@@ -3011,6 +3491,7 @@ export default function AdminDashboard() {
     { id: 'sessions', label: 'Timeline' },
     { id: 'overview', label: '📊 Overview' },
     { id: 'funnel', label: 'Funnel' },
+    { id: 'revenue', label: 'Revenue' },
     { id: 'attribution', label: '🔗 Attribution' },
     { id: 'shares', label: '📤 Shares' },
     { id: 'users', label: '👤 Users' },
@@ -3096,6 +3577,7 @@ export default function AdminDashboard() {
             {activeTab === 'overview' && <OverviewTab />}
             {activeTab === 'sessions' && <SessionsTab />}
             {activeTab === 'funnel' && <FunnelTab />}
+            {activeTab === 'revenue' && <RevenueTab />}
             {activeTab === 'attribution' && <AttributionTab />}
             {activeTab === 'shares' && <SharesTab />}
             {activeTab === 'users' && <UsersTab />}
