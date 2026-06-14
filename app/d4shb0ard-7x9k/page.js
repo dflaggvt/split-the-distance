@@ -409,6 +409,7 @@ export default function AdminDashboard() {
           row.searchAttempted = true;
           break;
         case 'search_blocked_no_credits':
+          row.searchAttempted = true;
           row.paywallReached = true;
           break;
         case 'pricing_modal_opened':
