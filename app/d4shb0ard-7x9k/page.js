@@ -90,6 +90,7 @@ const FUNNEL_STAGES = [
     shortLabel: 'Account',
     description: 'Opened sign-in/sign-up or completed auth after paywall.',
     color: '#64748b',
+    optional: true,
   },
   {
     key: 'checkoutStarted',
@@ -436,14 +437,29 @@ export default function AdminDashboard() {
     });
 
     const sessions = Object.values(bySession);
-    const counts = FUNNEL_STAGES.reduce((acc, stage) => {
+    const mainStages = FUNNEL_STAGES.filter((stage) => !stage.optional);
+    const mainStageIndex = Object.fromEntries(mainStages.map((stage, index) => [stage.key, index]));
+    const reachedMainStage = (session, stageKey) => {
+      const index = mainStageIndex[stageKey];
+      if (index === undefined) return false;
+      return mainStages.slice(0, index + 1).every((stage) => session[stage.key]);
+    };
+
+    const rawCounts = FUNNEL_STAGES.reduce((acc, stage) => {
       acc[stage.key] = sessions.filter((session) => session[stage.key]).length;
       return acc;
     }, {});
 
-    const stageRows = FUNNEL_STAGES.map((stage, index) => {
+    const counts = FUNNEL_STAGES.reduce((acc, stage) => {
+      acc[stage.key] = stage.optional
+        ? rawCounts[stage.key] || 0
+        : sessions.filter((session) => reachedMainStage(session, stage.key)).length;
+      return acc;
+    }, {});
+
+    const mainStageRows = mainStages.map((stage, index) => {
       const count = counts[stage.key] || 0;
-      const previousStage = FUNNEL_STAGES[index - 1];
+      const previousStage = mainStages[index - 1];
       const previousCount = previousStage ? counts[previousStage.key] || 0 : count;
       const lostFromPrevious = previousStage ? Math.max(previousCount - count, 0) : 0;
 
@@ -455,6 +471,16 @@ export default function AdminDashboard() {
         lostFromPrevious,
       };
     });
+
+    const optionalStageRows = FUNNEL_STAGES
+      .filter((stage) => stage.optional)
+      .map((stage) => ({
+        ...stage,
+        count: rawCounts[stage.key] || 0,
+        fromPreviousPct: pct(rawCounts[stage.key], rawCounts.packSelected || counts.packSelected),
+        fromVisitPct: pct(rawCounts[stage.key], rawCounts.visits || counts.visits),
+        lostFromPrevious: 0,
+      }));
 
     const summarizeGroups = (getKey, limit = 8) => {
       const groups = {};
@@ -470,6 +496,7 @@ export default function AdminDashboard() {
             paywallReached: 0,
             pricingViewed: 0,
             packSelected: 0,
+            accountStep: 0,
             checkoutStarted: 0,
             purchased: 0,
             paidSearchUsed: 0,
@@ -521,7 +548,7 @@ export default function AdminDashboard() {
       }))
       .sort((a, b) => b.selected - a.selected);
 
-    const biggestDrop = stageRows
+    const biggestDrop = mainStageRows
       .slice(1)
       .reduce((biggest, row) => (
         row.lostFromPrevious > (biggest?.lostFromPrevious || 0) ? row : biggest
@@ -529,7 +556,9 @@ export default function AdminDashboard() {
 
     return {
       counts,
-      stages: stageRows,
+      rawCounts,
+      stages: mainStageRows,
+      optionalStages: optionalStageRows,
       deviceBreakdown: summarizeGroups((session) => session.device_type || 'unknown', 6),
       sourceBreakdown: summarizeGroups((session) => session.source || 'unknown', 8),
       landingPageBreakdown: summarizeGroups((session) => session.landing_page || '/', 8),
@@ -1709,6 +1738,7 @@ export default function AdminDashboard() {
       purple: 'bg-purple-50 text-purple-700',
       green: 'bg-green-50 text-green-700',
       orange: 'bg-orange-50 text-orange-700',
+      gray: 'bg-gray-100 text-gray-700',
     };
 
     return (
@@ -1762,6 +1792,7 @@ export default function AdminDashboard() {
 
   const FunnelTab = () => {
     const stages = funnelStats?.stages || [];
+    const accountStep = funnelStats?.optionalStages?.find((stage) => stage.key === 'accountStep');
     const insight = funnelStats?.insights || {};
 
     if (!funnelStats) {
@@ -1777,11 +1808,11 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         {funnelStats.rowLimitReached && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            Funnel event row limit reached. Use a shorter time range for exact counts.
+            Funnel row limit reached. Use a shorter time range for exact counts.
           </div>
         )}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <FunnelMetricCard
             label="Visit -> Purchase"
             value={formatPct(insight.visitToPurchaseRate)}
@@ -1801,6 +1832,12 @@ export default function AdminDashboard() {
             tone="purple"
           />
           <FunnelMetricCard
+            label="Account Step"
+            value={(accountStep?.count || 0).toLocaleString()}
+            subtext="Optional for anonymous buyers"
+            tone="gray"
+          />
+          <FunnelMetricCard
             label="Checkout -> Purchase"
             value={formatPct(insight.checkoutToPurchaseRate)}
             subtext="Stripe completion rate"
@@ -1812,7 +1849,7 @@ export default function AdminDashboard() {
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Conversion Funnel</h2>
-              <p className="text-sm text-gray-500">Session-based funnel for the selected time range.</p>
+              <p className="text-sm text-gray-500">Cumulative session funnel for the selected time range. Optional auth is tracked separately.</p>
             </div>
             {insight.biggestDrop && (
               <div className="rounded-lg bg-red-50 px-3 py-2 text-right">
