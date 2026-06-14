@@ -8,6 +8,7 @@ import { useJsApiLoader } from '@react-google-maps/api';
 import SearchPanel from './SearchPanel';
 import HowItWorks from './HowItWorks';
 import AuthButton from './AuthButton';
+import DevEnvironmentBadge from './DevEnvironmentBadge';
 import SignInModal from './SignInModal';
 import PricingModal from './PricingModal';
 import AccountModal from './AccountModal';
@@ -1610,6 +1611,7 @@ export default function AppClient() {
               <span className="text-lg font-bold tracking-tight">
                 Split The Distance
               </span>
+              <DevEnvironmentBadge />
             </Link>
           </div>
         </header>
@@ -1636,6 +1638,7 @@ export default function AppClient() {
             <span className="text-lg font-bold tracking-tight">
               Split The Distance
             </span>
+            <DevEnvironmentBadge />
             {isInternal && (
               <span className="ml-2 px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">
                 INTERNAL

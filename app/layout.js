@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 import { FeatureProvider } from '@/components/FeatureProvider';
+import EnvironmentMarker from '@/components/EnvironmentMarker';
 import PageViewTracker from '@/components/PageViewTracker';
 
 const inter = Inter({
@@ -154,6 +155,7 @@ export default function RootLayout({ children }) {
         </noscript>
         <AuthProvider>
           <FeatureProvider>
+            <EnvironmentMarker />
             <Suspense fallback={null}>
               <PageViewTracker />
             </Suspense>
