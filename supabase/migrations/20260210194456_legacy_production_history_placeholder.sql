@@ -1,0 +1,3 @@
+-- Legacy production migration history placeholder.
+-- Production has this version recorded, but the original migration file was not in the repo.
+-- Keep this no-op file so local migration history matches remote history.
