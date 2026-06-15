@@ -51,6 +51,12 @@ export default function sitemap() {
       priority: 0.7,
     },
     {
+      url: `${baseUrl}/link-to-us`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.6,
+    },
+    {
       url: `${baseUrl}/legal/terms`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
