@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import {
   CREDIT_PACKS,
-  getCanonicalSiteUrl,
+  getCheckoutReturnOrigin,
   getMissingEnv,
   isNoRowsError,
 } from '@/lib/stripeServer';
@@ -120,7 +120,7 @@ export async function POST(request) {
     }, { onConflict: 'user_id' });
 
     // Create checkout session
-    const siteUrl = getCanonicalSiteUrl();
+    const siteUrl = getCheckoutReturnOrigin(request);
     const sessionConfig = {
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
