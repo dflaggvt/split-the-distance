@@ -14,6 +14,7 @@ export default function LocationInput({
   variant = 'from',
   onEnter,
   inputRef: externalRef,
+  enableLocationLookup = true,
 }) {
   const [predictions, setPredictions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -27,20 +28,35 @@ export default function LocationInput({
   const inputRef = externalRef || internalRef;
   const debounceTimer = useRef(null);
 
+  useEffect(() => {
+    if (enableLocationLookup) return;
+    clearTimeout(debounceTimer.current);
+    setPredictions([]);
+    setIsOpen(false);
+    setIsLoading(false);
+    setHighlightIndex(-1);
+  }, [enableLocationLookup]);
+
   // Check if geolocation is available (requires secure context)
   useEffect(() => {
+    if (!enableLocationLookup) {
+      setGeolocationSupported(false);
+      return;
+    }
+
     const isSecure =
       typeof window !== 'undefined' &&
       (window.location.protocol === 'https:' ||
         window.location.hostname === 'localhost' ||
         window.location.hostname === '127.0.0.1');
     setGeolocationSupported(isSecure && !!navigator?.geolocation);
-  }, []);
+  }, [enableLocationLookup]);
 
   /**
    * Use the device GPS to get current location, then reverse geocode
    */
   const handleUseMyLocation = useCallback(async () => {
+    if (!enableLocationLookup) return;
     if (isGeoLoading) return;
     setIsGeoLoading(true);
 
@@ -99,12 +115,19 @@ export default function LocationInput({
     } finally {
       setIsGeoLoading(false);
     }
-  }, [isGeoLoading, onChange, onSelect, onError]);
+  }, [enableLocationLookup, isGeoLoading, onChange, onSelect, onError]);
 
   /**
    * Fetch autocomplete predictions via Places API (New) REST endpoint
    */
   const fetchPredictions = useCallback(async (input) => {
+    if (!enableLocationLookup) {
+      setPredictions([]);
+      setIsOpen(false);
+      setIsLoading(false);
+      return;
+    }
+
     if (!input || input.length < 2) {
       setPredictions([]);
       setIsOpen(false);
@@ -159,11 +182,17 @@ export default function LocationInput({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [enableLocationLookup]);
 
   const debouncedFetch = useCallback(
     (input) => {
       clearTimeout(debounceTimer.current);
+      if (!enableLocationLookup) {
+        setPredictions([]);
+        setIsOpen(false);
+        return;
+      }
+
       // Require 3+ characters before fetching (saves ~40% API calls)
       if (input.length < 3) {
         setPredictions([]);
@@ -172,7 +201,7 @@ export default function LocationInput({
       }
       debounceTimer.current = setTimeout(() => fetchPredictions(input), 300);
     },
-    [fetchPredictions]
+    [enableLocationLookup, fetchPredictions]
   );
 
   /**
@@ -190,6 +219,8 @@ export default function LocationInput({
    * With caching to avoid repeat calls
    */
   const getCoordinates = useCallback(async (placeId, address) => {
+    if (!enableLocationLookup) return null;
+
     // Check cache first
     const cached = coordCacheRef.current.get(placeId);
     if (cached) {
@@ -232,10 +263,11 @@ export default function LocationInput({
       console.error('Geocoding fetch error:', err);
       return null;
     }
-  }, []);
+  }, [enableLocationLookup]);
 
   const selectPrediction = useCallback(
     async (prediction) => {
+      if (!enableLocationLookup) return;
       if (!prediction) return;
 
       setHasSelected(true);
@@ -256,7 +288,7 @@ export default function LocationInput({
         if (onSelect) onSelect(result);
       }
     },
-    [onChange, onSelect, getCoordinates]
+    [enableLocationLookup, onChange, onSelect, getCoordinates]
   );
 
   const handleInputChange = (e) => {

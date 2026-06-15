@@ -1667,14 +1667,14 @@ export default function AppClient() {
               logSessionEvent('input_started', { field: 'from' }, { userId: user?.id });
             }
             setFromValue(val);
-            if (!val.trim()) setFromLocation(null);
+            if (!val.trim() || !hasSearchCredits) setFromLocation(null);
           }}
           onToChange={(val) => {
             if (!toValue && val.trim()) {
               logSessionEvent('input_started', { field: 'to' }, { userId: user?.id });
             }
             setToValue(val);
-            if (!val.trim()) setToLocation(null);
+            if (!val.trim() || !hasSearchCredits) setToLocation(null);
           }}
           onFromSelect={(loc) => {
             setFromLocation(loc);
@@ -1734,6 +1734,7 @@ export default function AppClient() {
           creditStatus={creditStatus}
           creditsLoading={creditsLoading}
           onBuyCredits={openPricingModal}
+          enableLocationLookup={hasSearchCredits}
         />
 
         {/* Map Container */}

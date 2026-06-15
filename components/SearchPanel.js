@@ -64,6 +64,7 @@ export default function SearchPanel({
   creditStatus,
   creditsLoading = false,
   onBuyCredits,
+  enableLocationLookup = true,
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
@@ -96,7 +97,7 @@ export default function SearchPanel({
 
   const handleExtraValueChange = (idx, val) => {
     onExtraLocationsChange?.(extraLocations.map((el, i) =>
-      i === idx ? { ...el, value: val, location: val.trim() ? el.location : null } : el
+      i === idx ? { ...el, value: val, location: val.trim() && enableLocationLookup ? el.location : null } : el
     ));
   };
 
@@ -283,6 +284,7 @@ export default function SearchPanel({
                   placeholder="Person A"
                   variant="minimal"
                   onEnter={() => toInputRef.current?.focus()}
+                  enableLocationLookup={enableLocationLookup}
                 />
                 <LocationInput
                   value={toValue}
@@ -294,6 +296,7 @@ export default function SearchPanel({
                   variant="minimal"
                   inputRef={toInputRef}
                   onEnter={canSplit ? onSplit : undefined}
+                  enableLocationLookup={enableLocationLookup}
                 />
                 {/* Extra location inputs */}
                 {extraLocations.map((el, idx) => (
@@ -308,6 +311,7 @@ export default function SearchPanel({
                         placeholder={`Person ${String.fromCharCode(67 + idx)}`}
                         variant="minimal"
                         onEnter={canSplit ? onSplit : undefined}
+                        enableLocationLookup={enableLocationLookup}
                       />
                     </div>
                     <button
