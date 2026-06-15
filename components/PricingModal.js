@@ -13,7 +13,7 @@ const CREDIT_PACKS = [
     price: '$1.99',
     searches: 10,
     perSearch: '$0.20/search',
-    note: 'Quick meetups, pickups, dates, and errands',
+    note: 'Finish this plan plus 9 more',
   },
   {
     priceType: 'credits_30',
@@ -35,10 +35,29 @@ const CREDIT_PACKS = [
 ];
 
 const PLAN_VALUE_POINTS = [
-  'Fair midpoint based on real travel time',
-  'Nearby food, coffee, parks, gas, hotels, and activities',
-  'Google Maps directions plus saved and shareable plans',
+  'Fair midpoint based on real driving time',
+  'Drive-time comparison for each person',
+  'Food, coffee, gas, hotels, parks, and activities near the midpoint',
+  'Google Maps directions, saved routes, and shareable plans',
 ];
+
+function getPendingRouteLabel() {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = localStorage.getItem('std_pending_credit_search');
+    if (!raw) return null;
+
+    const pending = JSON.parse(raw);
+    const from = (pending.fromValue || pending.fromLocation?.name || '').trim();
+    const to = (pending.toValue || pending.toLocation?.name || '').trim();
+
+    if (!from || !to) return null;
+    return { from, to };
+  } catch {
+    return null;
+  }
+}
 
 export default function PricingModal() {
   const { pricingModalOpen, pricingModalContext, closePricingModal, openSignIn } = useFeatures();
@@ -48,6 +67,10 @@ export default function PricingModal() {
   const viewLoggedForOpenRef = useRef(false);
 
   const isBlockedSearch = pricingModalContext === 'blocked_search';
+  const pendingRoute = useMemo(
+    () => (pricingModalOpen && isBlockedSearch ? getPendingRouteLabel() : null),
+    [isBlockedSearch, pricingModalOpen]
+  );
   const packs = useMemo(
     () => CREDIT_PACKS.map((pack) => ({
       ...pack,
@@ -193,7 +216,7 @@ export default function PricingModal() {
 
         <div className="text-center mb-6 pr-8 pl-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {isBlockedSearch ? 'Finish this midpoint search' : 'Buy Search Credits'}
+            {isBlockedSearch ? 'Finish your midpoint plan' : 'Buy Search Credits'}
           </h2>
           {isBlockedSearch && (
             <p className="text-sm font-semibold text-teal-700 mb-1">
@@ -202,17 +225,24 @@ export default function PricingModal() {
           )}
           <p className="text-sm text-gray-500 max-w-2xl mx-auto">
             {isBlockedSearch
-              ? 'Find the fairest place to meet, compare the drive, and discover places near the midpoint.'
+              ? 'Get the fair meeting point, compare the drive, and find useful places near the midpoint.'
               : 'Credits unlock midpoint calculations, route comparisons, and nearby place discovery.'}
           </p>
+          {isBlockedSearch && pendingRoute && (
+            <div className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full border border-teal-100 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800">
+              <span className="truncate max-w-[220px]">{pendingRoute.from}</span>
+              <span className="text-teal-500">to</span>
+              <span className="truncate max-w-[220px]">{pendingRoute.to}</span>
+            </div>
+          )}
         </div>
 
         {isBlockedSearch && (
           <div className="rounded-xl bg-teal-50/50 border border-teal-100 p-4 mb-5">
             <div className="text-xs font-bold uppercase tracking-wide text-teal-700 mb-3">
-              Your credits include
+              What you unlock
             </div>
-            <ul className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-gray-700">
+            <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
               {PLAN_VALUE_POINTS.map((point) => (
                 <li key={point} className="flex items-start gap-2">
                   <span className="text-teal-600 font-bold">✓</span>
@@ -240,10 +270,12 @@ export default function PricingModal() {
               )}
 
               <div className="mb-4">
-                <h3 className="text-lg font-bold text-gray-900">{pack.name}</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {isBlockedSearch && pack.priceType === 'credits_10' ? 'Finish This Plan' : pack.name}
+                </h3>
                 <div className="text-3xl font-bold text-gray-900 mt-2">{pack.price}</div>
                 <div className="text-sm text-gray-500 mt-1">
-                  {pack.searches} searches
+                  {pack.searches} midpoint plans
                 </div>
               </div>
 
@@ -264,7 +296,7 @@ export default function PricingModal() {
                 {loadingPack === pack.priceType
                   ? 'Redirecting...'
                   : isBlockedSearch
-                    ? `Continue for ${pack.price}`
+                    ? (pack.priceType === 'credits_10' ? `Finish My Plan for ${pack.price}` : `Continue for ${pack.price}`)
                     : 'Buy Credits'}
               </button>
             </div>
