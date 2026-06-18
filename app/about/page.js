@@ -17,7 +17,6 @@ export default function AboutPage() {
           <nav className="flex items-center gap-6 text-sm">
             <Link href="/legal/terms" className="text-gray-500 hover:text-gray-900 transition">Terms</Link>
             <Link href="/legal/privacy" className="text-gray-500 hover:text-gray-900 transition">Privacy</Link>
-            <Link href="/link-to-us" className="text-gray-500 hover:text-gray-900 transition">Link to Us</Link>
             <Link href="/" className="text-teal-600 hover:text-teal-700 font-medium transition">Back to App</Link>
           </nav>
         </div>
@@ -66,8 +65,6 @@ export default function AboutPage() {
             <Link href="/legal/terms" className="hover:text-gray-600 transition">Terms of Use</Link>
             <span>&middot;</span>
             <Link href="/legal/privacy" className="hover:text-gray-600 transition">Privacy Policy</Link>
-            <span>&middot;</span>
-            <Link href="/link-to-us" className="hover:text-gray-600 transition">Link to Us</Link>
           </div>
           <p>Split The Distance &copy; {new Date().getFullYear()}</p>
         </div>
