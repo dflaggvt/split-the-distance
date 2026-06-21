@@ -1,6 +1,6 @@
 export const metadata = {
   title: 'Terms of Use — Split The Distance',
-  description: 'Terms of Use for Split The Distance.',
+  description: 'Read the Split The Distance Terms of Use, including account rules, search credits, paid features, acceptable use, third-party services, and liability.',
 };
 
 export default function TermsPage() {

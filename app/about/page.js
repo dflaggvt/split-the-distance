@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export const metadata = {
   title: 'About Us — Split The Distance',
-  description: 'Learn about Split The Distance and how it helps people find fair meeting points.',
+  description: 'Learn how Split The Distance helps people find fair meeting points, compare real travel time, and choose useful places near the midpoint.',
 };
 
 export default function AboutPage() {
