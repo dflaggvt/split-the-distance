@@ -10,7 +10,6 @@ import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
 import SavePlanCTA from './SavePlanCTA';
 import MainPageAd from './MainPageAd';
-import CallHeldPromo from './CallHeldPromo';
 import FeatureGate, { useGatedAction } from './FeatureGate';
 
 export default function SearchPanel({
@@ -407,10 +406,7 @@ export default function SearchPanel({
         </div>
 
         {isMobileViewport === true && (
-          <>
-            <CallHeldPromo placement="search_panel_mobile" />
-            <MainPageAd />
-          </>
+          <MainPageAd />
         )}
 
         {/* Results */}
@@ -484,10 +480,7 @@ export default function SearchPanel({
           </div>
         )}
         {isMobileViewport === false && (
-          <>
-            <CallHeldPromo placement="search_panel_desktop" />
-            <MainPageAd />
-          </>
+          <MainPageAd />
         )}
       </div>
     </div>
