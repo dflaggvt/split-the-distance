@@ -104,6 +104,14 @@ export default function AuthButton() {
             )}
           </button>
 
+          <button
+            onClick={() => { setMenuOpen(false); openAccountModal({ view: 'ai_plans' }); }}
+            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-[13px] font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <span>AI</span>
+            <span>AI Plans</span>
+          </button>
+
           {plan !== 'premium' && (
             <button
               onClick={() => { setMenuOpen(false); openPricingModal(); }}

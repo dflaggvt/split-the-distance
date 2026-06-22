@@ -1258,6 +1258,21 @@ export default function AdminDashboard() {
                 (eventTypes.save_plan_completed || 0) +
                 (eventTypes.save_plan_failed || 0) +
                 (eventTypes.save_plan_abandoned || 0),
+              aiPlanViews: eventTypes.ai_plan_builder_viewed || 0,
+              aiPlanGenerateClicks: eventTypes.ai_plan_generate_clicked || 0,
+              aiPlansGenerated: eventTypes.ai_plan_generated || 0,
+              aiPlanFailures: eventTypes.ai_plan_failed || 0,
+              aiPlanCopies: eventTypes.ai_plan_copied || 0,
+              aiPlanShares: eventTypes.ai_plan_shared || 0,
+              aiPlanActivity:
+                (eventTypes.ai_plan_builder_viewed || 0) +
+                (eventTypes.ai_plan_vibe_selected || 0) +
+                (eventTypes.ai_plan_generate_clicked || 0) +
+                (eventTypes.ai_plan_generated || 0) +
+                (eventTypes.ai_plan_failed || 0) +
+                (eventTypes.ai_plan_saved || 0) +
+                (eventTypes.ai_plan_copied || 0) +
+                (eventTypes.ai_plan_shared || 0),
             };
           }));
         } catch (timelineErr) {
@@ -1345,6 +1360,12 @@ export default function AdminDashboard() {
     if (timelineActivity === 'save_completed' && session.savesCompleted < 1) return false;
     if (timelineActivity === 'save_abandoned' && session.savesAbandoned < 1) return false;
     if (timelineActivity === 'save_failed' && session.savesFailed < 1) return false;
+    if (timelineActivity === 'ai_plan_activity' && session.aiPlanActivity < 1) return false;
+    if (timelineActivity === 'ai_plan_generate_clicked' && session.aiPlanGenerateClicks < 1) return false;
+    if (timelineActivity === 'ai_plan_generated' && session.aiPlansGenerated < 1) return false;
+    if (timelineActivity === 'ai_plan_failed' && session.aiPlanFailures < 1) return false;
+    if (timelineActivity === 'ai_plan_copied' && session.aiPlanCopies < 1) return false;
+    if (timelineActivity === 'ai_plan_shared' && session.aiPlanShares < 1) return false;
     if (timelineDevice !== 'all' && (session.device_type || 'unknown') !== timelineDevice) return false;
     if (timelineSource !== 'all' && (session.source || 'unknown') !== timelineSource) return false;
     return true;
@@ -1365,6 +1386,7 @@ export default function AdminDashboard() {
     premium: 'bg-purple-500',
     monetization: 'bg-pink-500',
     auth: 'bg-slate-500',
+    ai_plan: 'bg-violet-500',
   };
 
   const describeSessionEvent = (event) => {
@@ -1438,6 +1460,17 @@ export default function AdminDashboard() {
       case 'save_plan_failed':
       case 'save_plan_abandoned':
         return [m.from, m.to].filter(Boolean).join(' -> ') || m.source || '';
+      case 'ai_plan_builder_viewed':
+        return `${m.placeCount || 0} places${m.hasAccess ? ', has credits' : ''}`;
+      case 'ai_plan_vibe_selected':
+        return m.label || m.vibe || '';
+      case 'ai_plan_generate_clicked':
+      case 'ai_plan_failed':
+      case 'ai_plan_generated':
+      case 'ai_plan_saved':
+      case 'ai_plan_copied':
+      case 'ai_plan_shared':
+        return [m.vibe, m.planId, m.reason || m.error].filter(Boolean).join(', ');
       default:
         return Object.keys(m).length ? JSON.stringify(m) : '';
     }
@@ -1496,6 +1529,12 @@ export default function AdminDashboard() {
               <option value="save_completed">Saved plan</option>
               <option value="save_abandoned">Abandoned save plan</option>
               <option value="save_failed">Save failed</option>
+              <option value="ai_plan_activity">Any AI plan activity</option>
+              <option value="ai_plan_generate_clicked">Clicked AI plan builder</option>
+              <option value="ai_plan_generated">Generated AI plan</option>
+              <option value="ai_plan_failed">AI plan failed</option>
+              <option value="ai_plan_copied">Copied AI plan</option>
+              <option value="ai_plan_shared">Shared AI plan</option>
             </select>
           </label>
           <label className="text-xs font-medium text-gray-500">
@@ -1574,6 +1613,9 @@ export default function AdminDashboard() {
                     )}
                     {session.saveActivity > 0 && (
                       <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">{session.saveClicks} save clicks</span>
+                    )}
+                    {session.aiPlanActivity > 0 && (
+                      <span className="px-2 py-1 rounded-md bg-violet-50 text-violet-700 text-xs font-medium">{session.aiPlansGenerated} AI plans</span>
                     )}
                     <span className="px-2 py-1 rounded-md bg-gray-50 text-gray-500 text-xs font-medium">
                       {formatSessionDuration(session.durationSeconds)}

@@ -119,6 +119,12 @@ export async function DELETE(request) {
     );
     console.log('[Account Delete] Deleted search_history entries for user:', userId);
 
+    await expectSupabaseResult(
+      supabase.from('ai_meetup_plans').delete().eq('user_id', userId),
+      'Failed to delete AI meetup plans'
+    );
+    console.log('[Account Delete] Deleted ai_meetup_plans entries for user:', userId);
+
     const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
 
     if (deleteAuthError) {

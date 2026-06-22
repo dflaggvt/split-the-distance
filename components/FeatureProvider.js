@@ -17,6 +17,8 @@ const FeatureContext = createContext({
   pricingModalOpen: false,
   pricingModalContext: null,
   accountModalOpen: false,
+  accountModalView: 'account',
+  setAccountModalView: () => {},
   openSignInModal: () => {},
   closeSignInModal: () => {},
   openSignIn: () => {},
@@ -38,6 +40,7 @@ export function FeatureProvider({ children }) {
   const [pricingModalOpen, setPricingModalOpen] = useState(false);
   const [pricingModalContext, setPricingModalContext] = useState(null);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [accountModalView, setAccountModalView] = useState('account');
   const auth = useAuth();
 
   // Fetch feature flags on mount and when tab becomes visible (picks up dashboard changes)
@@ -110,12 +113,14 @@ export function FeatureProvider({ children }) {
     setPricingModalContext(null);
   }, []);
 
-  const openAccountModal = useCallback(() => {
+  const openAccountModal = useCallback((options = {}) => {
+    setAccountModalView(options.view === 'ai_plans' ? 'ai_plans' : 'account');
     setAccountModalOpen(true);
   }, []);
 
   const closeAccountModal = useCallback(() => {
     setAccountModalOpen(false);
+    setAccountModalView('account');
   }, []);
 
   // Close sign-in modals when user successfully logs in
@@ -142,6 +147,8 @@ export function FeatureProvider({ children }) {
     pricingModalOpen,
     pricingModalContext,
     accountModalOpen,
+    accountModalView,
+    setAccountModalView,
     openSignInModal,
     closeSignInModal,
     openSignIn,
@@ -151,7 +158,7 @@ export function FeatureProvider({ children }) {
     closePricingModal,
     openAccountModal,
     closeAccountModal,
-  }), [features, loading, signInModalFeature, signInOpen, signInMode, signInContext, pricingModalOpen, pricingModalContext, accountModalOpen, openSignInModal, closeSignInModal, openSignIn, closeSignIn, setSignInAuthMode, openPricingModal, closePricingModal, openAccountModal, closeAccountModal]);
+  }), [features, loading, signInModalFeature, signInOpen, signInMode, signInContext, pricingModalOpen, pricingModalContext, accountModalOpen, accountModalView, setAccountModalView, openSignInModal, closeSignInModal, openSignIn, closeSignIn, setSignInAuthMode, openPricingModal, closePricingModal, openAccountModal, closeAccountModal]);
 
   return (
     <FeatureContext.Provider value={value}>

@@ -10,6 +10,7 @@ import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
 import SavePlanCTA from './SavePlanCTA';
 import MainPageAd from './MainPageAd';
+import AIPlanBuilder from './ai/AIPlanBuilder';
 import FeatureGate, { useGatedAction } from './FeatureGate';
 
 export default function SearchPanel({
@@ -434,6 +435,17 @@ export default function SearchPanel({
               canSave={Boolean(route)}
               status={savePlanStatus}
               onSave={onSavePlan}
+            />
+            <AIPlanBuilder
+              route={route}
+              midpoint={midpoint}
+              fromLocation={fromLocation}
+              toLocation={toLocation}
+              places={localOnly ? places.filter(p => !p.brand) : places}
+              activeFilters={activeFilters}
+              travelMode={travelMode}
+              midpointMode={midpointMode}
+              creditStatus={creditStatus}
             />
             {/* Road trip stop selector (when active) */}
             {roadTripStops && (

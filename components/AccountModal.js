@@ -5,13 +5,170 @@ import { useAuth } from './AuthProvider';
 import { useFeatures } from './FeatureProvider';
 import { getSession, fetchSubscription } from '@/lib/auth';
 import { fetchCreditStatus } from '@/lib/credits';
+import { buildPlanShareText, deleteAIPlan, fetchAIPlans, getAIVibeLabel } from '@/lib/aiPlans';
+
+function SavedAIPlansView() {
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [copiedId, setCopiedId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    fetchAIPlans()
+      .then((data) => {
+        if (!cancelled) setPlans(data.plans || []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || 'Could not load AI plans.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleCopy = async (plan) => {
+    try {
+      await navigator.clipboard.writeText(buildPlanShareText(plan));
+      setCopiedId(plan.id);
+      setTimeout(() => setCopiedId(null), 2500);
+    } catch {
+      setError('Could not copy the plan.');
+    }
+  };
+
+  const handleShare = async (plan) => {
+    const text = buildPlanShareText(plan);
+    if (!navigator.share) {
+      await handleCopy(plan);
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: 'Split The Distance meetup plan',
+        text,
+      });
+    } catch {}
+  };
+
+  const handleDelete = async (planId) => {
+    setDeletingId(planId);
+    setError('');
+    try {
+      await deleteAIPlan(planId);
+      setPlans((prev) => prev.filter((plan) => plan.id !== planId));
+    } catch (err) {
+      setError(err.message || 'Could not delete the plan.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <span className="inline-block w-5 h-5 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <p className="text-center text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>;
+  }
+
+  if (plans.length === 0) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
+        <h3 className="text-sm font-bold text-gray-900 mb-1">No AI plans yet</h3>
+        <p className="text-sm text-gray-500">
+          Run a midpoint search, select a nearby category, and build an AI plan from the results.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {plans.map((plan) => {
+        const generated = plan.generated_plan || {};
+        const firstPlan = generated.plans?.[0];
+        return (
+          <div key={plan.id} className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700 mb-1">
+                  {getAIVibeLabel(plan.vibe)}
+                </div>
+                <h3 className="text-sm font-bold text-gray-900 truncate">
+                  {plan.from_name} &rarr; {plan.to_name}
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  {new Date(plan.created_at).toLocaleDateString([], {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDelete(plan.id)}
+                disabled={deletingId === plan.id}
+                className="shrink-0 text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                {deletingId === plan.id ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+
+            {generated.summary && (
+              <p className="mt-3 text-sm text-gray-700">{generated.summary}</p>
+            )}
+
+            {firstPlan && (
+              <div className="mt-3 rounded-lg bg-teal-50/60 border border-teal-100 p-3">
+                <p className="text-sm font-semibold text-gray-900">{firstPlan.title}</p>
+                <p className="text-sm text-teal-700 mt-1">{firstPlan.primaryPlaceName}</p>
+                <p className="text-xs text-gray-600 mt-2">{firstPlan.whyItWorks}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => handleCopy(plan)}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                {copiedId === plan.id ? 'Copied' : 'Copy'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleShare(plan)}
+                className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100"
+              >
+                Share
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * AccountModal — user account settings with plan info,
  * subscription management (Stripe Billing Portal), and account deletion.
  */
 export default function AccountModal() {
-  const { accountModalOpen, closeAccountModal, openPricingModal } = useFeatures();
+  const { accountModalOpen, accountModalView, setAccountModalView, closeAccountModal, openPricingModal } = useFeatures();
   const { user, profile, plan, isLoggedIn, signOut } = useAuth();
 
   const [subscription, setSubscription] = useState(null);
@@ -151,7 +308,9 @@ export default function AccountModal() {
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto animate-fadeInUp">
+      <div className={`relative bg-white rounded-2xl shadow-2xl w-full p-6 max-h-[90vh] overflow-y-auto animate-fadeInUp ${
+        accountModalView === 'ai_plans' ? 'max-w-2xl' : 'max-w-md'
+      }`}>
         {/* Close button */}
         <button
           onClick={closeAccountModal}
@@ -167,6 +326,36 @@ export default function AccountModal() {
         <div className="text-center mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-1">My Account</h2>
         </div>
+
+        <div className="grid grid-cols-2 gap-2 mb-5 rounded-xl bg-gray-100 p-1">
+          <button
+            type="button"
+            onClick={() => setAccountModalView('account')}
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              accountModalView === 'account'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Account
+          </button>
+          <button
+            type="button"
+            onClick={() => setAccountModalView('ai_plans')}
+            className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              accountModalView === 'ai_plans'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            AI Plans
+          </button>
+        </div>
+
+        {accountModalView === 'ai_plans' ? (
+          <SavedAIPlansView />
+        ) : (
+          <>
 
         {/* Profile section */}
         <div className="flex items-center gap-3 mb-6 pb-5 border-b border-gray-100">
@@ -331,6 +520,8 @@ export default function AccountModal() {
           <p className="text-center text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg mt-4">
             {error}
           </p>
+        )}
+          </>
         )}
       </div>
     </div>

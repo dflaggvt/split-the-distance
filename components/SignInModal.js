@@ -52,6 +52,7 @@ export default function SignInModal() {
   const feature = isFeatureGate ? features[signInModalFeature] : null;
   const isSavePlan = !feature && signInContext === 'save_plan';
   const isSearchCredits = !feature && signInContext === 'search_credits';
+  const isAIPlanBuilder = !feature && signInContext === 'ai_plan_builder';
   const mode = isFeatureGate ? featureGateMode : signInMode;
 
   const updateMode = (nextMode) => {
@@ -169,6 +170,8 @@ export default function SignInModal() {
                   ? (mode === 'signin' ? 'Sign in to save this plan' : 'Create an account to save this plan')
                   : isSearchCredits
                     ? (mode === 'signin' ? 'Sign in to continue' : 'Create an account to buy credits')
+                    : isAIPlanBuilder
+                      ? (mode === 'signin' ? 'Sign in to build AI plans' : 'Create an account to build AI plans')
                   : (mode === 'signin' ? 'Welcome back' : 'Create an account')}
               </h3>
               <p className="text-sm text-gray-500">
@@ -176,6 +179,8 @@ export default function SignInModal() {
                   ? (mode === 'signin' ? 'Sign in and we will save this route to Recent searches.' : 'Your route will be saved after you create an account.')
                   : isSearchCredits
                     ? (mode === 'signin' ? 'Use your credits or buy more searches.' : 'Your search credits will be saved to your account.')
+                    : isAIPlanBuilder
+                      ? 'Turn your midpoint results into practical meetup options you can save and share.'
                   : (mode === 'signin' ? 'Sign in to your account' : 'Create your account to continue.')}
               </p>
             </>

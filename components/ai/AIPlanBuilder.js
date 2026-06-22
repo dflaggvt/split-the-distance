@@ -1,0 +1,323 @@
+'use client';
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '@/components/AuthProvider';
+import { useFeature, useFeatures } from '@/components/FeatureProvider';
+import { AI_PLAN_VIBES, buildPlanShareText, generateAIPlan, getAIVibeLabel } from '@/lib/aiPlans';
+import { logSessionEvent } from '@/lib/sessionEvents';
+
+function getRouteDistanceMiles(route) {
+  const meters = route?.legs?.[0]?.distance?.value || route?.distance?.value || route?.distanceMeters;
+  if (!meters) return null;
+  return Math.round((meters / 1609.344) * 10) / 10;
+}
+
+function getRouteDurationSeconds(route) {
+  return route?.legs?.[0]?.duration?.value || route?.duration?.value || route?.durationSeconds || null;
+}
+
+function buildDirectionsUrl(place) {
+  const destination = place?.lat && place?.lon
+    ? `${place.lat},${place.lon}`
+    : encodeURIComponent(place?.address || place?.name || '');
+  return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
+}
+
+export default function AIPlanBuilder({
+  route,
+  midpoint,
+  fromLocation,
+  toLocation,
+  places = [],
+  activeFilters = [],
+  travelMode,
+  midpointMode,
+  creditStatus,
+}) {
+  const { user, isLoggedIn } = useAuth();
+  const { openSignIn, openPricingModal } = useFeatures();
+  const feature = useFeature('ai_plan_builder');
+  const [selectedVibe, setSelectedVibe] = useState('coffee');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [savedPlan, setSavedPlan] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const viewedLoggedRef = useRef(false);
+
+  const eligiblePlaces = useMemo(
+    () => places
+      .filter((place) => place?.id && place?.name)
+      .slice(0, 18),
+    [places]
+  );
+
+  const placeById = useMemo(() => {
+    const map = new Map();
+    for (const place of eligiblePlaces) {
+      map.set(String(place.id), place);
+    }
+    return map;
+  }, [eligiblePlaces]);
+
+  const hasAccess = Boolean(creditStatus?.hasActiveSubscription || creditStatus?.credits > 0);
+  const canGenerate = Boolean(route && midpoint && fromLocation && toLocation);
+
+  useEffect(() => {
+    if (!feature.enabled || feature.status === 'hidden' || !canGenerate || viewedLoggedRef.current) return;
+    viewedLoggedRef.current = true;
+    logSessionEvent('ai_plan_builder_viewed', {
+      placeCount: eligiblePlaces.length,
+      activeFilters,
+      hasAccess,
+    }, { userId: user?.id });
+  }, [activeFilters, canGenerate, eligiblePlaces.length, feature.enabled, feature.status, hasAccess, user?.id]);
+
+  if (!feature.enabled || feature.status === 'hidden' || !canGenerate) {
+    return null;
+  }
+
+  const handleVibeSelect = (vibeId) => {
+    setSelectedVibe(vibeId);
+    logSessionEvent('ai_plan_vibe_selected', {
+      vibe: vibeId,
+      label: getAIVibeLabel(vibeId),
+    }, { userId: user?.id });
+  };
+
+  const handleGenerate = async () => {
+    setError('');
+    setCopied(false);
+
+    logSessionEvent('ai_plan_generate_clicked', {
+      vibe: selectedVibe,
+      placeCount: eligiblePlaces.length,
+      activeFilters,
+    }, { userId: user?.id });
+
+    if (!isLoggedIn) {
+      openSignIn({ mode: 'signup', context: 'ai_plan_builder' });
+      return;
+    }
+
+    if (!hasAccess) {
+      openPricingModal({ context: 'ai_plan_builder' });
+      return;
+    }
+
+    if (eligiblePlaces.length < 2) {
+      setError('Select Food, Coffee, or another nearby category first so AI can build plans from real places.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        vibe: selectedVibe,
+        route: {
+          fromName: fromLocation.name,
+          fromLat: fromLocation.lat,
+          fromLng: fromLocation.lon,
+          toName: toLocation.name,
+          toLat: toLocation.lat,
+          toLng: toLocation.lon,
+          travelMode,
+          midpointMode,
+          distanceMiles: getRouteDistanceMiles(route),
+          durationSeconds: getRouteDurationSeconds(route),
+        },
+        midpoint: {
+          lat: midpoint.lat,
+          lng: midpoint.lng || midpoint.lon,
+        },
+        places: eligiblePlaces.map((place) => ({
+          id: place.id,
+          name: place.name,
+          category: place.category,
+          categoryLabel: place.categoryLabel,
+          address: place.address,
+          rating: place.rating,
+          userRatingsTotal: place.userRatingsTotal,
+          openNow: place.openNow,
+          distanceFormatted: place.distanceFormatted,
+          priceLevel: place.priceLevel,
+          lat: place.lat,
+          lon: place.lon,
+        })),
+      };
+
+      const data = await generateAIPlan(payload);
+      setSavedPlan(data.plan);
+      logSessionEvent('ai_plan_generated', {
+        vibe: selectedVibe,
+        planId: data.plan?.id,
+        planCount: data.plan?.generated_plan?.plans?.length || 0,
+      }, { userId: user?.id });
+      logSessionEvent('ai_plan_saved', {
+        vibe: selectedVibe,
+        planId: data.plan?.id,
+      }, { userId: user?.id });
+    } catch (err) {
+      if (err.status === 401) {
+        openSignIn({ mode: 'signup', context: 'ai_plan_builder' });
+        return;
+      }
+      if (err.status === 402 || err.reason === 'no_credits') {
+        openPricingModal({ context: 'ai_plan_builder' });
+        return;
+      }
+      setError(err.message || 'Could not build an AI plan. Please try again.');
+      logSessionEvent('ai_plan_failed', {
+        vibe: selectedVibe,
+        reason: err.reason || 'generation_failed',
+        error: err.message,
+      }, { userId: user?.id });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!savedPlan) return;
+    const text = buildPlanShareText(savedPlan);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      logSessionEvent('ai_plan_copied', {
+        planId: savedPlan.id,
+        vibe: savedPlan.vibe,
+      }, { userId: user?.id });
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      setError('Could not copy the plan.');
+    }
+  };
+
+  const handleShare = async () => {
+    if (!savedPlan) return;
+    const text = buildPlanShareText(savedPlan);
+    if (!navigator.share) {
+      await handleCopy();
+      return;
+    }
+
+    try {
+      await navigator.share({
+        title: 'Split The Distance meetup plan',
+        text,
+      });
+      logSessionEvent('ai_plan_shared', {
+        planId: savedPlan.id,
+        vibe: savedPlan.vibe,
+      }, { userId: user?.id });
+    } catch {}
+  };
+
+  const generated = savedPlan?.generated_plan;
+
+  return (
+    <div className="mt-3 mb-4 rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50 to-white p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700 mb-1">
+            AI Plan Builder
+          </div>
+          <h3 className="text-base font-bold text-gray-900">Turn this midpoint into a real plan</h3>
+          <p className="text-xs text-gray-500 mt-1">
+            Pick a vibe and get 2-3 practical meetup options from the places already found.
+          </p>
+        </div>
+        {savedPlan && (
+          <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-teal-700 border border-teal-100">
+            Saved
+          </span>
+        )}
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-3">
+        {AI_PLAN_VIBES.map((vibe) => (
+          <button
+            key={vibe.id}
+            type="button"
+            onClick={() => handleVibeSelect(vibe.id)}
+            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+              selectedVibe === vibe.id
+                ? 'border-teal-500 bg-teal-600 text-white'
+                : 'border-gray-200 bg-white text-gray-600 hover:border-teal-200 hover:text-teal-700'
+            }`}
+          >
+            {vibe.label}
+          </button>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={handleGenerate}
+        disabled={loading}
+        className="w-full rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-60"
+      >
+        {loading ? 'Building plans...' : 'Build AI Plans'}
+      </button>
+
+      {error && (
+        <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+          {error}
+        </div>
+      )}
+
+      {generated && (
+        <div className="mt-4 space-y-3">
+          <p className="text-sm text-gray-700">{generated.summary}</p>
+          {generated.plans.map((plan) => {
+            const place = placeById.get(plan.primaryPlaceId);
+            return (
+              <div key={`${savedPlan.id}-${plan.title}`} className="rounded-lg border border-gray-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-gray-900">{plan.title}</h4>
+                    <p className="text-sm font-semibold text-teal-700 mt-1">{plan.primaryPlaceName}</p>
+                  </div>
+                  {place && (
+                    <a
+                      href={buildDirectionsUrl(place)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 rounded-md border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50"
+                    >
+                      Maps
+                    </a>
+                  )}
+                </div>
+                <p className="mt-2 text-xs text-gray-600">{plan.whyItWorks}</p>
+                <p className="mt-2 text-xs text-gray-500">{plan.driveFairnessNote}</p>
+                <p className="mt-1 text-xs text-gray-500">{plan.safetyOrPracticalNote}</p>
+                {plan.optionalSecondStopPlaceName && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Optional add-on: <span className="font-semibold text-gray-700">{plan.optionalSecondStopPlaceName}</span>
+                  </p>
+                )}
+              </div>
+            );
+          })}
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              {copied ? 'Copied' : 'Copy Plan'}
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100"
+            >
+              Share Plan
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
