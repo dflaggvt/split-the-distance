@@ -551,17 +551,30 @@ export default function SearchPanel({
                 status={savePlanStatus}
                 onSave={onSavePlan}
               />
-              <AIPlanBuilder
-                route={route}
-                midpoint={midpoint}
-                fromLocation={fromLocation}
-                toLocation={toLocation}
-                places={localOnly ? places.filter(p => !p.brand) : places}
-                activeFilters={activeFilters}
-                travelMode={travelMode}
-                midpointMode={midpointMode}
-                creditStatus={creditStatus}
-              />
+              {route && (
+                <button
+                  type="button"
+                  onClick={() => onPanelViewChange?.('ai')}
+                  className="mb-4 w-full rounded-xl border border-teal-100 bg-teal-50/70 p-4 text-left transition hover:border-teal-200 hover:bg-teal-50"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700">
+                        AI Plan Builder
+                      </div>
+                      <p className="mt-1 text-sm font-bold text-gray-900">
+                        Turn these results into a real meetup plan
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Pick a vibe and get practical options from the places nearby.
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-teal-700 shadow-sm">
+                      Open AI
+                    </span>
+                  </div>
+                </button>
+              )}
               {/* Road trip stop selector (when active) */}
               {roadTripStops && (
                 <RoadTripItinerary
