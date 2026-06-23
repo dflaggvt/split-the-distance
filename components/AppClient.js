@@ -43,6 +43,7 @@ const MapView = dynamic(() => import('./MapView'), {
 // Must be a static constant to prevent useJsApiLoader from re-loading
 // Places library no longer needed — we use Places API (New) REST endpoints
 const LIBRARIES = [];
+const DEFAULT_RESULT_FILTERS = ['restaurant'];
 
 /**
  * Compute midpoint from a Directions leg based on the selected mode.
@@ -77,7 +78,7 @@ export default function AppClient() {
   const [extraLocations, setExtraLocations] = useState([]); // Array of { value, location }
   const [multiResult, setMultiResult] = useState(null); // Result from getMultiLocationMidpoint
   const [places, setPlaces] = useState([]);
-  const [activeFilters, setActiveFilters] = useState([]); // Start empty - fetch on category click only
+  const [activeFilters, setActiveFilters] = useState([]);
   const [localOnly, setLocalOnly] = useState(false);
   const [placesCache, setPlacesCache] = useState({}); // Cache: { category: [places] }
   const routeCacheRef = useRef({}); // Cache: { "lat,lon|lat,lon|MODE": routeData }
@@ -115,6 +116,10 @@ export default function AppClient() {
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
   const cachedMidpointRef = useRef(null); // Track which midpoint the cache is for
+
+  const ensureDefaultResultFilters = useCallback(() => {
+    setActiveFilters((prev) => (prev.length > 0 ? prev : DEFAULT_RESULT_FILTERS));
+  }, []);
 
   // ---- Welcome Modal (signup / upgrade walkthrough) ----
   const [welcomeModalType, setWelcomeModalType] = useState(null); // 'signup' | 'upgrade' | null
@@ -847,6 +852,7 @@ export default function AppClient() {
         setRoute(null); // No single route for multi-location
         setHasResults(true);
         setPlaces([]);
+        ensureDefaultResultFilters();
 
         // Update URL
         const params = new URLSearchParams({
@@ -919,6 +925,7 @@ export default function AppClient() {
         window.history.replaceState({}, '', `${window.location.pathname}?${params}`);
 
         setPlaces([]);
+        ensureDefaultResultFilters();
 
         // Fire-and-forget analytics
         logSearch({
@@ -1027,6 +1034,7 @@ export default function AppClient() {
     openPricingModal,
     finalizeSearchCreditUse,
     clearPendingSearch,
+    ensureDefaultResultFilters,
   ]);
 
   // ---- Handle re-split from search history ----
