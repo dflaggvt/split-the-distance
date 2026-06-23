@@ -569,13 +569,15 @@ export default function SearchPanel({
                   onExitRoadTrip={onExitRoadTrip}
                 />
               )}
-              {/* Standard filter chips + places list (used for both normal and road trip mode) */}
-              <FilterChips
-                activeFilters={activeFilters}
-                onToggle={onFilterToggle}
-                localOnly={localOnly}
-                onLocalOnlyToggle={onLocalOnlyToggle}
-              />
+              {/* Mobile keeps in-panel filters; desktop uses floating map chips. */}
+              <div className="md:hidden">
+                <FilterChips
+                  activeFilters={activeFilters}
+                  onToggle={onFilterToggle}
+                  localOnly={localOnly}
+                  onLocalOnlyToggle={onLocalOnlyToggle}
+                />
+              </div>
               <PlacesList
                 places={localOnly ? places.filter(p => !p.brand) : places}
                 loading={placesLoading}
