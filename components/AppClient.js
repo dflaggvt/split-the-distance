@@ -1799,7 +1799,7 @@ export default function AppClient() {
           panelView={activePanelView}
           onPanelViewChange={selectPlannerView}
           onOpenAccount={openAccountView}
-          className={`h-full w-full bg-white border-r border-gray-200 overflow-y-auto overflow-x-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
+          className={`h-full w-full bg-white border-r border-gray-200 overflow-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:overflow-y-auto max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
             mobileCollapsed ? 'max-md:max-h-0 max-md:overflow-hidden max-md:p-0 max-md:border-t-0' : ''
           }`}
           />

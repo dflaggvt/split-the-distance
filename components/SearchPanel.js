@@ -202,7 +202,7 @@ export default function SearchPanel({
   const renderAlternatePanelView = () => {
     if (panelView === 'recent') {
       return (
-        <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
+        <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">
           <PanelViewHeader
             title="Recent searches"
             body="Re-run routes you have already planned."
@@ -220,7 +220,7 @@ export default function SearchPanel({
 
     if (panelView === 'saved') {
       return (
-        <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
+        <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">
           <PanelViewHeader
             title="Saved plans"
             body="Saved midpoint routes use your existing recent-search library."
@@ -238,7 +238,7 @@ export default function SearchPanel({
 
     if (panelView === 'ai') {
       return (
-        <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
+        <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">
           <PanelViewHeader
             title="AI plans"
             body="Turn a midpoint and nearby places into a practical meetup plan."
@@ -286,9 +286,9 @@ export default function SearchPanel({
       className={shellClassName}
     >
       {alternatePanelView || (
-      <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
+      <div className="flex h-full min-h-0 flex-col p-6 pb-0 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6">
         {/* Search Section */}
-        <div>
+        <div className="shrink-0 pb-4">
           <p className="text-sm text-gray-500 mb-5">
             {extraLocations.length > 0
               ? <>Find the fairest meeting point for {2 + extraLocations.length} people by {
@@ -517,90 +517,91 @@ export default function SearchPanel({
           <MainPageAd />
         )}
 
-        {/* Results */}
-        {hasResults && (route || multiResult) ? (
-          <div className="animate-fadeInUp">
-            <RouteInfo 
-              route={route} 
-              fromName={fromValue} 
-              toName={toValue} 
-              fromLocation={fromLocation}
-              toLocation={toLocation}
-              midpoint={midpoint}
-              selectedRouteIndex={selectedRouteIndex}
-              onRouteSelect={onRouteSelect}
-              travelMode={travelMode}
-              multiResult={multiResult}
-              driftRadius={driftRadius}
-              onDriftRadiusChange={onDriftRadiusChange}
-              roadTripStops={roadTripStops}
-              onActivateRoadTrip={onActivateRoadTrip}
-              onExitRoadTrip={onExitRoadTrip}
-            />
-            <SavePlanCTA
-              isLoggedIn={isLoggedIn}
-              canSave={Boolean(route)}
-              status={savePlanStatus}
-              onSave={onSavePlan}
-            />
-            <AIPlanBuilder
-              route={route}
-              midpoint={midpoint}
-              fromLocation={fromLocation}
-              toLocation={toLocation}
-              places={localOnly ? places.filter(p => !p.brand) : places}
-              activeFilters={activeFilters}
-              travelMode={travelMode}
-              midpointMode={midpointMode}
-              creditStatus={creditStatus}
-            />
-            {/* Road trip stop selector (when active) */}
-            {roadTripStops && (
-              <RoadTripItinerary
-                stops={roadTripStops}
-                interval={roadTripInterval}
+        <div className="min-h-0 flex-1 overflow-y-auto border-t border-gray-100 pb-8 pr-1 pt-4 max-md:overflow-visible max-md:border-t-0 max-md:pb-0 max-md:pr-0 max-md:pt-0">
+          {/* Results */}
+          {hasResults && (route || multiResult) ? (
+            <div className="animate-fadeInUp">
+              <RouteInfo
+                route={route}
                 fromName={fromValue}
                 toName={toValue}
-                route={route}
-                activeStopIndex={activeStopIndex}
-                onActiveStopIndexChange={onActiveStopIndexChange}
+                fromLocation={fromLocation}
+                toLocation={toLocation}
+                midpoint={midpoint}
+                selectedRouteIndex={selectedRouteIndex}
+                onRouteSelect={onRouteSelect}
+                travelMode={travelMode}
+                multiResult={multiResult}
+                driftRadius={driftRadius}
+                onDriftRadiusChange={onDriftRadiusChange}
+                roadTripStops={roadTripStops}
+                onActivateRoadTrip={onActivateRoadTrip}
                 onExitRoadTrip={onExitRoadTrip}
               />
-            )}
-            {/* Standard filter chips + places list (used for both normal and road trip mode) */}
-            <FilterChips
-              activeFilters={activeFilters}
-              onToggle={onFilterToggle}
-              localOnly={localOnly}
-              onLocalOnlyToggle={onLocalOnlyToggle}
-            />
-            <PlacesList
-              places={localOnly ? places.filter(p => !p.brand) : places}
-              loading={placesLoading}
-              activePlaceId={activePlaceId}
-              onPlaceClick={onPlaceClick}
-              activeFilters={activeFilters}
-            />
-            {!roadTripStops && (
-              <FeatureGate feature="roulette">
-                <RouletteSection
-                  midpoint={midpoint}
-                  onPlaceClick={onPlaceClick}
+              <SavePlanCTA
+                isLoggedIn={isLoggedIn}
+                canSave={Boolean(route)}
+                status={savePlanStatus}
+                onSave={onSavePlan}
+              />
+              <AIPlanBuilder
+                route={route}
+                midpoint={midpoint}
+                fromLocation={fromLocation}
+                toLocation={toLocation}
+                places={localOnly ? places.filter(p => !p.brand) : places}
+                activeFilters={activeFilters}
+                travelMode={travelMode}
+                midpointMode={midpointMode}
+                creditStatus={creditStatus}
+              />
+              {/* Road trip stop selector (when active) */}
+              {roadTripStops && (
+                <RoadTripItinerary
+                  stops={roadTripStops}
+                  interval={roadTripInterval}
+                  fromName={fromValue}
+                  toName={toValue}
+                  route={route}
+                  activeStopIndex={activeStopIndex}
+                  onActiveStopIndexChange={onActiveStopIndexChange}
+                  onExitRoadTrip={onExitRoadTrip}
                 />
-              </FeatureGate>
-            )}
-          </div>
-        ) : (
-          /* Empty State + Search History */
-          <div className={`pt-4 pb-5 ${hasResults ? 'hidden' : ''}`}>
-            {/* Search History (for logged-in users) */}
-            <SearchHistory onResplit={onResplit} show={!hasResults} />
-
-          </div>
-        )}
-        {isMobileViewport === false && (
-          <MainPageAd />
-        )}
+              )}
+              {/* Standard filter chips + places list (used for both normal and road trip mode) */}
+              <FilterChips
+                activeFilters={activeFilters}
+                onToggle={onFilterToggle}
+                localOnly={localOnly}
+                onLocalOnlyToggle={onLocalOnlyToggle}
+              />
+              <PlacesList
+                places={localOnly ? places.filter(p => !p.brand) : places}
+                loading={placesLoading}
+                activePlaceId={activePlaceId}
+                onPlaceClick={onPlaceClick}
+                activeFilters={activeFilters}
+              />
+              {!roadTripStops && (
+                <FeatureGate feature="roulette">
+                  <RouletteSection
+                    midpoint={midpoint}
+                    onPlaceClick={onPlaceClick}
+                  />
+                </FeatureGate>
+              )}
+            </div>
+          ) : (
+            /* Empty State + Search History */
+            <div className={`pb-5 ${hasResults ? 'hidden' : ''}`}>
+              {/* Search History (for logged-in users) */}
+              <SearchHistory onResplit={onResplit} show={!hasResults} />
+            </div>
+          )}
+          {isMobileViewport === false && (
+            <MainPageAd />
+          )}
+        </div>
       </div>
       )}
     </div>
