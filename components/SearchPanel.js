@@ -65,6 +65,10 @@ export default function SearchPanel({
   creditsLoading = false,
   onBuyCredits,
   enableLocationLookup = true,
+  panelView = 'plan',
+  onPanelViewChange,
+  onOpenAccount,
+  className = '',
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
@@ -173,12 +177,115 @@ export default function SearchPanel({
     return () => media.removeListener(updateViewport);
   }, []);
 
+  const shellClassName = className || `w-[420px] min-w-[420px] bg-white border-r border-gray-200 overflow-y-auto overflow-x-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
+    mobileCollapsed ? 'max-md:max-h-0 max-md:overflow-hidden max-md:p-0 max-md:border-t-0' : ''
+  }`;
+
+  const PanelViewHeader = ({ title, body }) => (
+    <div className="mb-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+          {body ? <p className="mt-1 text-sm text-gray-500">{body}</p> : null}
+        </div>
+        <button
+          type="button"
+          onClick={() => onPanelViewChange?.('plan')}
+          className="shrink-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
+        >
+          Plan route
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderAlternatePanelView = () => {
+    if (panelView === 'recent') {
+      return (
+        <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
+          <PanelViewHeader
+            title="Recent searches"
+            body="Re-run routes you have already planned."
+          />
+          <SearchHistory onResplit={onResplit} show />
+          {!isLoggedIn && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
+              <p className="text-sm font-semibold text-gray-900">Sign in to keep recent routes.</p>
+              <p className="mt-1 text-sm text-gray-500">Your route history stays with your account.</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (panelView === 'saved') {
+      return (
+        <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
+          <PanelViewHeader
+            title="Saved plans"
+            body="Saved midpoint routes use your existing recent-search library."
+          />
+          <div className="mb-4 rounded-xl border border-teal-100 bg-teal-50/60 p-4">
+            <p className="text-sm font-bold text-gray-900">Save a route after you calculate it.</p>
+            <p className="mt-1 text-sm text-gray-600">
+              Saved routes appear in Recent searches so you can come back and re-run them later.
+            </p>
+          </div>
+          <SearchHistory onResplit={onResplit} show />
+        </div>
+      );
+    }
+
+    if (panelView === 'ai') {
+      return (
+        <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
+          <PanelViewHeader
+            title="AI plans"
+            body="Turn a midpoint and nearby places into a practical meetup plan."
+          />
+          {hasResults && (route || multiResult) ? (
+            <AIPlanBuilder
+              route={route}
+              midpoint={midpoint}
+              fromLocation={fromLocation}
+              toLocation={toLocation}
+              places={localOnly ? places.filter(p => !p.brand) : places}
+              activeFilters={activeFilters}
+              travelMode={travelMode}
+              midpointMode={midpointMode}
+              creditStatus={creditStatus}
+            />
+          ) : (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
+              <p className="text-sm font-semibold text-gray-900">Run a paid midpoint search first.</p>
+              <p className="mt-1 text-sm text-gray-500">
+                After results load, AI can suggest coffee, lunch, kid-friendly, quiet, or road trip plans.
+              </p>
+            </div>
+          )}
+          {isLoggedIn && (
+            <button
+              type="button"
+              onClick={() => onOpenAccount?.('ai_plans')}
+              className="mt-4 w-full rounded-lg border border-teal-100 bg-white px-4 py-3 text-sm font-bold text-teal-700 transition hover:bg-teal-50"
+            >
+              View saved AI plans
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const alternatePanelView = panelView !== 'plan' ? renderAlternatePanelView() : null;
+
   return (
     <div
-      className={`w-[420px] min-w-[420px] bg-white border-r border-gray-200 overflow-y-auto overflow-x-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
-        mobileCollapsed ? 'max-md:max-h-0 max-md:overflow-hidden max-md:p-0 max-md:border-t-0' : ''
-      }`}
+      className={shellClassName}
     >
+      {alternatePanelView || (
       <div className="p-6 pb-8 max-md:p-5 max-md:pb-6">
         {/* Search Section */}
         <div>
@@ -495,6 +602,7 @@ export default function SearchPanel({
           <MainPageAd />
         )}
       </div>
+      )}
     </div>
   );
 }

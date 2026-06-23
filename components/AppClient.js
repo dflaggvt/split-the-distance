@@ -6,6 +6,9 @@ import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useJsApiLoader } from '@react-google-maps/api';
 import SearchPanel from './SearchPanel';
+import PlannerRail from './PlannerRail';
+import FloatingRouteSummary from './FloatingRouteSummary';
+import FloatingCategoryChips from './FloatingCategoryChips';
 import HowItWorks from './HowItWorks';
 import AuthButton from './AuthButton';
 import DevEnvironmentBadge from './DevEnvironmentBadge';
@@ -51,7 +54,7 @@ function computeMidpoint(leg, mode) {
 export default function AppClient() {
   const searchParams = useSearchParams();
   const { refreshProfile, user, isLoggedIn, plan } = useAuth();
-  const { openPricingModal, openSignIn, signInOpen } = useFeatures();
+  const { openPricingModal, openSignIn, signInOpen, openAccountModal } = useFeatures();
 
   // Load Google Maps
   const { isLoaded } = useJsApiLoader({
@@ -88,6 +91,8 @@ export default function AppClient() {
   const [activePlaceId, setActivePlaceId] = useState(null);
   const [hasResults, setHasResults] = useState(false);
   const [mobileCollapsed, setMobileCollapsed] = useState(false);
+  const [activePanelView, setActivePanelView] = useState('plan'); // plan | recent | saved | ai
+  const [plannerPanelCollapsed, setPlannerPanelCollapsed] = useState(false);
   const [toast, setToast] = useState(null);
   const [isInternal, setIsInternal] = useState(false);
   const [pendingSave, setPendingSave] = useState(null);
@@ -127,6 +132,45 @@ export default function AppClient() {
     setToast(null);
     if (toastTimer.current) clearTimeout(toastTimer.current);
   }, []);
+
+  const selectPlannerView = useCallback((view) => {
+    setActivePanelView(view);
+    setPlannerPanelCollapsed(false);
+    logSessionEvent('planner_panel_opened', { view }, { userId: user?.id });
+  }, [user?.id]);
+
+  const togglePlannerPanel = useCallback(() => {
+    setPlannerPanelCollapsed((prev) => {
+      const next = !prev;
+      logSessionEvent(next ? 'planner_panel_collapsed' : 'planner_panel_opened', {
+        view: activePanelView,
+        source: 'rail_toggle',
+      }, { userId: user?.id });
+      return next;
+    });
+  }, [activePanelView, user?.id]);
+
+  const openPlanPanel = useCallback(() => {
+    selectPlannerView('plan');
+  }, [selectPlannerView]);
+
+  const handleRailAccount = useCallback(() => {
+    if (isLoggedIn) {
+      openAccountModal();
+      return;
+    }
+
+    openSignIn({ mode: 'signin', context: 'planner_rail_account', source: 'planner_rail' });
+  }, [isLoggedIn, openAccountModal, openSignIn]);
+
+  const openAccountView = useCallback((view) => {
+    if (isLoggedIn) {
+      openAccountModal({ view });
+      return;
+    }
+
+    openSignIn({ mode: 'signin', context: view || 'account', source: 'planner_panel' });
+  }, [isLoggedIn, openAccountModal, openSignIn]);
 
   const refreshCredits = useCallback(async () => {
     if (!isLoggedIn) {
@@ -1658,8 +1702,25 @@ export default function AppClient() {
       </header>
 
       {/* Main App */}
-      <main className="flex h-[calc(100vh-56px)] mt-14 max-md:flex-col-reverse max-md:h-auto max-md:min-h-[calc(100vh-52px)] max-md:mt-13">
-        <SearchPanel
+      <main className="flex h-[calc(100vh-56px)] mt-14 bg-gray-50 max-md:flex-col-reverse max-md:h-auto max-md:min-h-[calc(100vh-52px)] max-md:mt-13">
+        <PlannerRail
+          activeView={activePanelView}
+          collapsed={plannerPanelCollapsed}
+          hasResults={hasResults}
+          creditStatus={creditStatus}
+          onSelectView={selectPlannerView}
+          onToggleCollapse={togglePlannerPanel}
+          onAccount={handleRailAccount}
+        />
+
+        <div
+          className={`relative z-[110] h-full transition-[width,min-width] duration-300 max-md:h-auto max-md:w-full max-md:min-w-0 ${
+            plannerPanelCollapsed
+              ? 'md:w-0 md:min-w-0 md:overflow-hidden'
+              : 'md:w-[420px] md:min-w-[420px]'
+          }`}
+        >
+          <SearchPanel
           fromValue={fromValue}
           toValue={toValue}
           onFromChange={(val) => {
@@ -1735,7 +1796,14 @@ export default function AppClient() {
           creditsLoading={creditsLoading}
           onBuyCredits={openPricingModal}
           enableLocationLookup={hasSearchCredits}
-        />
+          panelView={activePanelView}
+          onPanelViewChange={selectPlannerView}
+          onOpenAccount={openAccountView}
+          className={`h-full w-full bg-white border-r border-gray-200 overflow-y-auto overflow-x-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
+            mobileCollapsed ? 'max-md:max-h-0 max-md:overflow-hidden max-md:p-0 max-md:border-t-0' : ''
+          }`}
+          />
+        </div>
 
         {/* Map Container */}
         <div className={`flex-1 relative max-md:flex-none ${mobileCollapsed ? 'max-md:h-[calc(100vh-56px)]' : 'max-md:h-[45vh] max-md:min-h-[280px]'}`}>
@@ -1758,6 +1826,26 @@ export default function AppClient() {
             roadTripStops={roadTripStops}
             activeStopIndex={activeStopIndex}
             onActiveStopIndexChange={handleActiveStopChange}
+          />
+
+          <FloatingRouteSummary
+            fromValue={fromValue}
+            toValue={toValue}
+            route={route}
+            multiResult={multiResult}
+            hasResults={hasResults}
+            loading={loading}
+            panelCollapsed={plannerPanelCollapsed}
+            onEdit={openPlanPanel}
+            onCollapsePanel={togglePlannerPanel}
+          />
+
+          <FloatingCategoryChips
+            show={hasResults && Boolean(route || multiResult)}
+            activeFilters={activeFilters}
+            onToggle={handleFilterToggle}
+            localOnly={localOnly}
+            onLocalOnlyToggle={handleLocalOnlyToggle}
           />
 
           {/* Mobile panel toggle */}
