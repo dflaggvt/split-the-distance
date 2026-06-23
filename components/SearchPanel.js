@@ -10,6 +10,7 @@ import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
 import SavePlanCTA from './SavePlanCTA';
 import MainPageAd from './MainPageAd';
+import SavedAIPlansView from './SavedAIPlansView';
 import AIPlanBuilder from './ai/AIPlanBuilder';
 import FeatureGate, { useGatedAction } from './FeatureGate';
 
@@ -224,15 +225,40 @@ export default function SearchPanel({
         <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">
           <PanelViewHeader
             title="Saved plans"
-            body="Saved midpoint routes use your existing recent-search library."
+            body="Recent searches, saved routes, and AI plans you can come back to."
           />
-          <div className="mb-4 rounded-xl border border-teal-100 bg-teal-50/60 p-4">
-            <p className="text-sm font-bold text-gray-900">Save a route after you calculate it.</p>
+          <div className="mb-5 grid grid-cols-3 gap-2">
+            {['Recent searches', 'Saved routes', 'AI plans'].map((item) => (
+              <div
+                key={item}
+                className="rounded-xl border border-teal-100 bg-teal-50/70 px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-teal-700"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+          <div className="mb-5 rounded-xl border border-teal-100 bg-teal-50/60 p-4">
+            <p className="text-sm font-bold text-gray-900">Saved routes live with your recent searches.</p>
             <p className="mt-1 text-sm text-gray-600">
-              Saved routes appear in Recent searches so you can come back and re-run them later.
+              After you calculate a route, it appears here so you can re-run it later.
             </p>
           </div>
-          <SearchHistory onResplit={onResplit} show />
+          <SearchHistory onResplit={onResplit} show label="Recent searches and saved routes" />
+          {!isLoggedIn && (
+            <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
+              <p className="text-sm font-semibold text-gray-900">Sign in to keep saved plans.</p>
+              <p className="mt-1 text-sm text-gray-500">
+                Recent searches, routes, and AI plans stay with your account.
+              </p>
+            </div>
+          )}
+          <div className="mb-3 mt-6">
+            <div className="text-xs font-bold uppercase tracking-wide text-gray-500">AI plans</div>
+            <p className="mt-1 text-sm text-gray-500">
+              Meetup plans generated from your route results.
+            </p>
+          </div>
+          <SavedAIPlansView />
         </div>
       );
     }

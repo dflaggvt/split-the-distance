@@ -34,7 +34,7 @@ function shortName(name) {
   return name.split(',')[0].trim();
 }
 
-export default function SearchHistory({ onResplit, show }) {
+export default function SearchHistory({ onResplit, show, label = 'Recent' }) {
   const { isLoggedIn, user } = useAuth();
   const historyGate = useGatedAction('search_history');
   const userId = user?.id;
@@ -109,7 +109,7 @@ export default function SearchHistory({ onResplit, show }) {
   if (loading) {
     return (
       <div className="mb-4">
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Recent Searches</div>
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</div>
         <div className="flex items-center justify-center py-4 text-sm text-gray-400">
           <span className="inline-block w-4 h-4 border-2 border-gray-200 border-t-teal-500 rounded-full animate-spin mr-2" />
           Loading...
@@ -129,7 +129,7 @@ export default function SearchHistory({ onResplit, show }) {
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Recent</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</span>
         </div>
         {history.length > 0 && (
           <div className="relative">
