@@ -528,23 +528,27 @@ export default function SearchPanel({
           {/* Results */}
           {hasResults && (route || multiResult) ? (
             <div className="animate-fadeInUp">
-              <RouteInfo
-                route={route}
-                fromName={fromValue}
-                toName={toValue}
-                fromLocation={fromLocation}
-                toLocation={toLocation}
-                midpoint={midpoint}
-                selectedRouteIndex={selectedRouteIndex}
-                onRouteSelect={onRouteSelect}
-                travelMode={travelMode}
-                multiResult={multiResult}
-                driftRadius={driftRadius}
-                onDriftRadiusChange={onDriftRadiusChange}
-                roadTripStops={roadTripStops}
-                onActivateRoadTrip={onActivateRoadTrip}
-                onExitRoadTrip={onExitRoadTrip}
-              />
+              {isMobileViewport === true && (
+                <div className="md:hidden">
+                  <RouteInfo
+                    route={route}
+                    fromName={fromValue}
+                    toName={toValue}
+                    fromLocation={fromLocation}
+                    toLocation={toLocation}
+                    midpoint={midpoint}
+                    selectedRouteIndex={selectedRouteIndex}
+                    onRouteSelect={onRouteSelect}
+                    travelMode={travelMode}
+                    multiResult={multiResult}
+                    driftRadius={driftRadius}
+                    onDriftRadiusChange={onDriftRadiusChange}
+                    roadTripStops={roadTripStops}
+                    onActivateRoadTrip={onActivateRoadTrip}
+                    onExitRoadTrip={onExitRoadTrip}
+                  />
+                </div>
+              )}
               <SavePlanCTA
                 isLoggedIn={isLoggedIn}
                 canSave={Boolean(route)}

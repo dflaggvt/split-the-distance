@@ -9,6 +9,7 @@ import SearchPanel from './SearchPanel';
 import PlannerRail from './PlannerRail';
 import FloatingRoutePlanner from './FloatingRoutePlanner';
 import FloatingCategoryChips from './FloatingCategoryChips';
+import RouteInfo from './RouteInfo';
 import HowItWorks from './HowItWorks';
 import AuthButton from './AuthButton';
 import DevEnvironmentBadge from './DevEnvironmentBadge';
@@ -93,6 +94,7 @@ export default function AppClient() {
   const [mobileCollapsed, setMobileCollapsed] = useState(false);
   const [activePanelView, setActivePanelView] = useState('plan'); // plan | recent | saved | ai
   const [plannerPanelCollapsed, setPlannerPanelCollapsed] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [toast, setToast] = useState(null);
   const [isInternal, setIsInternal] = useState(false);
   const [pendingSave, setPendingSave] = useState(null);
@@ -131,6 +133,20 @@ export default function AppClient() {
   const hideToast = useCallback(() => {
     setToast(null);
     if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)');
+    const updateViewport = () => setIsDesktopViewport(media.matches);
+    updateViewport();
+
+    if (media.addEventListener) {
+      media.addEventListener('change', updateViewport);
+      return () => media.removeEventListener('change', updateViewport);
+    }
+
+    media.addListener(updateViewport);
+    return () => media.removeListener(updateViewport);
   }, []);
 
   const selectPlannerView = useCallback((view) => {
@@ -1819,58 +1835,84 @@ export default function AppClient() {
             onActiveStopIndexChange={handleActiveStopChange}
           />
 
-          <FloatingRoutePlanner
-            fromValue={fromValue}
-            toValue={toValue}
-            onFromChange={(val) => {
-              if (!fromValue && val.trim()) {
-                logSessionEvent('input_started', { field: 'from' }, { userId: user?.id });
-              }
-              setFromValue(val);
-              if (!val.trim() || !hasSearchCredits) setFromLocation(null);
-            }}
-            onToChange={(val) => {
-              if (!toValue && val.trim()) {
-                logSessionEvent('input_started', { field: 'to' }, { userId: user?.id });
-              }
-              setToValue(val);
-              if (!val.trim() || !hasSearchCredits) setToLocation(null);
-            }}
-            onFromSelect={(loc) => {
-              setFromLocation(loc);
-              logSessionEvent('input_selected', { field: 'from', locationName: loc.name }, { userId: user?.id });
-            }}
-            onToSelect={(loc) => {
-              setToLocation(loc);
-              logSessionEvent('input_selected', { field: 'to', locationName: loc.name }, { userId: user?.id });
-            }}
-            onFromClear={() => {
-              setFromLocation(null);
-              logSessionEvent('input_cleared', { field: 'from' }, { userId: user?.id });
-            }}
-            onToClear={() => {
-              setToLocation(null);
-              logSessionEvent('input_cleared', { field: 'to' }, { userId: user?.id });
-            }}
-            onSwap={handleSwap}
-            onSplit={handleSplit}
-            loading={loading}
-            fromLocation={fromLocation}
-            toLocation={toLocation}
-            travelMode={travelMode}
-            onTravelModeChange={handleTravelModeChange}
-            midpointMode={midpointMode}
-            onMidpointModeChange={handleMidpointModeChange}
-            extraLocations={extraLocations}
-            onExtraLocationsChange={handleExtraLocationsChange}
-            onError={showToast}
-            creditStatus={creditStatus}
-            creditsLoading={creditsLoading}
-            onBuyCredits={openPricingModal}
-            enableLocationLookup={hasSearchCredits}
-            panelCollapsed={plannerPanelCollapsed}
-            onTogglePanel={togglePlannerPanel}
-          />
+          {isDesktopViewport && (
+            <div className="hidden md:flex absolute left-4 top-4 z-[60] w-[min(590px,calc(100%-32px))] flex-col gap-3 pointer-events-none">
+              <FloatingRoutePlanner
+                className="w-full pointer-events-auto"
+                fromValue={fromValue}
+                toValue={toValue}
+                onFromChange={(val) => {
+                  if (!fromValue && val.trim()) {
+                    logSessionEvent('input_started', { field: 'from' }, { userId: user?.id });
+                  }
+                  setFromValue(val);
+                  if (!val.trim() || !hasSearchCredits) setFromLocation(null);
+                }}
+                onToChange={(val) => {
+                  if (!toValue && val.trim()) {
+                    logSessionEvent('input_started', { field: 'to' }, { userId: user?.id });
+                  }
+                  setToValue(val);
+                  if (!val.trim() || !hasSearchCredits) setToLocation(null);
+                }}
+                onFromSelect={(loc) => {
+                  setFromLocation(loc);
+                  logSessionEvent('input_selected', { field: 'from', locationName: loc.name }, { userId: user?.id });
+                }}
+                onToSelect={(loc) => {
+                  setToLocation(loc);
+                  logSessionEvent('input_selected', { field: 'to', locationName: loc.name }, { userId: user?.id });
+                }}
+                onFromClear={() => {
+                  setFromLocation(null);
+                  logSessionEvent('input_cleared', { field: 'from' }, { userId: user?.id });
+                }}
+                onToClear={() => {
+                  setToLocation(null);
+                  logSessionEvent('input_cleared', { field: 'to' }, { userId: user?.id });
+                }}
+                onSwap={handleSwap}
+                onSplit={handleSplit}
+                loading={loading}
+                fromLocation={fromLocation}
+                toLocation={toLocation}
+                travelMode={travelMode}
+                onTravelModeChange={handleTravelModeChange}
+                midpointMode={midpointMode}
+                onMidpointModeChange={handleMidpointModeChange}
+                extraLocations={extraLocations}
+                onExtraLocationsChange={handleExtraLocationsChange}
+                onError={showToast}
+                creditStatus={creditStatus}
+                creditsLoading={creditsLoading}
+                onBuyCredits={openPricingModal}
+                enableLocationLookup={hasSearchCredits}
+                panelCollapsed={plannerPanelCollapsed}
+                onTogglePanel={togglePlannerPanel}
+              />
+
+              {hasResults && (route || multiResult) && (
+                <RouteInfo
+                  route={route}
+                  fromName={fromValue}
+                  toName={toValue}
+                  fromLocation={fromLocation}
+                  toLocation={toLocation}
+                  midpoint={midpoint}
+                  selectedRouteIndex={selectedRouteIndex}
+                  onRouteSelect={handleRouteSelect}
+                  travelMode={travelMode}
+                  multiResult={multiResult}
+                  driftRadius={driftRadius}
+                  onDriftRadiusChange={handleDriftRadiusChange}
+                  roadTripStops={roadTripStops}
+                  onActivateRoadTrip={handleActivateRoadTrip}
+                  onExitRoadTrip={handleExitRoadTrip}
+                  variant="floating"
+                />
+              )}
+            </div>
+          )}
 
           <FloatingCategoryChips
             show={hasResults && Boolean(route || multiResult)}

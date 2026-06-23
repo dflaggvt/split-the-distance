@@ -53,6 +53,8 @@ export default function RouteInfo({
   roadTripStops = null,
   onActivateRoadTrip,
   onExitRoadTrip,
+  variant = 'panel',
+  className = '',
 }) {
   const { user } = useAuth();
   const modeLabels = TRAVEL_MODE_LABELS[travelMode] || TRAVEL_MODE_LABELS.DRIVING;
@@ -259,6 +261,28 @@ export default function RouteInfo({
   if (!route && !multiResult) return null;
 
   const hasAlternatives = route?.allRoutes && route.allRoutes.length > 1;
+  const isFloating = variant === 'floating';
+  const rootClassName = [
+    isFloating
+      ? 'w-full max-h-[calc(100vh-360px)] overflow-y-auto pointer-events-auto'
+      : 'animate-fadeInUp',
+    className,
+  ].filter(Boolean).join(' ');
+  const cardSpacingClass = isFloating ? 'mb-2' : 'mt-5 mb-3';
+  const standardCardClass = `${cardSpacingClass} rounded-xl overflow-hidden border border-orange-300 bg-white ${isFloating ? 'shadow-xl shadow-gray-900/15' : ''}`;
+  const groupCardClass = `${cardSpacingClass} rounded-xl overflow-hidden border border-purple-300 bg-white ${isFloating ? 'shadow-xl shadow-gray-900/15' : ''}`;
+  const bannerClass = isFloating ? 'px-3 py-1.5' : 'px-4 py-2';
+  const bodyClass = isFloating ? 'px-3 pt-2.5 pb-2' : 'px-4 pt-3 pb-2';
+  const footerClass = isFloating ? 'px-3 py-2' : 'px-4 py-2.5';
+  const titleClass = isFloating
+    ? 'text-lg font-bold text-gray-900 leading-tight'
+    : 'text-[22px] font-bold text-gray-900 leading-tight';
+  const fallbackTitleClass = isFloating
+    ? 'text-base font-bold text-gray-700 leading-tight'
+    : 'text-lg font-bold text-gray-700 leading-tight';
+  const statsClass = isFloating
+    ? 'flex items-center gap-1.5 mt-1.5 text-[13px] text-gray-500'
+    : 'flex items-center gap-1.5 mt-2 text-[15px] text-gray-500';
 
   const executeShare = async (method) => {
     setShowShareMenu(false);
@@ -382,21 +406,21 @@ export default function RouteInfo({
     const PERSON_COLORS = ['#0d9488', '#f97316', '#8b5cf6', '#3b82f6', '#ec4899'];
     const PERSON_LABELS = ['A', 'B', 'C', 'D', 'E'];
     return (
-      <div className="animate-fadeInUp">
-        <div className="mt-5 mb-3 rounded-xl overflow-hidden border border-purple-300 bg-white">
+      <div className={rootClassName}>
+        <div className={groupCardClass}>
           {/* Purple banner — GROUP MIDPOINT label */}
-          <div className="bg-gradient-to-r from-purple-500 to-indigo-500 px-4 py-2">
+          <div className={`bg-gradient-to-r from-purple-500 to-indigo-500 ${bannerClass}`}>
             <span className="text-white text-xs font-bold uppercase tracking-wider">
               Group Meeting Point ({multiResult.locations?.length || '?'} people)
             </span>
           </div>
 
           {/* Body */}
-          <div className="px-4 pt-3 pb-2">
+          <div className={bodyClass}>
             {midpointLabel ? (
-              <h3 className="text-[22px] font-bold text-gray-900 leading-tight">{midpointLabel}</h3>
+              <h3 className={titleClass}>{midpointLabel}</h3>
             ) : (
-              <h3 className="text-lg font-bold text-gray-700 leading-tight">Meeting point found</h3>
+              <h3 className={fallbackTitleClass}>Meeting point found</h3>
             )}
             <p className="text-xs text-gray-400 mt-1">
               Optimized for fairest {
@@ -446,7 +470,7 @@ export default function RouteInfo({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-purple-100">
+          <div className={`flex items-center justify-between ${footerClass} border-t border-purple-100`}>
             <button
               onClick={handleMidpointClick}
               className="text-[13px] font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
@@ -463,23 +487,23 @@ export default function RouteInfo({
   if (!route) return null;
 
   return (
-    <div className="animate-fadeInUp">
+    <div className={rootClassName}>
       {/* Halfway Point Card */}
       {midpoint && (
-        <div className="mt-5 mb-3 rounded-xl overflow-hidden border border-orange-300 bg-white">
+        <div className={standardCardClass}>
           {/* Orange banner — HALFWAY POINT label only */}
-          <div className="bg-gradient-to-r from-orange-400 to-amber-400 px-4 py-2">
+          <div className={`bg-gradient-to-r from-orange-400 to-amber-400 ${bannerClass}`}>
             <span className="text-white text-xs font-bold uppercase tracking-wider">Halfway Point</span>
           </div>
 
           {/* Body — city name + stats on white bg */}
-          <div className="px-4 pt-3 pb-2">
+          <div className={bodyClass}>
             {midpointLabel ? (
-              <h3 className="text-[22px] font-bold text-gray-900 leading-tight">{midpointLabel}</h3>
+              <h3 className={titleClass}>{midpointLabel}</h3>
             ) : (
-              <h3 className="text-lg font-bold text-gray-700 leading-tight">Midpoint found</h3>
+              <h3 className={fallbackTitleClass}>Midpoint found</h3>
             )}
-            <div className="flex items-center gap-1.5 mt-2 text-[15px] text-gray-500">
+            <div className={statsClass}>
               <span className="font-semibold text-gray-600">{formatDistance(route.totalDistance)}</span>
               <span className="text-gray-300">|</span>
               <span className="font-semibold text-gray-600">{formatDuration(route.totalDuration)}</span>
@@ -492,7 +516,7 @@ export default function RouteInfo({
           </div>
 
           {/* Footer — Open in Maps + Share */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-orange-100 relative" ref={shareMenuRef}>
+          <div className={`flex items-center justify-between ${footerClass} border-t border-orange-100 relative`} ref={shareMenuRef}>
             <button
               onClick={handleMidpointClick}
               className="text-[13px] font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"

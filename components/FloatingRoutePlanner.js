@@ -43,6 +43,7 @@ export default function FloatingRoutePlanner({
   enableLocationLookup,
   panelCollapsed,
   onTogglePanel,
+  className = '',
 }) {
   const toInputRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
@@ -109,8 +110,10 @@ export default function FloatingRoutePlanner({
     ));
   };
 
+  const shellClassName = className || 'hidden md:block absolute left-4 top-4 z-[60] w-[min(590px,calc(100%-32px))]';
+
   return (
-    <div className="hidden md:block absolute left-4 top-4 z-[60] w-[min(590px,calc(100%-32px))]">
+    <div className={shellClassName}>
       <div className="rounded-2xl border border-gray-200/80 bg-white/95 shadow-xl shadow-gray-900/15 backdrop-blur">
         <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
           <div className="flex flex-1 gap-1">

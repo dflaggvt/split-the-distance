@@ -43,7 +43,7 @@ export default function FloatingCategoryChips({
   };
 
   return (
-    <div className="hidden md:block absolute left-4 right-4 top-[252px] z-[50] pointer-events-none min-[1600px]:left-[630px] min-[1600px]:top-5">
+    <div className="hidden md:block absolute left-[620px] right-4 top-5 z-[50] pointer-events-none">
       <div className="flex max-w-full gap-2 overflow-x-auto pb-2 pointer-events-auto">
         {CATEGORY_KEYS.map((key) => {
           const cat = CATEGORIES[key];
