@@ -1686,12 +1686,6 @@ export default function AppClient() {
             )}
           </Link>
           <nav className="flex items-center gap-4">
-            <a
-              href="#how-it-works"
-              className="hidden md:block text-sm font-medium text-gray-500 no-underline hover:text-teal-600 transition-colors duration-200"
-            >
-              How It Works
-            </a>
             <AuthButton />
           </nav>
         </div>
@@ -1907,12 +1901,13 @@ export default function AppClient() {
         </div>
       </main>
 
-      {/* How It Works */}
-      <HowItWorks />
+      <div className="md:hidden">
+        {/* How It Works */}
+        <HowItWorks />
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-5 px-6 text-[13px]">
-        <div className="max-w-[800px] mx-auto text-center flex items-center justify-center gap-2 flex-wrap">
+        {/* Footer */}
+        <footer className="bg-gray-900 text-gray-400 py-5 px-6 text-[13px]">
+          <div className="max-w-[800px] mx-auto text-center flex items-center justify-center gap-2 flex-wrap">
           <span>Split The Distance &copy; {new Date().getFullYear()}</span>
           <span className="text-gray-600">·</span>
           <Link href="/about" className="hover:text-gray-200 transition">About Us</Link>
@@ -1921,7 +1916,8 @@ export default function AppClient() {
           <span className="text-gray-600">·</span>
           <Link href="/legal/privacy" className="hover:text-gray-200 transition">Privacy</Link>
         </div>
-      </footer>
+        </footer>
+      </div>
 
       {/* Auth, Pricing & Account Modals */}
       <SignInModal />
@@ -1974,7 +1970,7 @@ export default function AppClient() {
               &times;
             </button>
           </div>
-        </div>
+          </div>
       )}
 
       {creditsBannerStatus === 'success' && (
