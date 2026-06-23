@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 import { useJsApiLoader } from '@react-google-maps/api';
 import SearchPanel from './SearchPanel';
 import PlannerRail from './PlannerRail';
-import FloatingRouteSummary from './FloatingRouteSummary';
+import FloatingRoutePlanner from './FloatingRoutePlanner';
 import FloatingCategoryChips from './FloatingCategoryChips';
 import HowItWorks from './HowItWorks';
 import AuthButton from './AuthButton';
@@ -149,10 +149,6 @@ export default function AppClient() {
       return next;
     });
   }, [activePanelView, user?.id]);
-
-  const openPlanPanel = useCallback(() => {
-    selectPlannerView('plan');
-  }, [selectPlannerView]);
 
   const handleRailAccount = useCallback(() => {
     if (isLoggedIn) {
@@ -1799,6 +1795,7 @@ export default function AppClient() {
           panelView={activePanelView}
           onPanelViewChange={selectPlannerView}
           onOpenAccount={openAccountView}
+          showPlannerControls={false}
           className={`h-full w-full bg-white border-r border-gray-200 overflow-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:overflow-y-auto max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
             mobileCollapsed ? 'max-md:max-h-0 max-md:overflow-hidden max-md:p-0 max-md:border-t-0' : ''
           }`}
@@ -1828,16 +1825,57 @@ export default function AppClient() {
             onActiveStopIndexChange={handleActiveStopChange}
           />
 
-          <FloatingRouteSummary
+          <FloatingRoutePlanner
             fromValue={fromValue}
             toValue={toValue}
-            route={route}
-            multiResult={multiResult}
-            hasResults={hasResults}
+            onFromChange={(val) => {
+              if (!fromValue && val.trim()) {
+                logSessionEvent('input_started', { field: 'from' }, { userId: user?.id });
+              }
+              setFromValue(val);
+              if (!val.trim() || !hasSearchCredits) setFromLocation(null);
+            }}
+            onToChange={(val) => {
+              if (!toValue && val.trim()) {
+                logSessionEvent('input_started', { field: 'to' }, { userId: user?.id });
+              }
+              setToValue(val);
+              if (!val.trim() || !hasSearchCredits) setToLocation(null);
+            }}
+            onFromSelect={(loc) => {
+              setFromLocation(loc);
+              logSessionEvent('input_selected', { field: 'from', locationName: loc.name }, { userId: user?.id });
+            }}
+            onToSelect={(loc) => {
+              setToLocation(loc);
+              logSessionEvent('input_selected', { field: 'to', locationName: loc.name }, { userId: user?.id });
+            }}
+            onFromClear={() => {
+              setFromLocation(null);
+              logSessionEvent('input_cleared', { field: 'from' }, { userId: user?.id });
+            }}
+            onToClear={() => {
+              setToLocation(null);
+              logSessionEvent('input_cleared', { field: 'to' }, { userId: user?.id });
+            }}
+            onSwap={handleSwap}
+            onSplit={handleSplit}
             loading={loading}
+            fromLocation={fromLocation}
+            toLocation={toLocation}
+            travelMode={travelMode}
+            onTravelModeChange={handleTravelModeChange}
+            midpointMode={midpointMode}
+            onMidpointModeChange={handleMidpointModeChange}
+            extraLocations={extraLocations}
+            onExtraLocationsChange={handleExtraLocationsChange}
+            onError={showToast}
+            creditStatus={creditStatus}
+            creditsLoading={creditsLoading}
+            onBuyCredits={openPricingModal}
+            enableLocationLookup={hasSearchCredits}
             panelCollapsed={plannerPanelCollapsed}
-            onEdit={openPlanPanel}
-            onCollapsePanel={togglePlannerPanel}
+            onTogglePanel={togglePlannerPanel}
           />
 
           <FloatingCategoryChips

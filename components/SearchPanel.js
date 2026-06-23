@@ -68,6 +68,7 @@ export default function SearchPanel({
   panelView = 'plan',
   onPanelViewChange,
   onOpenAccount,
+  showPlannerControls = true,
   className = '',
 }) {
   const toInputRef = useRef(null);
@@ -288,7 +289,7 @@ export default function SearchPanel({
       {alternatePanelView || (
       <div className="flex h-full min-h-0 flex-col p-6 pb-0 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6">
         {/* Search Section */}
-        <div className="shrink-0 pb-4">
+        <div className={`shrink-0 pb-4 ${showPlannerControls ? '' : 'md:hidden'}`}>
           <p className="text-sm text-gray-500 mb-5">
             {extraLocations.length > 0
               ? <>Find the fairest meeting point for {2 + extraLocations.length} people by {
