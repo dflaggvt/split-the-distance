@@ -21,7 +21,6 @@ const SIGNUP_SLIDES = [
     features: [
       { emoji: '🎯', text: 'Drift Radius — see a fairness zone, not just a point' },
       { emoji: '👥', text: 'Group Search for 4-5 people' },
-      { emoji: '🛣️', text: 'Road Trip Stops — plan stops along any route' },
       { emoji: '🎰', text: 'Unlimited Roulette and Search History' },
     ],
     cta: 'upgrade',
@@ -36,7 +35,6 @@ const UPGRADE_SLIDES = [
     features: [
       { emoji: '🎯', text: 'Drift Radius — toggle it on next to the midpoint card to see your fairness zone' },
       { emoji: '👥', text: 'Group Search (4-5) — click "+ Add person" to add up to 5 locations' },
-      { emoji: '🛣️', text: 'Road Trip Stops — look for "Plan Stops Along Route" on long routes (2+ hours)' },
     ],
   },
   {

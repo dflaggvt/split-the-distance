@@ -37,6 +37,8 @@ const STOP_INTERVAL_OPTIONS = {
   ],
 };
 
+const SHOW_ROAD_TRIP_UI = false;
+
 export default function RouteInfo({ 
   route, 
   fromName, 
@@ -84,6 +86,7 @@ export default function RouteInfo({
   };
 
   const renderRoadTripButton = () => {
+    if (!SHOW_ROAD_TRIP_UI) return null;
     if (!qualifiesForRoadTrip || multiResult) return null;
 
     // If already in road trip mode, show "Back to Midpoint" button
