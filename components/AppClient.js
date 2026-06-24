@@ -45,6 +45,7 @@ const MapView = dynamic(() => import('./MapView'), {
 const LIBRARIES = [];
 const DEFAULT_RESULT_FILTERS = ['restaurant'];
 const PLACE_DISCOVERY_RADIUS_METERS = 20000;
+const DEFAULT_DRIFT_RADIUS_MINUTES = 5;
 
 /**
  * Compute midpoint from a Directions leg based on the selected mode.
@@ -52,6 +53,11 @@ const PLACE_DISCOVERY_RADIUS_METERS = 20000;
  */
 function computeMidpoint(leg, mode) {
   return mode === 'distance' ? calculateDistanceMidpoint(leg) : calculateTimeMidpoint(leg);
+}
+
+function createDriftRadius(midpoint, travelMode, minutes = DEFAULT_DRIFT_RADIUS_MINUTES) {
+  if (!midpoint) return null;
+  return generateDriftCircle(midpoint, { minutes, travelMode });
 }
 
 export default function AppClient() {
@@ -879,6 +885,7 @@ export default function AppClient() {
 
         setMultiResult(result);
         setMidpoint(result.midpoint);
+        setDriftRadius(createDriftRadius(result.midpoint, travelMode));
         setRoute(null); // No single route for multi-location
         setHasResults(true);
         setPlaces([]);
@@ -945,6 +952,7 @@ export default function AppClient() {
         setMultiResult(null);
         const mp = computeMidpoint(routeData.allRoutes[0].leg, midpointMode);
         setMidpoint(mp);
+        setDriftRadius(createDriftRadius(mp, travelMode));
         setHasResults(true);
 
         // Update URL
@@ -1326,6 +1334,9 @@ export default function AppClient() {
       setRoute(routeData);
       const mp = computeMidpoint(routeData.allRoutes[0].leg, midpointMode);
       setMidpoint(mp);
+      setDriftRadius((prev) =>
+        prev ? createDriftRadius(mp, travelMode, prev.minutes || DEFAULT_DRIFT_RADIUS_MINUTES) : null
+      );
       setSelectedRouteIndex(0);
       // Clear places cache since midpoint may have changed
       setPlacesCache({});
@@ -1346,6 +1357,9 @@ export default function AppClient() {
 
     const mp = computeMidpoint(leg, midpointMode);
     setMidpoint(mp);
+    setDriftRadius((prev) =>
+      prev ? createDriftRadius(mp, travelMode, prev.minutes || DEFAULT_DRIFT_RADIUS_MINUTES) : null
+    );
     // Clear places cache since midpoint moved
     setPlacesCache({});
     if (activeFilters.length > 0) {
@@ -1417,6 +1431,9 @@ export default function AppClient() {
       const mp = computeMidpoint(selectedRoute.leg, midpointMode);
       setSelectedRouteIndex(index);
       setMidpoint(mp);
+      setDriftRadius((prev) =>
+        prev ? createDriftRadius(mp, travelMode, prev.minutes || DEFAULT_DRIFT_RADIUS_MINUTES) : null
+      );
       
       // Update route state with new selection
       setRoute((prev) => ({
@@ -1441,7 +1458,7 @@ export default function AppClient() {
         distanceMeters: selectedRoute.totalDistance,
       }, { userId: user?.id });
     },
-    [route, fetchPlaces, activeFilters, midpointMode, user]
+    [route, fetchPlaces, activeFilters, midpointMode, travelMode, user]
   );
 
   // ---- Auto-run from URL params on mount ----
@@ -1533,6 +1550,7 @@ export default function AppClient() {
         const routeData = await getRoute(from, to);
         setRoute(routeData);
         setMidpoint(routeData.midpoint);
+        setDriftRadius(createDriftRadius(routeData.midpoint, travelMode));
         setHasResults(true);
 
         // Don't fetch places automatically - wait for user to click a category
@@ -1638,6 +1656,7 @@ export default function AppClient() {
         const routeData = await getRoute(from, to);
         setRoute(routeData);
         setMidpoint(routeData.midpoint);
+        setDriftRadius(createDriftRadius(routeData.midpoint, travelMode));
         setHasResults(true);
         setPlaces([]);
 
