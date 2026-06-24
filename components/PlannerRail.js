@@ -22,15 +22,6 @@ function RailIcon({ type }) {
     );
   }
 
-  if (type === 'recent') {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </svg>
-    );
-  }
-
   if (type === 'saved') {
     return (
       <svg {...common}>
@@ -107,12 +98,6 @@ export default function PlannerRail({
           label={hasResults ? 'Results' : 'Plan'}
           icon="plan"
           onClick={() => onSelectView('plan')}
-        />
-        <RailButton
-          active={activeView === 'recent'}
-          label="Recent"
-          icon="recent"
-          onClick={() => onSelectView('recent')}
         />
         <RailButton
           active={activeView === 'saved'}

@@ -202,24 +202,6 @@ export default function SearchPanel({
   );
 
   const renderAlternatePanelView = () => {
-    if (panelView === 'recent') {
-      return (
-        <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">
-          <PanelViewHeader
-            title="Recent searches"
-            body="Re-run routes you have already planned."
-          />
-          <SearchHistory onResplit={onResplit} show />
-          {!isLoggedIn && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
-              <p className="text-sm font-semibold text-gray-900">Sign in to keep recent routes.</p>
-              <p className="mt-1 text-sm text-gray-500">Your route history stays with your account.</p>
-            </div>
-          )}
-        </div>
-      );
-    }
-
     if (panelView === 'saved') {
       return (
         <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">

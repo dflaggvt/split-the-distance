@@ -93,7 +93,7 @@ export default function AppClient() {
   const [activePlaceId, setActivePlaceId] = useState(null);
   const [hasResults, setHasResults] = useState(false);
   const [mobileCollapsed, setMobileCollapsed] = useState(false);
-  const [activePanelView, setActivePanelView] = useState('plan'); // plan | recent | saved | ai
+  const [activePanelView, setActivePanelView] = useState('plan'); // plan | saved | ai
   const [plannerPanelCollapsed, setPlannerPanelCollapsed] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [toast, setToast] = useState(null);
@@ -155,9 +155,10 @@ export default function AppClient() {
   }, []);
 
   const selectPlannerView = useCallback((view) => {
-    setActivePanelView(view);
+    const nextView = view === 'recent' ? 'saved' : view;
+    setActivePanelView(nextView);
     setPlannerPanelCollapsed(false);
-    logSessionEvent('planner_panel_opened', { view }, { userId: user?.id });
+    logSessionEvent('planner_panel_opened', { view: nextView }, { userId: user?.id });
   }, [user?.id]);
 
   const togglePlannerPanel = useCallback(() => {
