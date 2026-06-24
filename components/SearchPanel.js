@@ -289,12 +289,10 @@ export default function SearchPanel({
   };
 
   const alternatePanelView = panelView !== 'plan' ? renderAlternatePanelView() : null;
-  const mainPanelClassName = showPlannerControls
-    ? 'flex h-full min-h-0 flex-col p-6 pb-0 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6'
-    : 'h-full overflow-y-auto p-6 pb-8 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6';
+  const mainPanelClassName = 'flex h-full min-h-0 flex-col p-6 pb-0 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6';
   const resultsPanelClassName = showPlannerControls
     ? 'min-h-0 flex-1 overflow-y-auto border-t border-gray-100 pb-8 pr-1 pt-4 max-md:overflow-visible max-md:border-t-0 max-md:pb-0 max-md:pr-0 max-md:pt-0'
-    : 'pb-8 max-md:pb-0';
+    : 'min-h-0 flex-1 overflow-y-auto pb-8 pr-1 max-md:overflow-visible max-md:pb-0 max-md:pr-0';
 
   return (
     <div

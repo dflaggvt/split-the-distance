@@ -1719,7 +1719,7 @@ export default function AppClient() {
       </header>
 
       {/* Main App */}
-      <main className="flex h-[calc(100vh-56px)] mt-14 bg-gray-50 max-md:flex-col-reverse max-md:h-auto max-md:min-h-[calc(100vh-52px)] max-md:mt-13">
+      <main className="flex h-[calc(100vh-56px)] min-h-0 mt-14 overflow-hidden bg-gray-50 max-md:flex-col-reverse max-md:h-auto max-md:min-h-[calc(100vh-52px)] max-md:overflow-visible max-md:mt-13">
         <PlannerRail
           activeView={activePanelView}
           collapsed={plannerPanelCollapsed}
@@ -1731,7 +1731,7 @@ export default function AppClient() {
         />
 
         <div
-          className={`relative z-[110] h-full transition-[width,min-width] duration-300 max-md:h-auto max-md:w-full max-md:min-w-0 ${
+          className={`relative z-[110] h-full min-h-0 overflow-hidden transition-[width,min-width] duration-300 max-md:h-auto max-md:w-full max-md:min-w-0 ${
             plannerPanelCollapsed
               ? 'md:w-0 md:min-w-0 md:overflow-hidden'
               : 'md:w-[420px] md:min-w-[420px]'
@@ -1824,7 +1824,7 @@ export default function AppClient() {
         </div>
 
         {/* Map Container */}
-        <div className={`flex-1 relative max-md:flex-none ${mobileCollapsed ? 'max-md:h-[calc(100vh-56px)]' : 'max-md:h-[45vh] max-md:min-h-[280px]'}`}>
+        <div className={`relative min-h-0 flex-1 overflow-hidden max-md:flex-none ${mobileCollapsed ? 'max-md:h-[calc(100vh-56px)]' : 'max-md:h-[45vh] max-md:min-h-[280px]'}`}>
           <MapView
             from={fromLocation}
             to={toLocation}
