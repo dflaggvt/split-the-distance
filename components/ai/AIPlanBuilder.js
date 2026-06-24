@@ -83,6 +83,67 @@ function ArrowUpIcon() {
   );
 }
 
+function NewChatIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 20h9" strokeLinecap="round" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ThumbUpIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M7 10v10M7 10l4-7c.6-1 2.1-.7 2.3.5l.4 3.5h4.8c1.5 0 2.6 1.4 2.2 2.9l-1.8 7A4 4 0 0 1 15 20H5a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h2Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ThumbDownIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M7 14V4M7 14l4 7c.6 1 2.1.7 2.3-.5l.4-3.5h4.8c1.5 0 2.6-1.4 2.2-2.9l-1.8-7A4 4 0 0 0 15 4H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function BookmarkIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-3-6 3V4Z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="8" y="8" width="11" height="13" rx="2" />
+      <path d="M5 16H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MapIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9 3v15M15 6v15" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
+      <circle cx="5" cy="12" r="1.7" />
+      <circle cx="12" cy="12" r="1.7" />
+      <circle cx="19" cy="12" r="1.7" />
+    </svg>
+  );
+}
+
 function renderInlineMarkdown(text) {
   return String(text)
     .split(/(\*\*[^*]+\*\*)/g)
@@ -99,7 +160,7 @@ function renderInlineMarkdown(text) {
     });
 }
 
-function MessageContent({ children }) {
+function UserMessageContent({ children }) {
   return String(children)
     .split('\n')
     .map((line, index, lines) => (
@@ -108,6 +169,99 @@ function MessageContent({ children }) {
         {index < lines.length - 1 ? <br /> : null}
       </span>
     ));
+}
+
+function AssistantMarkdown({ children }) {
+  const lines = String(children).split('\n');
+  const elements = [];
+  let bullets = [];
+
+  const flushBullets = () => {
+    if (bullets.length === 0) return;
+    const items = bullets;
+    bullets = [];
+    elements.push(
+      <ul key={`ul-${elements.length}`} className="ml-5 list-disc space-y-3">
+        {items.map((item, index) => (
+          <li key={`${item}-${index}`} className="pl-1">
+            {renderInlineMarkdown(item)}
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushBullets();
+      return;
+    }
+
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      flushBullets();
+      elements.push(
+        <h3 key={`h-${elements.length}`} className="pt-3 text-2xl font-semibold leading-tight text-gray-950 first:pt-0">
+          {renderInlineMarkdown(heading[2])}
+        </h3>
+      );
+      return;
+    }
+
+    const bullet = trimmed.match(/^[-*•]\s+(.+)$/);
+    if (bullet) {
+      bullets.push(bullet[1]);
+      return;
+    }
+
+    const numbered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+    if (numbered) {
+      bullets.push(numbered[1]);
+      return;
+    }
+
+    flushBullets();
+    elements.push(
+      <p key={`p-${elements.length}`} className="leading-relaxed">
+        {renderInlineMarkdown(trimmed)}
+      </p>
+    );
+  });
+
+  flushBullets();
+
+  return <div className="space-y-5">{elements}</div>;
+}
+
+function AssistantActions({ content }) {
+  const copyContent = async () => {
+    await navigator.clipboard?.writeText(content);
+  };
+
+  return (
+    <div className="mt-5 flex items-center gap-5 text-gray-500">
+      <button type="button" className="transition hover:text-gray-900" aria-label="Good answer">
+        <ThumbUpIcon />
+      </button>
+      <button type="button" className="transition hover:text-gray-900" aria-label="Bad answer">
+        <ThumbDownIcon />
+      </button>
+      <button type="button" className="transition hover:text-gray-900" aria-label="Save answer">
+        <BookmarkIcon />
+      </button>
+      <button type="button" onClick={copyContent} className="transition hover:text-gray-900" aria-label="Copy answer">
+        <CopyIcon />
+      </button>
+      <button type="button" className="transition hover:text-gray-900" aria-label="Map context">
+        <MapIcon />
+      </button>
+      <button type="button" className="transition hover:text-gray-900" aria-label="More actions">
+        <MoreIcon />
+      </button>
+    </div>
+  );
 }
 
 export default function AIPlanBuilder({
@@ -396,6 +550,14 @@ export default function AIPlanBuilder({
     } catch {}
   };
 
+  const handleNewConversation = () => {
+    setMessages([]);
+    setQuestion('');
+    setError('');
+    setSavedPlan(null);
+    setCopied(false);
+  };
+
   const generated = savedPlan?.generated_plan;
   const firstName = user?.user_metadata?.full_name?.split(' ')?.[0] || user?.email?.split('@')?.[0] || 'there';
   const hasConversation = messages.length > 0 || answering || Boolean(generated);
@@ -422,6 +584,14 @@ export default function AIPlanBuilder({
               aria-label="View saved AI plans"
             >
               <HistoryIcon />
+            </button>
+            <button
+              type="button"
+              onClick={handleNewConversation}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white"
+              aria-label="New Midpoint AI conversation"
+            >
+              <NewChatIcon />
             </button>
             <button
               type="button"
@@ -472,17 +642,18 @@ export default function AIPlanBuilder({
                 key={message.id}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div
-                  className={`max-w-[86%] rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
-                    message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-800'
-                  }`}
-                >
-                  <p>
-                    <MessageContent>{message.content}</MessageContent>
-                  </p>
-                </div>
+                {message.role === 'user' ? (
+                  <div className="max-w-[82%] rounded-[1.75rem] bg-[#e9eef0] px-5 py-3 text-base leading-snug text-gray-950">
+                    <p>
+                      <UserMessageContent>{message.content}</UserMessageContent>
+                    </p>
+                  </div>
+                ) : (
+                  <article className="w-full rounded-[2rem] bg-white px-6 py-6 text-[17px] leading-relaxed text-gray-900 shadow-sm">
+                    <AssistantMarkdown>{message.content}</AssistantMarkdown>
+                    <AssistantActions content={message.content} />
+                  </article>
+                )}
               </div>
             ))}
             {answering && (
