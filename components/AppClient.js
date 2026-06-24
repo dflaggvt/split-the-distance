@@ -9,6 +9,7 @@ import SearchPanel from './SearchPanel';
 import PlannerRail from './PlannerRail';
 import FloatingRoutePlanner from './FloatingRoutePlanner';
 import FloatingCategoryChips from './FloatingCategoryChips';
+import MobileAppShell from './MobileAppShell';
 import RouteInfo from './RouteInfo';
 import HowItWorks from './HowItWorks';
 import AuthButton from './AuthButton';
@@ -1767,7 +1768,7 @@ export default function AppClient() {
       {/* Main App */}
       <main
         ref={mainShellRef}
-        className="flex h-[calc(100vh-56px)] min-h-0 mt-14 overflow-hidden bg-gray-50 max-md:flex-col-reverse max-md:h-auto max-md:min-h-[calc(100vh-52px)] max-md:overflow-visible max-md:mt-13"
+        className="hidden h-[calc(100vh-56px)] min-h-0 mt-14 overflow-hidden bg-gray-50 md:flex"
       >
         <PlannerRail
           activeView={activePanelView}
@@ -2003,7 +2004,89 @@ export default function AppClient() {
         </div>
       </main>
 
-      <div className="md:hidden">
+      <div className="mt-14 md:hidden">
+        <MobileAppShell
+          MapComponent={MapView}
+          fromValue={fromValue}
+          toValue={toValue}
+          onFromChange={(val) => {
+            if (!fromValue && val.trim()) {
+              logSessionEvent('input_started', { field: 'from' }, { userId: user?.id });
+            }
+            setFromValue(val);
+            if (!val.trim() || !hasSearchCredits) setFromLocation(null);
+          }}
+          onToChange={(val) => {
+            if (!toValue && val.trim()) {
+              logSessionEvent('input_started', { field: 'to' }, { userId: user?.id });
+            }
+            setToValue(val);
+            if (!val.trim() || !hasSearchCredits) setToLocation(null);
+          }}
+          onFromSelect={(loc) => {
+            setFromLocation(loc);
+            logSessionEvent('input_selected', { field: 'from', locationName: loc.name }, { userId: user?.id });
+          }}
+          onToSelect={(loc) => {
+            setToLocation(loc);
+            logSessionEvent('input_selected', { field: 'to', locationName: loc.name }, { userId: user?.id });
+          }}
+          onFromClear={() => {
+            setFromLocation(null);
+            logSessionEvent('input_cleared', { field: 'from' }, { userId: user?.id });
+          }}
+          onToClear={() => {
+            setToLocation(null);
+            logSessionEvent('input_cleared', { field: 'to' }, { userId: user?.id });
+          }}
+          onSwap={handleSwap}
+          onSplit={handleSplit}
+          loading={loading}
+          route={route}
+          midpoint={midpoint}
+          fromLocation={fromLocation}
+          toLocation={toLocation}
+          places={places}
+          placesLoading={placesLoading}
+          activeFilters={activeFilters}
+          onFilterToggle={handleFilterToggle}
+          activePlaceId={activePlaceId}
+          onPlaceClick={handlePlaceClick}
+          hasResults={hasResults}
+          onError={showToast}
+          selectedRouteIndex={selectedRouteIndex}
+          onRouteSelect={handleRouteSelect}
+          travelMode={travelMode}
+          onTravelModeChange={handleTravelModeChange}
+          midpointMode={midpointMode}
+          onMidpointModeChange={handleMidpointModeChange}
+          localOnly={localOnly}
+          onLocalOnlyToggle={handleLocalOnlyToggle}
+          onResplit={handleResplit}
+          extraLocations={extraLocations}
+          onExtraLocationsChange={handleExtraLocationsChange}
+          multiResult={multiResult}
+          driftRadius={driftRadius}
+          onDriftRadiusChange={handleDriftRadiusChange}
+          roadTripStops={roadTripStops}
+          roadTripInterval={roadTripInterval}
+          activeStopIndex={activeStopIndex}
+          onActiveStopIndexChange={handleActiveStopChange}
+          onActivateRoadTrip={handleActivateRoadTrip}
+          onExitRoadTrip={handleExitRoadTrip}
+          isLoggedIn={isLoggedIn}
+          savePlanStatus={savePlanStatus}
+          onSavePlan={handleSavePlanClick}
+          creditStatus={creditStatus}
+          creditsLoading={creditsLoading}
+          onBuyCredits={openPricingModal}
+          enableLocationLookup={hasSearchCredits}
+          panelView={activePanelView}
+          onPanelViewChange={selectPlannerView}
+        />
+      </div>
+
+      <div className="hidden">
         {/* How It Works */}
         <HowItWorks />
 

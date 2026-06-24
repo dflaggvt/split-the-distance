@@ -115,7 +115,7 @@ export default function FloatingRoutePlanner({
   return (
     <div className={shellClassName}>
       <div className="rounded-2xl border border-gray-200/80 bg-white/95 shadow-xl shadow-gray-900/15 backdrop-blur">
-        <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2">
+        <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2 max-sm:flex-wrap">
           <div className="flex flex-1 gap-1">
             {[
               { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
@@ -168,14 +168,14 @@ export default function FloatingRoutePlanner({
           <button
             type="button"
             onClick={onTogglePanel}
-            className="rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
+            className="rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 max-sm:ml-auto"
           >
             {panelCollapsed ? 'Show results' : 'Hide panel'}
           </button>
         </div>
 
-        <div className="flex gap-3 px-3 py-3">
-          <div className="flex flex-col items-center py-3">
+        <div className="flex gap-3 px-3 py-3 max-sm:flex-col max-sm:gap-2">
+          <div className="flex flex-col items-center py-3 max-sm:hidden">
             <div className="h-3 w-3 rounded-full border-2 border-teal-500 bg-white" />
             <div className="my-1 min-h-[22px] flex-1 border-l-2 border-dotted border-gray-300" />
             <div className="h-3 w-3 rounded-full border-2 border-orange-500 bg-white" />
@@ -257,13 +257,13 @@ export default function FloatingRoutePlanner({
             )}
           </div>
 
-          <div className="flex w-[150px] shrink-0 flex-col gap-2">
+          <div className="flex w-[150px] shrink-0 flex-col gap-2 max-sm:w-full max-sm:flex-row">
             {extraLocations.length === 0 && (
               <button
                 type="button"
                 onClick={onSwap}
                 title="Swap locations"
-                className="flex h-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
+                className="flex h-10 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 max-sm:w-12 max-sm:shrink-0"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
@@ -275,7 +275,7 @@ export default function FloatingRoutePlanner({
               type="button"
               onClick={onSplit}
               disabled={!canSplit}
-              className={`h-11 rounded-lg text-sm font-bold text-white transition ${
+              className={`h-11 rounded-lg text-sm font-bold text-white transition max-sm:flex-1 ${
                 canSplit
                   ? 'bg-teal-600 shadow-sm hover:bg-teal-700'
                   : 'cursor-not-allowed bg-gray-300'
@@ -283,7 +283,7 @@ export default function FloatingRoutePlanner({
             >
               {loading ? 'Calculating...' : 'Split'}
             </button>
-            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 max-sm:w-28 max-sm:shrink-0">
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-xs font-bold text-gray-700">
                   {creditStatus?.hasActiveSubscription

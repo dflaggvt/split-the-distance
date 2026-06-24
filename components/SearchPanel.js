@@ -69,6 +69,7 @@ export default function SearchPanel({
   panelView = 'plan',
   onPanelViewChange,
   showPlannerControls = true,
+  mobileSheetMode = false,
   className = '',
 }) {
   const toInputRef = useRef(null);
@@ -185,18 +186,20 @@ export default function SearchPanel({
     const nodes = [shellRef.current, mainPanelRef.current].filter(Boolean);
 
     nodes.forEach((node) => {
-      if (isDesktop) {
+      if (isDesktop || mobileSheetMode) {
         node.style.setProperty('height', '100%', 'important');
         node.style.setProperty('max-height', '100%', 'important');
         node.style.setProperty('min-height', '0', 'important');
+        node.style.setProperty('overflow', 'hidden', 'important');
         return;
       }
 
       node.style.removeProperty('max-height');
       node.style.removeProperty('min-height');
+      node.style.removeProperty('overflow');
       node.style.setProperty('height', 'auto', 'important');
     });
-  });
+  }, [mobileSheetMode]);
 
   const shellClassName = className || `w-[420px] min-w-[420px] bg-white border-r border-gray-200 overflow-y-auto overflow-x-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
     mobileCollapsed ? 'max-md:max-h-0 max-md:overflow-hidden max-md:p-0 max-md:border-t-0' : ''
@@ -223,7 +226,10 @@ export default function SearchPanel({
   const renderAlternatePanelView = () => {
     if (panelView === 'saved') {
       return (
-        <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">
+        <div className={mobileSheetMode
+          ? 'h-full overflow-y-auto p-5 pb-24'
+          : 'h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6'
+        }>
           <PanelViewHeader
             title="Saved plans"
             body="Recent searches, saved routes, and AI plans you can come back to."
@@ -266,7 +272,10 @@ export default function SearchPanel({
 
     if (panelView === 'ai') {
       return (
-        <div className="h-full min-h-0 overflow-hidden bg-[#f5fbfc] max-md:h-auto">
+        <div className={mobileSheetMode
+          ? 'h-full min-h-0 overflow-hidden bg-[#f5fbfc]'
+          : 'h-full min-h-0 overflow-hidden bg-[#f5fbfc] max-md:h-auto'
+        }>
           {hasResults && (route || multiResult) ? (
             <AIPlanBuilder
               route={route}
@@ -309,8 +318,12 @@ export default function SearchPanel({
   };
 
   const alternatePanelView = panelView !== 'plan' ? renderAlternatePanelView() : null;
-  const mainPanelClassName = 'flex h-full min-h-0 flex-col p-6 pb-0 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6';
-  const resultsPanelClassName = showPlannerControls
+  const mainPanelClassName = mobileSheetMode
+    ? 'flex h-full min-h-0 flex-col p-5 pb-0'
+    : 'flex h-full min-h-0 flex-col p-6 pb-0 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6';
+  const resultsPanelClassName = mobileSheetMode
+    ? 'min-h-0 flex-1 overflow-y-auto pb-24 pr-1'
+    : showPlannerControls
     ? 'min-h-0 flex-1 overflow-y-auto border-t border-gray-100 pb-8 pr-1 pt-4 max-md:overflow-visible max-md:border-t-0 max-md:pb-0 max-md:pr-0 max-md:pt-0'
     : 'min-h-0 flex-1 overflow-y-auto pb-8 pr-1 max-md:overflow-visible max-md:pb-0 max-md:pr-0';
 
@@ -322,7 +335,7 @@ export default function SearchPanel({
       {alternatePanelView || (
       <div ref={mainPanelRef} className={mainPanelClassName}>
         {/* Search Section */}
-        <div className={`shrink-0 pb-4 ${showPlannerControls ? '' : 'md:hidden'}`}>
+        <div className={`shrink-0 pb-4 ${showPlannerControls ? '' : mobileSheetMode ? 'hidden' : 'md:hidden'}`}>
           <p className="text-sm text-gray-500 mb-5">
             {extraLocations.length > 0
               ? <>Find the fairest meeting point for {2 + extraLocations.length} people by {
@@ -547,7 +560,7 @@ export default function SearchPanel({
           </div>
         </div>
 
-        {isMobileViewport === true && (
+        {isMobileViewport === true && !mobileSheetMode && (
           <MainPageAd />
         )}
 

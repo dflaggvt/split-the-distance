@@ -12,6 +12,7 @@ export default function FloatingCategoryChips({
   onToggle,
   localOnly,
   onLocalOnlyToggle,
+  className = 'hidden md:block absolute left-[620px] right-4 top-5 z-[50] pointer-events-none',
 }) {
   const categoryGate = useGatedAction('category_filters');
   const localOnlyGate = useGatedAction('local_only');
@@ -43,7 +44,7 @@ export default function FloatingCategoryChips({
   };
 
   return (
-    <div className="hidden md:block absolute left-[620px] right-4 top-5 z-[50] pointer-events-none">
+    <div className={className}>
       <div className="flex max-w-full gap-2 overflow-x-auto pb-2 pointer-events-auto">
         {CATEGORY_KEYS.map((key) => {
           const cat = CATEGORIES[key];
