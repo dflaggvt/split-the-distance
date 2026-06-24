@@ -3,6 +3,7 @@ import {
   CREDIT_PACKS,
   expectSupabaseResult,
   getStripeId,
+  isNoRowsError,
   throwIfMissingEnv,
 } from '@/lib/stripeServer';
 
@@ -13,6 +14,33 @@ async function authUserExists(supabase, userId) {
     return false;
   }
   throw error;
+}
+
+async function hasPurchasedSearchCredits(supabase, userId) {
+  const { data, error } = await supabase
+    .from('user_search_credits')
+    .select('lifetime_purchased')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    if (isNoRowsError(error)) return false;
+    throw new Error(`Failed to load credit purchase status: ${error.message}`);
+  }
+
+  return Number(data?.lifetime_purchased || 0) > 0;
+}
+
+async function updateUserProfilePlan(supabase, userId, plan, label = 'Failed to update user profile plan') {
+  return expectSupabaseResult(
+    supabase.from('user_profiles').upsert({ id: userId, plan }, { onConflict: 'id' }).select('id').single(),
+    label
+  );
+}
+
+async function getProfilePlanForSubscriptionStatus(supabase, userId, isActiveSubscription) {
+  if (isActiveSubscription) return 'premium';
+  return (await hasPurchasedSearchCredits(supabase, userId)) ? 'premium' : 'free';
 }
 
 /**
@@ -109,6 +137,13 @@ export async function POST(request) {
           }
 
           const grant = Array.isArray(grantResult) ? grantResult[0] : grantResult;
+          await updateUserProfilePlan(
+            supabase,
+            userId,
+            'premium',
+            'Failed to mark credit buyer as premium'
+          );
+
           console.log('[Stripe Webhook] Credits processed for user:', userId, {
             credits,
             granted: grant?.granted,
@@ -140,10 +175,7 @@ export async function POST(request) {
           'Failed to upsert subscription'
         );
 
-        await expectSupabaseResult(
-          supabase.from('user_profiles').upsert({ id: userId, plan: 'premium' }, { onConflict: 'id' }).select('id').single(),
-          'Failed to update user profile plan'
-        );
+        await updateUserProfilePlan(supabase, userId, 'premium');
 
         console.log('[Stripe Webhook] Subscription created for user:', userId);
         break;
@@ -164,7 +196,8 @@ export async function POST(request) {
         }
 
         const isActive = ['active', 'trialing'].includes(subscription.status);
-        const plan = isActive ? 'premium' : 'free';
+        const subscriptionPlan = isActive ? 'premium' : 'free';
+        const profilePlan = await getProfilePlanForSubscriptionStatus(supabase, userId, isActive);
 
         await expectSupabaseResult(
           supabase.from('subscriptions').upsert({
@@ -172,7 +205,7 @@ export async function POST(request) {
             stripe_customer_id: getStripeId(subscription.customer),
             stripe_subscription_id: subscription.id,
             status: subscription.status,
-            plan,
+            plan: subscriptionPlan,
             current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
             current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
             cancel_at_period_end: subscription.cancel_at_period_end,
@@ -180,12 +213,12 @@ export async function POST(request) {
           'Failed to update subscription'
         );
 
-        await expectSupabaseResult(
-          supabase.from('user_profiles').upsert({ id: userId, plan }, { onConflict: 'id' }).select('id').single(),
-          'Failed to update user profile plan'
-        );
+        await updateUserProfilePlan(supabase, userId, profilePlan);
 
-        console.log('[Stripe Webhook] Subscription updated for user:', userId, '→', plan);
+        console.log('[Stripe Webhook] Subscription updated for user:', userId, {
+          subscriptionPlan,
+          profilePlan,
+        });
         break;
       }
 
@@ -214,12 +247,15 @@ export async function POST(request) {
           'Failed to cancel subscription'
         );
 
-        await expectSupabaseResult(
-          supabase.from('user_profiles').upsert({ id: userId, plan: 'free' }, { onConflict: 'id' }).select('id').single(),
-          'Failed to downgrade user profile'
+        const profilePlan = await getProfilePlanForSubscriptionStatus(supabase, userId, false);
+        await updateUserProfilePlan(
+          supabase,
+          userId,
+          profilePlan,
+          'Failed to update user profile after subscription cancellation'
         );
 
-        console.log('[Stripe Webhook] Subscription cancelled for user:', userId);
+        console.log('[Stripe Webhook] Subscription cancelled for user:', userId, 'profile plan:', profilePlan);
         break;
       }
 
