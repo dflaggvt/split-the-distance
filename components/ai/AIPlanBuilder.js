@@ -7,12 +7,30 @@ import { AI_PLAN_VIBES, askAIPlanAssistant, buildPlanShareText, generateAIPlan, 
 import { logSessionEvent } from '@/lib/sessionEvents';
 
 const STARTER_PROMPTS = [
-  'Which option is best overall?',
-  'Find a safe public place to meet.',
-  'What is best for a quick coffee?',
-  'What is kid-friendly?',
-  'Which places are open now?',
-  'Create a practical meetup plan.',
+  {
+    label: 'What can Ask Maps help me with today?',
+    question: 'What can you help me decide about this midpoint?',
+    action: 'ask',
+  },
+  {
+    label: 'Create a practical meetup plan',
+    vibe: 'coffee',
+    action: 'generate',
+  },
+  {
+    label: 'Which option is best overall?',
+    action: 'ask',
+  },
+  {
+    label: 'Find a safe public meetup spot',
+    question: 'Find a safe public place to meet from these results.',
+    action: 'ask',
+  },
+  {
+    label: 'Good coffee shops near the midpoint',
+    question: 'Which coffee shops near the midpoint are the best options?',
+    action: 'ask',
+  },
 ];
 
 function getRouteDistanceMiles(route) {
@@ -32,6 +50,39 @@ function buildDirectionsUrl(place) {
   return `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
 }
 
+function MenuIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HistoryIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M3 12a9 9 0 1 0 3-6.7" strokeLinecap="round" />
+      <path d="M3 4v6h6M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ArrowUpIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 19V5M5 12l7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export default function AIPlanBuilder({
   route,
   midpoint,
@@ -43,6 +94,8 @@ export default function AIPlanBuilder({
   midpointMode,
   driftRadius,
   creditStatus,
+  onClose,
+  onViewSavedPlans,
 }) {
   const { user, isLoggedIn } = useAuth();
   const { openSignIn, openPricingModal } = useFeatures();
@@ -212,12 +265,18 @@ export default function AIPlanBuilder({
     }
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (vibeOverride = null) => {
+    const nextVibe = typeof vibeOverride === 'string' ? vibeOverride : selectedVibe;
+
+    if (nextVibe !== selectedVibe) {
+      setSelectedVibe(nextVibe);
+    }
+
     setError('');
     setCopied(false);
 
     logSessionEvent('ai_plan_generate_clicked', {
-      vibe: selectedVibe,
+      vibe: nextVibe,
       placeCount: eligiblePlaces.length,
       activeFilters,
     }, { userId: user?.id });
@@ -232,7 +291,7 @@ export default function AIPlanBuilder({
     setLoading(true);
     try {
       const payload = buildContextPayload({
-        vibe: selectedVibe,
+        vibe: nextVibe,
       });
 
       const data = await generateAIPlan(payload);
@@ -242,16 +301,16 @@ export default function AIPlanBuilder({
         {
           id: `assistant-plan-${Date.now()}`,
           role: 'assistant',
-          content: `I built and saved a ${getAIVibeLabel(selectedVibe).toLowerCase()} plan from the current midpoint results.`,
+          content: `I built and saved a ${getAIVibeLabel(nextVibe).toLowerCase()} plan from the current midpoint results.`,
         },
       ]);
       logSessionEvent('ai_plan_generated', {
-        vibe: selectedVibe,
+        vibe: nextVibe,
         planId: data.plan?.id,
         planCount: data.plan?.generated_plan?.plans?.length || 0,
       }, { userId: user?.id });
       logSessionEvent('ai_plan_saved', {
-        vibe: selectedVibe,
+        vibe: nextVibe,
         planId: data.plan?.id,
       }, { userId: user?.id });
     } catch (err) {
@@ -265,7 +324,7 @@ export default function AIPlanBuilder({
       }
       setError(err.message || 'Could not build an AI plan. Please try again.');
       logSessionEvent('ai_plan_failed', {
-        vibe: selectedVibe,
+        vibe: nextVibe,
         reason: err.reason || 'generation_failed',
         error: err.message,
       }, { userId: user?.id });
@@ -312,200 +371,231 @@ export default function AIPlanBuilder({
 
   const generated = savedPlan?.generated_plan;
   const firstName = user?.user_metadata?.full_name?.split(' ')?.[0] || user?.email?.split('@')?.[0] || 'there';
+  const hasConversation = messages.length > 0 || answering || Boolean(generated);
 
   return (
-    <div className="mt-3 mb-4 rounded-xl border border-teal-100 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div>
-          <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700 mb-1">
-            AI assistant
+    <div className="flex h-full min-h-0 flex-col bg-[#f5fbfc] text-gray-900 max-md:min-h-[72vh]">
+      <div className="shrink-0 px-5 pb-3 pt-5">
+        <div className="flex items-center justify-between gap-4">
+          <button
+            type="button"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-gray-700 transition hover:bg-white"
+            aria-label="AI menu"
+          >
+            <MenuIcon />
+          </button>
+          <h2 className="min-w-0 flex-1 text-center text-2xl font-medium tracking-normal text-gray-950">
+            Ask Maps
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onViewSavedPlans}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white"
+              aria-label="View saved AI plans"
+            >
+              <HistoryIcon />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white"
+              aria-label="Close AI panel"
+            >
+              <CloseIcon />
+            </button>
           </div>
-          <h3 className="text-base font-bold text-gray-900">Ask about this plan</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            Compare places, choose a fair option, or create a practical meetup plan.
-          </p>
         </div>
-        {savedPlan && (
-          <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-teal-700 border border-teal-100">
-            Saved
-          </span>
+      </div>
+
+      <div className={`min-h-0 flex-1 overflow-y-auto px-6 ${hasConversation ? 'pb-4 pt-2' : 'flex flex-col justify-center pb-8'}`}>
+        {!hasConversation ? (
+          <div className="-mt-8">
+            <div className="text-center">
+              <p className="text-3xl font-semibold tracking-normal text-blue-500">Hi, {firstName}</p>
+              <p className="mt-2 text-2xl font-normal tracking-normal text-gray-700">
+                Ask anything about this midpoint.
+              </p>
+            </div>
+            <div className="mt-9 grid grid-cols-2 gap-3">
+              {STARTER_PROMPTS.map((prompt, index) => (
+                <button
+                  key={prompt.label}
+                  type="button"
+                  onClick={() => {
+                    if (prompt.action === 'generate') {
+                      handleGenerate(prompt.vibe);
+                      return;
+                    }
+                    handleAsk(prompt.question || prompt.label);
+                  }}
+                  className={`min-h-[78px] rounded-3xl bg-[#e9eef0] px-5 py-4 text-left text-base leading-snug text-gray-950 transition hover:bg-[#dde6e9] ${
+                    index === STARTER_PROMPTS.length - 1 ? 'col-span-2 min-h-[64px]' : ''
+                  }`}
+                >
+                  {prompt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 pb-2">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[86%] rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                    message.role === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-800'
+                  }`}
+                >
+                  <p className="whitespace-pre-line">{message.content}</p>
+                </div>
+              </div>
+            ))}
+            {answering && (
+              <div className="flex justify-start">
+                <div className="rounded-3xl bg-white px-4 py-3 text-sm text-gray-500 shadow-sm">
+                  Thinking...
+                </div>
+              </div>
+            )}
+            {error && (
+              <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+            {generated && (
+              <div className="space-y-3 rounded-3xl bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700">
+                      Saved AI plan
+                    </div>
+                    <p className="mt-1 text-sm text-gray-700">{generated.summary}</p>
+                  </div>
+                  {savedPlan && (
+                    <span className="shrink-0 rounded-full border border-teal-100 bg-teal-50 px-2 py-1 text-[11px] font-semibold text-teal-700">
+                      Saved
+                    </span>
+                  )}
+                </div>
+                {generated.plans.map((plan) => {
+                  const place = placeById.get(plan.primaryPlaceId);
+                  return (
+                    <div key={`${savedPlan.id}-${plan.title}`} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-gray-900">{plan.title}</h4>
+                          <p className="mt-1 text-sm font-semibold text-teal-700">{plan.primaryPlaceName}</p>
+                        </div>
+                        {place && (
+                          <a
+                            href={buildDirectionsUrl(place)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-600 hover:bg-gray-50"
+                          >
+                            Maps
+                          </a>
+                        )}
+                      </div>
+                      <p className="mt-2 text-xs text-gray-600">{plan.whyItWorks}</p>
+                      <p className="mt-2 text-xs text-gray-500">{plan.driveFairnessNote}</p>
+                      <p className="mt-1 text-xs text-gray-500">{plan.safetyOrPracticalNote}</p>
+                      {plan.optionalSecondStopPlaceName && (
+                        <p className="mt-2 text-xs text-gray-500">
+                          Optional add-on: <span className="font-semibold text-gray-700">{plan.optionalSecondStopPlaceName}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="rounded-full border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    {copied ? 'Copied' : 'Copy Plan'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="rounded-full border border-teal-100 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100"
+                  >
+                    Share Plan
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-      {messages.length === 0 && (
-        <div className="mb-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
-          <p className="text-sm font-bold text-teal-700">Hi, {firstName}</p>
-          <p className="mt-1 text-sm text-gray-600">
-            Ask about this midpoint, or create a plan from the places already found.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {STARTER_PROMPTS.map((prompt) => (
+      {hasConversation && (
+        <div className="shrink-0 px-5 pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {AI_PLAN_VIBES.slice(0, 5).map((vibe) => (
               <button
-                key={prompt}
+                key={vibe.id}
                 type="button"
-                onClick={() => handleAsk(prompt)}
-                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-teal-200 hover:text-teal-700"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {messages.length > 0 && (
-        <div className="mb-3 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                  message.role === 'user'
-                    ? 'bg-teal-600 text-white'
-                    : 'border border-gray-100 bg-white text-gray-700'
+                onClick={() => handleVibeSelect(vibe.id)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  selectedVibe === vibe.id
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-600 shadow-sm hover:text-blue-600'
                 }`}
               >
-                <p className="whitespace-pre-line">{message.content}</p>
-              </div>
-            </div>
-          ))}
-          {answering && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl border border-gray-100 bg-white px-3 py-2 text-sm text-gray-500">
-                Thinking...
-              </div>
-            </div>
-          )}
+                {vibe.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => handleGenerate(selectedVibe)}
+              disabled={loading}
+              className="shrink-0 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
+            >
+              {loading ? 'Creating...' : 'Create plan'}
+            </button>
+          </div>
         </div>
       )}
 
-      <form
-        className="mb-3 flex items-center gap-2 rounded-full border border-gray-200 bg-white p-1.5 shadow-sm"
-        onSubmit={(event) => {
-          event.preventDefault();
-          handleAsk();
-        }}
-      >
-        <input
-          type="text"
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Ask a question about this midpoint"
-          className="min-w-0 flex-1 rounded-full border-0 px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400"
-        />
-        <button
-          type="submit"
-          disabled={answering || !question.trim()}
-          className="shrink-0 rounded-full bg-teal-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Ask
-        </button>
-      </form>
-
-      <div className="rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50 to-white p-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700">
-              Create a plan
-            </div>
-            <p className="mt-1 text-xs text-gray-500">
-              Pick a vibe and AI will turn these places into 2-3 options.
-            </p>
+      <div className="shrink-0 px-5 pb-5 pt-2">
+        {!hasConversation && error && (
+          <div className="mb-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">
+            {error}
           </div>
-          {eligiblePlaces.length < 2 && (
-            <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-gray-500">
-              Select places
-            </span>
-          )}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-3">
-        {AI_PLAN_VIBES.map((vibe) => (
+        )}
+        <form
+          className="flex min-h-[92px] items-center gap-3 rounded-[2rem] border border-gray-100 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            handleAsk();
+          }}
+        >
+          <input
+            type="text"
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="Ask a question"
+            className="min-w-0 flex-1 border-0 bg-transparent text-lg text-gray-900 outline-none placeholder:text-gray-500"
+          />
           <button
-            key={vibe.id}
-            type="button"
-            onClick={() => handleVibeSelect(vibe.id)}
-            className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-              selectedVibe === vibe.id
-                ? 'border-teal-500 bg-teal-600 text-white'
-                : 'border-gray-200 bg-white text-gray-600 hover:border-teal-200 hover:text-teal-700'
-            }`}
+            type="submit"
+            disabled={answering || loading || !question.trim()}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500 transition hover:bg-gray-300 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-label="Ask AI"
           >
-            {vibe.label}
+            <ArrowUpIcon />
           </button>
-        ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={loading}
-          className="w-full rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-60"
-        >
-          {loading ? 'Creating plan...' : `Create ${getAIVibeLabel(selectedVibe)} Plan`}
-        </button>
+        </form>
       </div>
-
-      {error && (
-        <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-          {error}
-        </div>
-      )}
-
-      {generated && (
-        <div className="mt-4 space-y-3">
-          <p className="text-sm text-gray-700">{generated.summary}</p>
-          {generated.plans.map((plan) => {
-            const place = placeById.get(plan.primaryPlaceId);
-            return (
-              <div key={`${savedPlan.id}-${plan.title}`} className="rounded-lg border border-gray-200 bg-white p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-bold text-gray-900">{plan.title}</h4>
-                    <p className="text-sm font-semibold text-teal-700 mt-1">{plan.primaryPlaceName}</p>
-                  </div>
-                  {place && (
-                    <a
-                      href={buildDirectionsUrl(place)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 rounded-md border border-gray-200 px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50"
-                    >
-                      Maps
-                    </a>
-                  )}
-                </div>
-                <p className="mt-2 text-xs text-gray-600">{plan.whyItWorks}</p>
-                <p className="mt-2 text-xs text-gray-500">{plan.driveFairnessNote}</p>
-                <p className="mt-1 text-xs text-gray-500">{plan.safetyOrPracticalNote}</p>
-                {plan.optionalSecondStopPlaceName && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    Optional add-on: <span className="font-semibold text-gray-700">{plan.optionalSecondStopPlaceName}</span>
-                  </p>
-                )}
-              </div>
-            );
-          })}
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              {copied ? 'Copied' : 'Copy Plan'}
-            </button>
-            <button
-              type="button"
-              onClick={handleShare}
-              className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100"
-            >
-              Share Plan
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

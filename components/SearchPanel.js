@@ -68,7 +68,6 @@ export default function SearchPanel({
   enableLocationLookup = true,
   panelView = 'plan',
   onPanelViewChange,
-  onOpenAccount,
   showPlannerControls = true,
   className = '',
 }) {
@@ -267,11 +266,7 @@ export default function SearchPanel({
 
     if (panelView === 'ai') {
       return (
-        <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">
-          <PanelViewHeader
-            title="Ask about this plan"
-            body="Get help choosing where to meet, comparing options, and creating a meetup plan."
-          />
+        <div className="h-full min-h-0 overflow-hidden bg-[#f5fbfc] max-md:h-auto">
           {hasResults && (route || multiResult) ? (
             <AIPlanBuilder
               route={route}
@@ -284,23 +279,27 @@ export default function SearchPanel({
               midpointMode={midpointMode}
               driftRadius={driftRadius}
               creditStatus={creditStatus}
+              onClose={() => onPanelViewChange?.('plan')}
+              onViewSavedPlans={() => onPanelViewChange?.('saved')}
             />
           ) : (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
-              <p className="text-sm font-semibold text-gray-900">Run a paid midpoint search first.</p>
-              <p className="mt-1 text-sm text-gray-500">
-                After results load, AI can suggest coffee, lunch, kid-friendly, quiet, or road trip plans.
-              </p>
+            <div className="flex h-full min-h-[420px] flex-col bg-[#f5fbfc] p-6">
+              <PanelViewHeader
+                title="Ask Maps"
+                body=""
+              />
+              <div className="flex flex-1 items-center justify-center rounded-3xl bg-white/70 p-6 text-center">
+                <div>
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-100 text-blue-600">
+                    AI
+                  </div>
+                  <p className="text-base font-semibold text-gray-900">Run a paid midpoint search first.</p>
+                  <p className="mt-2 text-sm text-gray-500">
+                    After results load, Ask Maps can compare places, answer questions, and create meetup plans.
+                  </p>
+                </div>
+              </div>
             </div>
-          )}
-          {isLoggedIn && (
-            <button
-              type="button"
-              onClick={() => onOpenAccount?.('ai_plans')}
-              className="mt-4 w-full rounded-lg border border-teal-100 bg-white px-4 py-3 text-sm font-bold text-teal-700 transition hover:bg-teal-50"
-            >
-              View saved AI plans
-            </button>
           )}
         </div>
       );
