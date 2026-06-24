@@ -3,8 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { useFeature, useFeatures } from '@/components/FeatureProvider';
-import { AI_PLAN_VIBES, buildPlanShareText, generateAIPlan, getAIVibeLabel } from '@/lib/aiPlans';
+import { AI_PLAN_VIBES, askAIPlanAssistant, buildPlanShareText, generateAIPlan, getAIVibeLabel } from '@/lib/aiPlans';
 import { logSessionEvent } from '@/lib/sessionEvents';
+
+const STARTER_PROMPTS = [
+  'Which option is best overall?',
+  'Find a safe public place to meet.',
+  'What is best for a quick coffee?',
+  'What is kid-friendly?',
+  'Which places are open now?',
+  'Create a practical meetup plan.',
+];
 
 function getRouteDistanceMiles(route) {
   const meters = route?.legs?.[0]?.distance?.value || route?.distance?.value || route?.distanceMeters;
@@ -32,6 +41,7 @@ export default function AIPlanBuilder({
   activeFilters = [],
   travelMode,
   midpointMode,
+  driftRadius,
   creditStatus,
 }) {
   const { user, isLoggedIn } = useAuth();
@@ -42,6 +52,9 @@ export default function AIPlanBuilder({
   const [error, setError] = useState('');
   const [savedPlan, setSavedPlan] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [question, setQuestion] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [answering, setAnswering] = useState(false);
   const viewedLoggedRef = useRef(false);
 
   const eligiblePlaces = useMemo(
@@ -84,6 +97,121 @@ export default function AIPlanBuilder({
     }, { userId: user?.id });
   };
 
+  const buildContextPayload = (extra = {}) => ({
+    ...extra,
+    route: {
+      fromName: fromLocation.name,
+      fromLat: fromLocation.lat,
+      fromLng: fromLocation.lon,
+      toName: toLocation.name,
+      toLat: toLocation.lat,
+      toLng: toLocation.lon,
+      travelMode,
+      midpointMode,
+      distanceMiles: getRouteDistanceMiles(route),
+      durationSeconds: getRouteDurationSeconds(route),
+    },
+    midpoint: {
+      lat: midpoint.lat,
+      lng: midpoint.lng || midpoint.lon,
+    },
+    driftRadius: driftRadius
+      ? {
+          minutes: driftRadius.minutes,
+          radiusMiles: driftRadius.radiusMiles,
+        }
+      : null,
+    places: eligiblePlaces.map((place) => ({
+      id: place.id,
+      name: place.name,
+      category: place.category,
+      categoryLabel: place.categoryLabel,
+      address: place.address,
+      rating: place.rating,
+      userRatingsTotal: place.userRatingsTotal,
+      openNow: place.openNow,
+      closingTime: place.closingTime,
+      distanceFormatted: place.distanceFormatted,
+      priceLevel: place.priceLevel,
+      lat: place.lat,
+      lon: place.lon,
+      brand: place.brand,
+    })),
+  });
+
+  const requireAccess = () => {
+    if (!isLoggedIn) {
+      openSignIn({ mode: 'signup', context: 'ai_plan_builder' });
+      return false;
+    }
+
+    if (!hasAccess) {
+      openPricingModal({ context: 'ai_plan_builder' });
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleAsk = async (questionOverride = null) => {
+    const nextQuestion = String(questionOverride ?? question).trim();
+    if (!nextQuestion) return;
+
+    setError('');
+    setCopied(false);
+    if (!requireAccess()) return;
+
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: nextQuestion,
+    };
+    const contextMessages = messages.map(({ role, content }) => ({ role, content }));
+    setMessages((prev) => [...prev, userMessage]);
+    setQuestion('');
+    setAnswering(true);
+
+    logSessionEvent('ai_plan_question_asked', {
+      placeCount: eligiblePlaces.length,
+      activeFilters,
+    }, { userId: user?.id });
+
+    try {
+      const data = await askAIPlanAssistant(buildContextPayload({
+        question: nextQuestion,
+        messages: contextMessages,
+      }));
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: data.answer,
+        },
+      ]);
+      logSessionEvent('ai_plan_question_answered', {
+        placeCount: eligiblePlaces.length,
+      }, { userId: user?.id });
+    } catch (err) {
+      if (err.status === 401) {
+        openSignIn({ mode: 'signup', context: 'ai_plan_builder' });
+        return;
+      }
+      if (err.status === 402 || err.reason === 'no_credits') {
+        openPricingModal({ context: 'ai_plan_builder' });
+        return;
+      }
+      setError(err.message || 'Could not answer that question. Please try again.');
+      setMessages((prev) => prev.filter((message) => message.id !== userMessage.id));
+      logSessionEvent('ai_plan_question_failed', {
+        reason: err.reason || 'answer_failed',
+        error: err.message,
+      }, { userId: user?.id });
+    } finally {
+      setAnswering(false);
+    }
+  };
+
   const handleGenerate = async () => {
     setError('');
     setCopied(false);
@@ -94,15 +222,7 @@ export default function AIPlanBuilder({
       activeFilters,
     }, { userId: user?.id });
 
-    if (!isLoggedIn) {
-      openSignIn({ mode: 'signup', context: 'ai_plan_builder' });
-      return;
-    }
-
-    if (!hasAccess) {
-      openPricingModal({ context: 'ai_plan_builder' });
-      return;
-    }
+    if (!requireAccess()) return;
 
     if (eligiblePlaces.length < 2) {
       setError('Select Food, Coffee, or another nearby category first so AI can build plans from real places.');
@@ -111,42 +231,20 @@ export default function AIPlanBuilder({
 
     setLoading(true);
     try {
-      const payload = {
+      const payload = buildContextPayload({
         vibe: selectedVibe,
-        route: {
-          fromName: fromLocation.name,
-          fromLat: fromLocation.lat,
-          fromLng: fromLocation.lon,
-          toName: toLocation.name,
-          toLat: toLocation.lat,
-          toLng: toLocation.lon,
-          travelMode,
-          midpointMode,
-          distanceMiles: getRouteDistanceMiles(route),
-          durationSeconds: getRouteDurationSeconds(route),
-        },
-        midpoint: {
-          lat: midpoint.lat,
-          lng: midpoint.lng || midpoint.lon,
-        },
-        places: eligiblePlaces.map((place) => ({
-          id: place.id,
-          name: place.name,
-          category: place.category,
-          categoryLabel: place.categoryLabel,
-          address: place.address,
-          rating: place.rating,
-          userRatingsTotal: place.userRatingsTotal,
-          openNow: place.openNow,
-          distanceFormatted: place.distanceFormatted,
-          priceLevel: place.priceLevel,
-          lat: place.lat,
-          lon: place.lon,
-        })),
-      };
+      });
 
       const data = await generateAIPlan(payload);
       setSavedPlan(data.plan);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-plan-${Date.now()}`,
+          role: 'assistant',
+          content: `I built and saved a ${getAIVibeLabel(selectedVibe).toLowerCase()} plan from the current midpoint results.`,
+        },
+      ]);
       logSessionEvent('ai_plan_generated', {
         vibe: selectedVibe,
         planId: data.plan?.id,
@@ -213,17 +311,18 @@ export default function AIPlanBuilder({
   };
 
   const generated = savedPlan?.generated_plan;
+  const firstName = user?.user_metadata?.full_name?.split(' ')?.[0] || user?.email?.split('@')?.[0] || 'there';
 
   return (
-    <div className="mt-3 mb-4 rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50 to-white p-4">
+    <div className="mt-3 mb-4 rounded-xl border border-teal-100 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700 mb-1">
-            AI Plan Builder
+            AI assistant
           </div>
-          <h3 className="text-base font-bold text-gray-900">Turn this midpoint into a real plan</h3>
+          <h3 className="text-base font-bold text-gray-900">Ask about this plan</h3>
           <p className="text-xs text-gray-500 mt-1">
-            Pick a vibe and get 2-3 practical meetup options from the places already found.
+            Compare places, choose a fair option, or create a practical meetup plan.
           </p>
         </div>
         {savedPlan && (
@@ -233,7 +332,95 @@ export default function AIPlanBuilder({
         )}
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 mb-3">
+      {messages.length === 0 && (
+        <div className="mb-3 rounded-xl border border-gray-100 bg-gray-50 p-3">
+          <p className="text-sm font-bold text-teal-700">Hi, {firstName}</p>
+          <p className="mt-1 text-sm text-gray-600">
+            Ask about this midpoint, or create a plan from the places already found.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {STARTER_PROMPTS.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => handleAsk(prompt)}
+                className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-teal-200 hover:text-teal-700"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {messages.length > 0 && (
+        <div className="mb-3 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                  message.role === 'user'
+                    ? 'bg-teal-600 text-white'
+                    : 'border border-gray-100 bg-white text-gray-700'
+                }`}
+              >
+                <p className="whitespace-pre-line">{message.content}</p>
+              </div>
+            </div>
+          ))}
+          {answering && (
+            <div className="flex justify-start">
+              <div className="rounded-2xl border border-gray-100 bg-white px-3 py-2 text-sm text-gray-500">
+                Thinking...
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <form
+        className="mb-3 flex items-center gap-2 rounded-full border border-gray-200 bg-white p-1.5 shadow-sm"
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleAsk();
+        }}
+      >
+        <input
+          type="text"
+          value={question}
+          onChange={(event) => setQuestion(event.target.value)}
+          placeholder="Ask a question about this midpoint"
+          className="min-w-0 flex-1 rounded-full border-0 px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-400"
+        />
+        <button
+          type="submit"
+          disabled={answering || !question.trim()}
+          className="shrink-0 rounded-full bg-teal-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Ask
+        </button>
+      </form>
+
+      <div className="rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50 to-white p-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700">
+              Create a plan
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Pick a vibe and AI will turn these places into 2-3 options.
+            </p>
+          </div>
+          {eligiblePlaces.length < 2 && (
+            <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[11px] font-semibold text-gray-500">
+              Select places
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-3">
         {AI_PLAN_VIBES.map((vibe) => (
           <button
             key={vibe.id}
@@ -248,16 +435,17 @@ export default function AIPlanBuilder({
             {vibe.label}
           </button>
         ))}
-      </div>
+        </div>
 
-      <button
-        type="button"
-        onClick={handleGenerate}
-        disabled={loading}
-        className="w-full rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-60"
-      >
-        {loading ? 'Building plans...' : 'Build AI Plans'}
-      </button>
+        <button
+          type="button"
+          onClick={handleGenerate}
+          disabled={loading}
+          className="w-full rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-teal-700 disabled:opacity-60"
+        >
+          {loading ? 'Creating plan...' : `Create ${getAIVibeLabel(selectedVibe)} Plan`}
+        </button>
+      </div>
 
       {error && (
         <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">

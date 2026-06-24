@@ -269,8 +269,8 @@ export default function SearchPanel({
       return (
         <div className="h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6">
           <PanelViewHeader
-            title="AI plans"
-            body="Turn a midpoint and nearby places into a practical meetup plan."
+            title="Ask about this plan"
+            body="Get help choosing where to meet, comparing options, and creating a meetup plan."
           />
           {hasResults && (route || multiResult) ? (
             <AIPlanBuilder
@@ -282,6 +282,7 @@ export default function SearchPanel({
               activeFilters={activeFilters}
               travelMode={travelMode}
               midpointMode={midpointMode}
+              driftRadius={driftRadius}
               creditStatus={creditStatus}
             />
           ) : (
@@ -591,13 +592,13 @@ export default function SearchPanel({
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700">
-                        AI Plan Builder
+                        AI assistant
                       </div>
                       <p className="mt-1 text-sm font-bold text-gray-900">
-                        Turn these results into a real meetup plan
+                        Ask questions or create a meetup plan
                       </p>
                       <p className="mt-1 text-xs text-gray-500">
-                        Pick a vibe and get practical options from the places nearby.
+                        Compare places, pick the best option, or build a plan from nearby results.
                       </p>
                     </div>
                     <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-teal-700 shadow-sm">
