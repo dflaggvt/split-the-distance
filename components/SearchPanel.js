@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useEffect, useState } from 'react';
+import { useRef, useMemo, useEffect, useLayoutEffect, useState } from 'react';
 import LocationInput from './LocationInput';
 import RouteInfo from './RouteInfo';
 import FilterChips from './FilterChips';
@@ -73,6 +73,8 @@ export default function SearchPanel({
   className = '',
 }) {
   const toInputRef = useRef(null);
+  const shellRef = useRef(null);
+  const mainPanelRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
   const distanceToggleGate = useGatedAction('distance_toggle');
   const group3Gate = useGatedAction('group_gravity_3');
@@ -178,6 +180,24 @@ export default function SearchPanel({
     media.addListener(updateViewport);
     return () => media.removeListener(updateViewport);
   }, []);
+
+  useLayoutEffect(() => {
+    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+    const nodes = [shellRef.current, mainPanelRef.current].filter(Boolean);
+
+    nodes.forEach((node) => {
+      if (isDesktop) {
+        node.style.setProperty('height', '100%', 'important');
+        node.style.setProperty('max-height', '100%', 'important');
+        node.style.setProperty('min-height', '0', 'important');
+        return;
+      }
+
+      node.style.removeProperty('max-height');
+      node.style.removeProperty('min-height');
+      node.style.setProperty('height', 'auto', 'important');
+    });
+  });
 
   const shellClassName = className || `w-[420px] min-w-[420px] bg-white border-r border-gray-200 overflow-y-auto overflow-x-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
     mobileCollapsed ? 'max-md:max-h-0 max-md:overflow-hidden max-md:p-0 max-md:border-t-0' : ''
@@ -296,10 +316,11 @@ export default function SearchPanel({
 
   return (
     <div
+      ref={shellRef}
       className={shellClassName}
     >
       {alternatePanelView || (
-      <div className={mainPanelClassName}>
+      <div ref={mainPanelRef} className={mainPanelClassName}>
         {/* Search Section */}
         <div className={`shrink-0 pb-4 ${showPlannerControls ? '' : 'md:hidden'}`}>
           <p className="text-sm text-gray-500 mb-5">
