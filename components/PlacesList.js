@@ -9,8 +9,10 @@ export default function PlacesList({
   activePlaceId,
   onPlaceClick,
   activeFilters = [],
+  driftRadius = null,
 }) {
   const listRef = useRef(null);
+  const fairnessLabel = driftRadius?.minutes ? `+/-${driftRadius.minutes} min` : null;
 
   // Scroll active card into view
   useEffect(() => {
@@ -50,13 +52,20 @@ export default function PlacesList({
     }
     return (
       <div className="py-6 px-4 text-center text-sm text-gray-400">
-        No places found for the selected filters. Try a different category.
+        {fairnessLabel
+          ? `No places found inside the ${fairnessLabel} fairness zone. Try a larger radius or another category.`
+          : 'No places found for the selected filters. Try a different category.'}
       </div>
     );
   }
 
   return (
     <div ref={listRef} className="flex flex-col gap-2">
+      {fairnessLabel && (
+        <div className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700">
+          Showing places inside the {fairnessLabel} fairness zone
+        </div>
+      )}
       {places.map((place) => (
         <div key={place.id} data-place-id={place.id}>
           <PlaceCard

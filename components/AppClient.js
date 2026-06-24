@@ -44,6 +44,7 @@ const MapView = dynamic(() => import('./MapView'), {
 // Places library no longer needed — we use Places API (New) REST endpoints
 const LIBRARIES = [];
 const DEFAULT_RESULT_FILTERS = ['restaurant'];
+const PLACE_DISCOVERY_RADIUS_METERS = 20000;
 
 /**
  * Compute midpoint from a Directions leg based on the selected mode.
@@ -662,7 +663,7 @@ export default function AppClient() {
       // Fetch only uncached categories
       setPlacesLoading(true);
       try {
-        const newResults = await searchNearby(mp, uncachedCats);
+        const newResults = await searchNearby(mp, uncachedCats, PLACE_DISCOVERY_RADIUS_METERS);
         
         // Group results by category and update cache
         const newCache = { ...currentCache };
@@ -679,6 +680,7 @@ export default function AppClient() {
           categories: cats,
           fetchedCategories: uncachedCats,
           cachedCategories: cachedCats,
+          radiusMeters: PLACE_DISCOVERY_RADIUS_METERS,
           count: allPlaces.length,
           cacheStatus: cachedCats.length > 0 ? 'partial' : 'miss',
         }, { userId: user?.id });

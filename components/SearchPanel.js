@@ -634,6 +634,7 @@ export default function SearchPanel({
                 activePlaceId={activePlaceId}
                 onPlaceClick={onPlaceClick}
                 activeFilters={activeFilters}
+                driftRadius={driftRadius}
               />
               {!roadTripStops && (
                 <FeatureGate feature="roulette">
