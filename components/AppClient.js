@@ -105,6 +105,8 @@ export default function AppClient() {
     credits: 0,
     lifetimePurchased: 0,
     lifetimeUsed: 0,
+    hasPurchasedCredits: false,
+    isPaidCustomer: false,
     hasActiveSubscription: false,
     authenticated: false,
   });
@@ -214,6 +216,8 @@ export default function AppClient() {
         credits: 0,
         lifetimePurchased: 0,
         lifetimeUsed: 0,
+        hasPurchasedCredits: false,
+        isPaidCustomer: false,
         hasActiveSubscription: false,
         authenticated: false,
       });
@@ -225,6 +229,9 @@ export default function AppClient() {
     try {
       const status = await fetchCreditStatus();
       setCreditStatus(status);
+      if (status?.isPaidCustomer && !['premium', 'enterprise'].includes(plan)) {
+        await refreshProfile();
+      }
       return status;
     } catch (err) {
       console.error('[Credits] Failed to refresh:', err);
@@ -232,7 +239,7 @@ export default function AppClient() {
     } finally {
       setCreditsLoading(false);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, plan, refreshProfile]);
 
   useEffect(() => {
     refreshCredits();

@@ -37,7 +37,11 @@ export async function GET(request) {
       );
     }
 
-    const [{ data: credits, error: creditsError }, { data: subscription, error: subError }] =
+    const [
+      { data: credits, error: creditsError },
+      { data: subscription, error: subError },
+      { data: profile, error: profileLoadError },
+    ] =
       await Promise.all([
         supabase
           .from('user_search_credits')
@@ -52,6 +56,12 @@ export async function GET(request) {
           .in('status', ['active', 'trialing', 'past_due'])
           .limit(1)
           .single(),
+        supabase
+          .from('user_profiles')
+          .select('plan')
+          .eq('id', user.id)
+          .limit(1)
+          .single(),
       ]);
 
     if (creditsError && !isNoRowsError(creditsError)) {
@@ -60,15 +70,37 @@ export async function GET(request) {
     if (subError && !isNoRowsError(subError)) {
       throw new Error(`Failed to load subscription: ${subError.message}`);
     }
+    if (profileLoadError && !isNoRowsError(profileLoadError)) {
+      throw new Error(`Failed to load profile: ${profileLoadError.message}`);
+    }
 
     const hasActiveSubscription =
       subscription?.plan && ['premium', 'enterprise'].includes(subscription.plan);
+    const lifetimePurchased = Number(credits?.lifetime_purchased || 0);
+    const hasPurchasedCredits = lifetimePurchased > 0;
+    const isPaidCustomer = Boolean(hasActiveSubscription || hasPurchasedCredits);
+    const existingPlan = profile?.plan || 'free';
+    const shouldPromoteProfile = isPaidCustomer && !['premium', 'enterprise'].includes(existingPlan);
+
+    if (shouldPromoteProfile) {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .upsert({ id: user.id, plan: 'premium' }, { onConflict: 'id' })
+        .select('id')
+        .single();
+
+      if (profileError) {
+        throw new Error(`Failed to mark paid customer: ${profileError.message}`);
+      }
+    }
 
     return Response.json({
       authenticated: true,
       credits: credits?.balance || 0,
-      lifetimePurchased: credits?.lifetime_purchased || 0,
+      lifetimePurchased,
       lifetimeUsed: credits?.lifetime_used || 0,
+      hasPurchasedCredits,
+      isPaidCustomer,
       hasActiveSubscription,
       subscription: subscription || null,
     });
