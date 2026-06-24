@@ -83,6 +83,33 @@ function ArrowUpIcon() {
   );
 }
 
+function renderInlineMarkdown(text) {
+  return String(text)
+    .split(/(\*\*[^*]+\*\*)/g)
+    .map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return (
+          <strong key={index} className="font-semibold">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+
+      return part;
+    });
+}
+
+function MessageContent({ children }) {
+  return String(children)
+    .split('\n')
+    .map((line, index, lines) => (
+      <span key={`${line}-${index}`}>
+        {renderInlineMarkdown(line)}
+        {index < lines.length - 1 ? <br /> : null}
+      </span>
+    ));
+}
+
 export default function AIPlanBuilder({
   route,
   midpoint,
@@ -452,7 +479,9 @@ export default function AIPlanBuilder({
                       : 'bg-white text-gray-800'
                   }`}
                 >
-                  <p className="whitespace-pre-line">{message.content}</p>
+                  <p>
+                    <MessageContent>{message.content}</MessageContent>
+                  </p>
                 </div>
               </div>
             ))}
