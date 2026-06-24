@@ -285,7 +285,7 @@ export default function SearchPanel({
           ) : (
             <div className="flex h-full min-h-[420px] flex-col bg-[#f5fbfc] p-6">
               <PanelViewHeader
-                title="Ask Maps"
+                title="Midpoint AI"
                 body=""
               />
               <div className="flex flex-1 items-center justify-center rounded-3xl bg-white/70 p-6 text-center">
@@ -295,7 +295,7 @@ export default function SearchPanel({
                   </div>
                   <p className="text-base font-semibold text-gray-900">Run a paid midpoint search first.</p>
                   <p className="mt-2 text-sm text-gray-500">
-                    After results load, Ask Maps can compare places, answer questions, and create meetup plans.
+                    After results load, Midpoint AI can compare places, answer questions, and create meetup plans.
                   </p>
                 </div>
               </div>
@@ -591,7 +591,7 @@ export default function SearchPanel({
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700">
-                        AI assistant
+                        Midpoint AI
                       </div>
                       <p className="mt-1 text-sm font-bold text-gray-900">
                         Ask questions or create a meetup plan

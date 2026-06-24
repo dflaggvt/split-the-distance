@@ -8,7 +8,7 @@ import { logSessionEvent } from '@/lib/sessionEvents';
 
 const STARTER_PROMPTS = [
   {
-    label: 'What can Ask Maps help me with today?',
+    label: 'What can Midpoint AI help me with today?',
     question: 'What can you help me decide about this midpoint?',
     action: 'ask',
   },
@@ -385,7 +385,7 @@ export default function AIPlanBuilder({
             <MenuIcon />
           </button>
           <h2 className="min-w-0 flex-1 text-center text-2xl font-medium tracking-normal text-gray-950">
-            Ask Maps
+            Midpoint AI
           </h2>
           <div className="flex items-center gap-2">
             <button
