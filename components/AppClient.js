@@ -311,6 +311,8 @@ export default function AppClient() {
         const latest = await refreshCredits();
         if (cancelled) return;
         if (latest?.hasActiveSubscription || (latest?.credits || 0) > 0) {
+          await refreshProfile();
+          if (cancelled) return;
           setRunPendingSearchAfterCredits(true);
           return;
         }
