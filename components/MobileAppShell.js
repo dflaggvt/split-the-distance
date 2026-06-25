@@ -7,8 +7,8 @@ import SearchPanel from './SearchPanel';
 import { filterPlacesInZone } from '@/lib/isochrone';
 
 const SHEET_HEIGHT = {
-  peek: 'h-[104px]',
-  half: 'h-[54dvh]',
+  peek: 'h-[92px]',
+  half: 'h-[44dvh]',
   full: 'h-[calc(100dvh-72px)]',
 };
 
@@ -171,7 +171,7 @@ export default function MobileAppShell({
   };
 
   return (
-    <section className="relative h-[calc(100dvh-56px)] overflow-hidden bg-gray-100">
+    <section className="mobile-app-shell relative h-[calc(100dvh-56px)] overflow-hidden bg-gray-100">
       <div className="absolute inset-0">
         <MapComponent
           from={fromLocation}
@@ -192,7 +192,7 @@ export default function MobileAppShell({
         />
       </div>
 
-      <div className="pointer-events-none absolute left-3 right-3 top-3 z-[70]">
+      <div className="pointer-events-none absolute left-2 right-2 top-2 z-[70]">
         <FloatingRoutePlanner
           className="pointer-events-auto w-full"
           fromValue={fromValue}
@@ -221,6 +221,7 @@ export default function MobileAppShell({
           enableLocationLookup={enableLocationLookup}
           panelCollapsed={sheetMode === 'peek'}
           onTogglePanel={cycleSheetMode}
+          compactMobile
         />
       </div>
 
@@ -230,7 +231,7 @@ export default function MobileAppShell({
         onToggle={onFilterToggle}
         localOnly={localOnly}
         onLocalOnlyToggle={onLocalOnlyToggle}
-        className="absolute left-3 right-3 top-[17.25rem] z-[65] pointer-events-none"
+        className="absolute left-2 right-2 top-[14.75rem] z-[65] pointer-events-none"
       />
 
       <div

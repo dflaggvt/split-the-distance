@@ -15,6 +15,7 @@ export default function LocationInput({
   onEnter,
   inputRef: externalRef,
   enableLocationLookup = true,
+  inputClassName = '',
 }) {
   const [predictions, setPredictions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -384,7 +385,7 @@ export default function LocationInput({
         placeholder={placeholder}
         autoComplete="off"
         aria-label={placeholder || 'Location'}
-        className={`w-full h-11 border border-gray-200 rounded-lg text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 placeholder:text-gray-400 ${
+        className={`w-full h-11 border border-gray-200 rounded-lg text-[15px] text-gray-800 bg-white outline-none transition-all duration-200 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 placeholder:text-gray-400 ${inputClassName} ${
           isMinimal ? 'pl-3' : 'pl-[46px]'
         } ${
           value

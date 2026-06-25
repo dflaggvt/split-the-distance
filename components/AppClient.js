@@ -171,8 +171,10 @@ export default function AppClient() {
 
     const isDesktop = window.matchMedia('(min-width: 768px)').matches;
     if (isDesktop) {
-      shell.style.setProperty('height', 'calc(100vh - 56px)', 'important');
-      shell.style.setProperty('max-height', 'calc(100vh - 56px)', 'important');
+      const devMarkerHeight = document.body.classList.contains('dev-environment') ? '26px' : '0px';
+      const shellHeight = `calc(100vh - 56px - ${devMarkerHeight})`;
+      shell.style.setProperty('height', shellHeight, 'important');
+      shell.style.setProperty('max-height', shellHeight, 'important');
       shell.style.setProperty('overflow', 'hidden', 'important');
       return;
     }
@@ -1715,21 +1717,21 @@ export default function AppClient() {
     return (
       <>
         {/* Header (always visible) */}
-        <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
-          <div className="w-full max-w-[1440px] mx-auto px-5 flex items-center">
+        <header className="app-header fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
+          <div className="w-full max-w-[1440px] mx-auto px-3 md:px-5 flex items-center">
             <Link
               href="/"
-              className="flex items-center gap-2.5 no-underline text-gray-900"
+              className="flex min-w-0 items-center gap-2.5 no-underline text-gray-900"
             >
-              <img src="/logo.png" alt="Split The Distance" width="28" height="28" className="shrink-0" />
-              <span className="text-lg font-bold tracking-tight">
+              <img src="/logo.png" alt="Split The Distance" width="28" height="28" className="shrink-0 max-sm:h-6 max-sm:w-6" />
+              <span className="truncate text-base font-bold tracking-tight md:text-lg">
                 Split The Distance
               </span>
               <DevEnvironmentBadge />
             </Link>
           </div>
         </header>
-        <div className="flex items-center justify-center h-[calc(100vh-56px)] mt-14 bg-gray-50">
+        <div className="app-shell-offset flex items-center justify-center h-[calc(100vh-56px)] mt-14 bg-gray-50">
           <div className="flex flex-col items-center gap-3">
             <span className="inline-block w-8 h-8 border-[3px] border-gray-200 border-t-teal-500 rounded-full animate-spin" />
             <span className="text-sm text-gray-400">Loading Google Maps...</span>
@@ -1742,14 +1744,14 @@ export default function AppClient() {
   return (
     <>
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
-        <div className="w-full max-w-[1440px] mx-auto px-5 flex items-center justify-between">
+      <header className="app-header fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
+        <div className="w-full max-w-[1440px] mx-auto px-3 md:px-5 flex items-center justify-between gap-3">
           <Link
             href="/"
-            className="flex items-center gap-2.5 no-underline text-gray-900"
+            className="flex min-w-0 items-center gap-2.5 no-underline text-gray-900"
           >
-            <img src="/logo.png" alt="Split The Distance" width="28" height="28" className="shrink-0" />
-            <span className="text-lg font-bold tracking-tight">
+            <img src="/logo.png" alt="Split The Distance" width="28" height="28" className="shrink-0 max-sm:h-6 max-sm:w-6" />
+            <span className="truncate text-base font-bold tracking-tight md:text-lg">
               Split The Distance
             </span>
             <DevEnvironmentBadge />
@@ -1759,7 +1761,7 @@ export default function AppClient() {
               </span>
             )}
           </Link>
-          <nav className="flex items-center gap-4">
+          <nav className="flex shrink-0 items-center gap-2 md:gap-4">
             <AuthButton />
           </nav>
         </div>
@@ -1768,7 +1770,7 @@ export default function AppClient() {
       {/* Main App */}
       <main
         ref={mainShellRef}
-        className="hidden h-[calc(100vh-56px)] min-h-0 mt-14 overflow-hidden bg-gray-50 md:flex"
+        className="app-shell-offset hidden h-[calc(100vh-56px)] min-h-0 mt-14 overflow-hidden bg-gray-50 md:flex"
       >
         <PlannerRail
           activeView={activePanelView}
@@ -2004,7 +2006,7 @@ export default function AppClient() {
         </div>
       </main>
 
-      <div className="mt-14 md:hidden">
+      <div className="app-shell-offset mt-14 md:hidden">
         <MobileAppShell
           MapComponent={MapView}
           fromValue={fromValue}

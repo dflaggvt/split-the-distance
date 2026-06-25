@@ -117,6 +117,22 @@ body {
   line-height: 1.5;
 }
 
+body.dev-environment {
+  --dev-marker-height: 26px;
+}
+
+body.dev-environment .app-header {
+  top: var(--dev-marker-height);
+}
+
+body.dev-environment .app-shell-offset {
+  margin-top: calc(3.5rem + var(--dev-marker-height));
+}
+
+body.dev-environment .mobile-app-shell {
+  height: calc(100dvh - 3.5rem - var(--dev-marker-height));
+}
+
 /* --- Google Maps overrides --- */
 .gm-style .gm-style-iw-c {
   border-radius: 10px !important;

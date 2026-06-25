@@ -43,6 +43,7 @@ export default function FloatingRoutePlanner({
   enableLocationLookup,
   panelCollapsed,
   onTogglePanel,
+  compactMobile = false,
   className = '',
 }) {
   const toInputRef = useRef(null);
@@ -65,6 +66,7 @@ export default function FloatingRoutePlanner({
 
   const canSplit = fromValue.trim().length > 0 && toValue.trim().length > 0 && !loading;
   const displayMax = 3;
+  const mobileInputClassName = compactMobile ? 'max-sm:h-10 max-sm:text-sm' : '';
 
   const handleTravelModeClick = (mode) => {
     const limit = TRAVEL_MODE_LIMITS[mode];
@@ -114,8 +116,8 @@ export default function FloatingRoutePlanner({
 
   return (
     <div className={shellClassName}>
-      <div className="rounded-2xl border border-gray-200/80 bg-white/95 shadow-xl shadow-gray-900/15 backdrop-blur">
-        <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2 max-sm:flex-wrap">
+      <div className="rounded-2xl border border-gray-200/80 bg-white/95 shadow-xl shadow-gray-900/15 backdrop-blur max-sm:rounded-[20px]">
+        <div className="flex items-center gap-2 border-b border-gray-100 px-3 py-2 max-sm:flex-wrap max-sm:px-2 max-sm:py-2">
           <div className="flex flex-1 gap-1">
             {[
               { mode: 'DRIVING', icon: '🚗', label: 'Drive' },
@@ -168,13 +170,13 @@ export default function FloatingRoutePlanner({
           <button
             type="button"
             onClick={onTogglePanel}
-            className="rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 max-sm:ml-auto"
+            className={`rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 max-sm:ml-auto ${compactMobile ? 'max-sm:hidden' : ''}`}
           >
             {panelCollapsed ? 'Show results' : 'Hide panel'}
           </button>
         </div>
 
-        <div className="flex gap-3 px-3 py-3 max-sm:flex-col max-sm:gap-2">
+        <div className="flex gap-3 px-3 py-3 max-sm:flex-col max-sm:gap-2 max-sm:px-2 max-sm:py-2">
           <div className="flex flex-col items-center py-3 max-sm:hidden">
             <div className="h-3 w-3 rounded-full border-2 border-teal-500 bg-white" />
             <div className="my-1 min-h-[22px] flex-1 border-l-2 border-dotted border-gray-300" />
@@ -200,6 +202,7 @@ export default function FloatingRoutePlanner({
               variant="minimal"
               onEnter={() => toInputRef.current?.focus()}
               enableLocationLookup={enableLocationLookup}
+              inputClassName={mobileInputClassName}
             />
             <LocationInput
               value={toValue}
@@ -212,6 +215,7 @@ export default function FloatingRoutePlanner({
               inputRef={toInputRef}
               onEnter={canSplit ? onSplit : undefined}
               enableLocationLookup={enableLocationLookup}
+              inputClassName={mobileInputClassName}
             />
             {extraLocations.map((el, idx) => (
               <div key={idx} className="flex items-center gap-1">
@@ -226,6 +230,7 @@ export default function FloatingRoutePlanner({
                     variant="minimal"
                     onEnter={canSplit ? onSplit : undefined}
                     enableLocationLookup={enableLocationLookup}
+                    inputClassName={mobileInputClassName}
                   />
                 </div>
                 <button
@@ -246,7 +251,7 @@ export default function FloatingRoutePlanner({
               <button
                 type="button"
                 onClick={handleAddLocation}
-                className="flex items-center gap-1.5 text-xs font-bold text-teal-700 transition hover:text-teal-800"
+                className="flex items-center gap-1.5 text-xs font-bold text-teal-700 transition hover:text-teal-800 max-sm:mt-1"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19" />
@@ -257,7 +262,7 @@ export default function FloatingRoutePlanner({
             )}
           </div>
 
-          <div className="flex w-[150px] shrink-0 flex-col gap-2 max-sm:w-full max-sm:flex-row">
+          <div className="flex w-[150px] shrink-0 flex-col gap-2 max-sm:w-full max-sm:flex-row max-sm:gap-2">
             {extraLocations.length === 0 && (
               <button
                 type="button"
@@ -275,7 +280,7 @@ export default function FloatingRoutePlanner({
               type="button"
               onClick={onSplit}
               disabled={!canSplit}
-              className={`h-11 rounded-lg text-sm font-bold text-white transition max-sm:flex-1 ${
+              className={`h-11 rounded-lg text-sm font-bold text-white transition max-sm:h-10 max-sm:flex-1 ${
                 canSplit
                   ? 'bg-teal-600 shadow-sm hover:bg-teal-700'
                   : 'cursor-not-allowed bg-gray-300'
@@ -283,7 +288,7 @@ export default function FloatingRoutePlanner({
             >
               {loading ? 'Calculating...' : 'Split'}
             </button>
-            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 max-sm:w-28 max-sm:shrink-0">
+            <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 max-sm:w-28 max-sm:shrink-0 max-sm:py-1.5">
               <div className="flex items-center justify-between gap-2">
                 <p className="truncate text-xs font-bold text-gray-700">
                   {creditStatus?.hasActiveSubscription

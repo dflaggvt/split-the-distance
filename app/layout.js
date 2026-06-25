@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 import { FeatureProvider } from '@/components/FeatureProvider';
-import EnvironmentMarker from '@/components/EnvironmentMarker';
+import EnvironmentMarker, { isDevelopmentEnvironment } from '@/components/EnvironmentMarker';
 import PageViewTracker from '@/components/PageViewTracker';
 
 const inter = Inter({
@@ -91,6 +91,8 @@ const jsonLd = {
 };
 
 export default function RootLayout({ children }) {
+  const isDevEnvironment = isDevelopmentEnvironment();
+
   return (
     <html lang="en" className={inter.variable}>
       <head>
@@ -143,7 +145,7 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className="font-sans text-gray-800 bg-gray-50 antialiased">
+      <body className={`font-sans text-gray-800 bg-gray-50 antialiased ${isDevEnvironment ? 'dev-environment' : ''}`}>
         {/* Google Tag Manager (noscript) */}
         <noscript>
           <iframe
