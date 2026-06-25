@@ -542,15 +542,6 @@ export default function SearchPanel({
                   onExitRoadTrip={onExitRoadTrip}
                 />
               )}
-              {/* Mobile keeps in-panel filters; desktop uses floating map chips. */}
-              <div className="md:hidden">
-                <FilterChips
-                  activeFilters={activeFilters}
-                  onToggle={onFilterToggle}
-                  localOnly={localOnly}
-                  onLocalOnlyToggle={onLocalOnlyToggle}
-                />
-              </div>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5">
                   <h2 className="text-[22px] font-medium leading-tight text-gray-900">Results</h2>
@@ -563,6 +554,12 @@ export default function SearchPanel({
                   </span>
                 </div>
               </div>
+              <FilterChips
+                activeFilters={activeFilters}
+                onToggle={onFilterToggle}
+                localOnly={localOnly}
+                onLocalOnlyToggle={onLocalOnlyToggle}
+              />
               <PlacesList
                 places={localOnly ? places.filter(p => !p.brand) : places}
                 loading={placesLoading}

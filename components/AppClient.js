@@ -8,7 +8,6 @@ import { useJsApiLoader } from '@react-google-maps/api';
 import SearchPanel from './SearchPanel';
 import PlannerRail from './PlannerRail';
 import FloatingRoutePlanner from './FloatingRoutePlanner';
-import FloatingCategoryChips from './FloatingCategoryChips';
 import MobileAppShell from './MobileAppShell';
 import RouteInfo from './RouteInfo';
 import HowItWorks from './HowItWorks';
@@ -1955,14 +1954,6 @@ export default function AppClient() {
               )}
             </div>
           )}
-
-          <FloatingCategoryChips
-            show={hasResults && Boolean(route || multiResult)}
-            activeFilters={activeFilters}
-            onToggle={handleFilterToggle}
-            localOnly={localOnly}
-            onLocalOnlyToggle={handleLocalOnlyToggle}
-          />
 
           {/* Mobile panel toggle */}
           <button

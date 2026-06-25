@@ -21,14 +21,13 @@ export default function FilterChips({ activeFilters, onToggle, localOnly, onLoca
     categoryGate.gate(() => {
       const isActive = activeFilters.includes(key);
       const cat = CATEGORIES[key];
-      
-      // Track filter toggle
+
       trackEvent('filter_toggle', {
         filter_name: key,
         filter_label: cat.chipLabel,
         filter_action: isActive ? 'off' : 'on',
       });
-      
+
       onToggle(key);
     });
   };
@@ -45,11 +44,8 @@ export default function FilterChips({ activeFilters, onToggle, localOnly, onLoca
   };
 
   return (
-    <div className="mb-3">
-      <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-        Show nearby:
-      </span>
-      <div className="flex flex-wrap gap-1.5">
+    <div className="mb-4 -mx-1 overflow-x-auto px-1 pb-1">
+      <div className="flex w-max max-w-none gap-2">
         {CATEGORY_KEYS.map((key) => {
           const cat = CATEGORIES[key];
           const isActive = activeFilters.includes(key);
@@ -58,10 +54,10 @@ export default function FilterChips({ activeFilters, onToggle, localOnly, onLoca
             <button
               key={key}
               onClick={() => handleToggle(key)}
-              className={`px-3 py-1.5 border-[1.5px] rounded-full text-[13px] font-medium cursor-pointer transition-all duration-200 whitespace-nowrap ${
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition ${
                 isActive
-                  ? 'bg-teal-600 border-teal-600 text-white'
-                  : 'bg-white border-gray-200 text-gray-600 hover:border-teal-300 hover:bg-teal-50'
+                  ? 'border-teal-600 bg-teal-600 text-white'
+                  : 'border-gray-200 bg-white text-gray-700 hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700'
               }`}
             >
               {cat.chipLabel}
@@ -77,16 +73,15 @@ export default function FilterChips({ activeFilters, onToggle, localOnly, onLoca
             </button>
           );
         })}
-        {/* Local Only Toggle — gated by feature flag (default: free tier, requires login) */}
         <button
           onClick={handleLocalOnlyToggle}
-          className={`px-3 py-1.5 border-[1.5px] rounded-full text-[13px] font-medium cursor-pointer transition-all duration-200 whitespace-nowrap ${
+          className={`shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition ${
             localOnly
-              ? 'bg-amber-500 border-amber-500 text-white'
-              : 'bg-white border-gray-200 text-gray-600 hover:border-amber-300 hover:bg-amber-50'
+              ? 'border-amber-500 bg-amber-500 text-white'
+              : 'border-gray-200 bg-white text-gray-700 hover:border-amber-200 hover:bg-amber-50 hover:text-amber-700'
           }`}
         >
-          ⭐ Local Only
+          Local Only
           {!localOnlyGate.allowed && localOnlyGate.reason === 'login_required' && (
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="inline ml-1 opacity-50">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import FloatingRoutePlanner from './FloatingRoutePlanner';
-import FloatingCategoryChips from './FloatingCategoryChips';
 import SearchPanel from './SearchPanel';
 import { filterPlacesInZone } from '@/lib/isochrone';
 
@@ -224,15 +223,6 @@ export default function MobileAppShell({
           compactMobile
         />
       </div>
-
-      <FloatingCategoryChips
-        show={hasResults && Boolean(route || multiResult)}
-        activeFilters={activeFilters}
-        onToggle={onFilterToggle}
-        localOnly={localOnly}
-        onLocalOnlyToggle={onLocalOnlyToggle}
-        className="absolute left-2 right-2 top-[14.75rem] z-[65] pointer-events-none"
-      />
 
       <div
         className={`absolute bottom-0 left-0 right-0 z-[90] rounded-t-[28px] border border-gray-200 bg-white shadow-2xl shadow-gray-900/20 transition-[height] duration-300 ${SHEET_HEIGHT[sheetMode]}`}
