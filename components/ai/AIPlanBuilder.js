@@ -563,24 +563,24 @@ export default function AIPlanBuilder({
   const hasConversation = messages.length > 0 || answering || Boolean(generated);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#f5fbfc] text-gray-900 max-md:min-h-[72vh]">
-      <div className="shrink-0 px-5 pb-3 pt-5">
+    <div className="flex h-full min-h-0 flex-col bg-[#f5fbfc] text-gray-900 max-md:min-h-0">
+      <div className="shrink-0 px-5 pb-3 pt-5 max-sm:px-4 max-sm:pb-1 max-sm:pt-3">
         <div className="flex items-center justify-between gap-4">
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-full text-gray-700 transition hover:bg-white"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-gray-700 transition hover:bg-white max-sm:h-9 max-sm:w-9"
             aria-label="AI menu"
           >
             <MenuIcon />
           </button>
-          <h2 className="min-w-0 flex-1 text-center text-2xl font-medium tracking-normal text-gray-950">
+          <h2 className="min-w-0 flex-1 whitespace-nowrap text-center text-2xl font-medium tracking-normal text-gray-950 max-sm:text-xl">
             Midpoint AI
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-sm:gap-1">
             <button
               type="button"
               onClick={onViewSavedPlans}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white max-sm:h-9 max-sm:w-9"
               aria-label="View saved AI plans"
             >
               <HistoryIcon />
@@ -588,7 +588,7 @@ export default function AIPlanBuilder({
             <button
               type="button"
               onClick={handleNewConversation}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white max-sm:h-9 max-sm:w-9"
               aria-label="New Midpoint AI conversation"
             >
               <NewChatIcon />
@@ -596,7 +596,7 @@ export default function AIPlanBuilder({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-800 transition hover:bg-white max-sm:h-9 max-sm:w-9"
               aria-label="Close AI panel"
             >
               <CloseIcon />
@@ -605,16 +605,16 @@ export default function AIPlanBuilder({
         </div>
       </div>
 
-      <div className={`min-h-0 flex-1 overflow-y-auto px-6 ${hasConversation ? 'pb-4 pt-2' : 'flex flex-col justify-center pb-8'}`}>
+      <div className={`min-h-0 flex-1 overflow-y-auto px-6 max-sm:px-4 ${hasConversation ? 'pb-4 pt-2 max-sm:pb-3 max-sm:pt-1' : 'flex flex-col justify-center pb-8 max-sm:justify-start max-sm:pb-4 max-sm:pt-4'}`}>
         {!hasConversation ? (
-          <div className="-mt-8">
+          <div className="-mt-8 max-sm:mt-0">
             <div className="text-center">
-              <p className="text-3xl font-semibold tracking-normal text-blue-500">Hi, {firstName}</p>
-              <p className="mt-2 text-2xl font-normal tracking-normal text-gray-700">
+              <p className="text-3xl font-semibold tracking-normal text-blue-500 max-sm:text-2xl">Hi, {firstName}</p>
+              <p className="mt-2 text-2xl font-normal tracking-normal text-gray-700 max-sm:mt-1 max-sm:text-lg">
                 Ask anything about this midpoint.
               </p>
             </div>
-            <div className="mt-9 grid grid-cols-2 gap-3">
+            <div className="mt-9 grid grid-cols-2 gap-3 max-sm:mt-5 max-sm:gap-2">
               {STARTER_PROMPTS.map((prompt, index) => (
                 <button
                   key={prompt.label}
@@ -628,7 +628,7 @@ export default function AIPlanBuilder({
                   }}
                   className={`min-h-[78px] rounded-3xl bg-[#e9eef0] px-5 py-4 text-left text-base leading-snug text-gray-950 transition hover:bg-[#dde6e9] ${
                     index === STARTER_PROMPTS.length - 1 ? 'col-span-2 min-h-[64px]' : ''
-                  }`}
+                  } max-sm:min-h-[58px] max-sm:rounded-2xl max-sm:px-4 max-sm:py-3 max-sm:text-sm`}
                 >
                   {prompt.label}
                 </button>
@@ -643,13 +643,13 @@ export default function AIPlanBuilder({
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.role === 'user' ? (
-                  <div className="max-w-[82%] rounded-[1.75rem] bg-[#e9eef0] px-5 py-3 text-base leading-snug text-gray-950">
+                  <div className="max-w-[82%] rounded-[1.75rem] bg-[#e9eef0] px-5 py-3 text-base leading-snug text-gray-950 max-sm:px-4 max-sm:py-2.5 max-sm:text-sm">
                     <p>
                       <UserMessageContent>{message.content}</UserMessageContent>
                     </p>
                   </div>
                 ) : (
-                  <article className="w-full rounded-[2rem] bg-white px-6 py-6 text-[17px] leading-relaxed text-gray-900 shadow-sm">
+                  <article className="w-full rounded-[2rem] bg-white px-6 py-6 text-[17px] leading-relaxed text-gray-900 shadow-sm max-sm:rounded-3xl max-sm:px-4 max-sm:py-4 max-sm:text-base">
                     <AssistantMarkdown>{message.content}</AssistantMarkdown>
                     <AssistantActions content={message.content} />
                   </article>
@@ -738,14 +738,14 @@ export default function AIPlanBuilder({
       </div>
 
       {hasConversation && (
-        <div className="shrink-0 px-5 pb-2">
+        <div className="shrink-0 px-5 pb-2 max-sm:px-4 max-sm:pb-1">
           <div className="flex gap-2 overflow-x-auto pb-2">
             {AI_PLAN_VIBES.slice(0, 5).map((vibe) => (
               <button
                 key={vibe.id}
                 type="button"
                 onClick={() => handleVibeSelect(vibe.id)}
-                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition max-sm:px-2.5 max-sm:py-1 ${
                   selectedVibe === vibe.id
                     ? 'bg-blue-500 text-white'
                     : 'bg-white text-gray-600 shadow-sm hover:text-blue-600'
@@ -758,7 +758,7 @@ export default function AIPlanBuilder({
               type="button"
               onClick={() => handleGenerate(selectedVibe)}
               disabled={loading}
-              className="shrink-0 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
+              className="shrink-0 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50 max-sm:px-2.5 max-sm:py-1"
             >
               {loading ? 'Creating...' : 'Create plan'}
             </button>
@@ -766,14 +766,14 @@ export default function AIPlanBuilder({
         </div>
       )}
 
-      <div className="shrink-0 px-5 pb-5 pt-2">
+      <div className="shrink-0 px-5 pb-5 pt-2 max-sm:px-4 max-sm:pb-3 max-sm:pt-1">
         {!hasConversation && error && (
           <div className="mb-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
         )}
         <form
-          className="flex min-h-[92px] items-center gap-3 rounded-[2rem] border border-gray-100 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.18)]"
+          className="flex min-h-[92px] items-center gap-3 rounded-[2rem] border border-gray-100 bg-white px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.18)] max-sm:min-h-[66px] max-sm:rounded-[1.75rem] max-sm:px-4 max-sm:py-3"
           onSubmit={(event) => {
             event.preventDefault();
             handleAsk();
@@ -784,12 +784,12 @@ export default function AIPlanBuilder({
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             placeholder="Ask a question"
-            className="min-w-0 flex-1 border-0 bg-transparent text-lg text-gray-900 outline-none placeholder:text-gray-500"
+            className="min-w-0 flex-1 border-0 bg-transparent text-lg text-gray-900 outline-none placeholder:text-gray-500 max-sm:text-base"
           />
           <button
             type="submit"
             disabled={answering || loading || !question.trim()}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500 transition hover:bg-gray-300 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500 transition hover:bg-gray-300 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-60 max-sm:h-10 max-sm:w-10"
             aria-label="Ask AI"
           >
             <ArrowUpIcon />
