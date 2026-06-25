@@ -8,7 +8,6 @@ import PlacesList from './PlacesList';
 import RouletteSection from './RouletteSection';
 import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
-import SavePlanCTA from './SavePlanCTA';
 import SavedAIPlansView from './SavedAIPlansView';
 import AIPlanBuilder from './ai/AIPlanBuilder';
 import FeatureGate, { useGatedAction } from './FeatureGate';
@@ -59,8 +58,6 @@ export default function SearchPanel({
   onActivateRoadTrip,
   onExitRoadTrip,
   isLoggedIn = false,
-  savePlanStatus = 'idle',
-  onSavePlan,
   creditStatus,
   enableLocationLookup = true,
   panelView = 'plan',
@@ -531,36 +528,6 @@ export default function SearchPanel({
                     onExitRoadTrip={onExitRoadTrip}
                   />
                 </div>
-              )}
-              <SavePlanCTA
-                isLoggedIn={isLoggedIn}
-                canSave={Boolean(route)}
-                status={savePlanStatus}
-                onSave={onSavePlan}
-              />
-              {route && (
-                <button
-                  type="button"
-                  onClick={() => onPanelViewChange?.('ai')}
-                  className="mb-4 w-full rounded-xl border border-teal-100 bg-teal-50/70 p-4 text-left transition hover:border-teal-200 hover:bg-teal-50"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-bold uppercase tracking-wide text-teal-700">
-                        Midpoint AI
-                      </div>
-                      <p className="mt-1 text-sm font-bold text-gray-900">
-                        Ask questions or create a meetup plan
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Compare places, pick the best option, or build a plan from nearby results.
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-teal-700 shadow-sm">
-                      Open AI
-                    </span>
-                  </div>
-                </button>
               )}
               {/* Road trip stop selector (when active) */}
               {roadTripStops && (

@@ -61,11 +61,6 @@ export default function PlacesList({
 
   return (
     <div ref={listRef} className="flex flex-col gap-2">
-      {fairnessLabel && (
-        <div className="rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700">
-          Showing places inside the {fairnessLabel} fairness zone
-        </div>
-      )}
       {places.map((place) => (
         <div key={place.id} data-place-id={place.id}>
           <PlaceCard
