@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useEffect, useLayoutEffect, useState } from 'react';
+import { useRef, useMemo, useEffect, useState } from 'react';
 import LocationInput from './LocationInput';
 import RouteInfo from './RouteInfo';
 import FilterChips from './FilterChips';
@@ -9,7 +9,6 @@ import RouletteSection from './RouletteSection';
 import RoadTripItinerary from './RoadTripItinerary';
 import SearchHistory from './SearchHistory';
 import SavePlanCTA from './SavePlanCTA';
-import MainPageAd from './MainPageAd';
 import SavedAIPlansView from './SavedAIPlansView';
 import AIPlanBuilder from './ai/AIPlanBuilder';
 import FeatureGate, { useGatedAction } from './FeatureGate';
@@ -63,8 +62,6 @@ export default function SearchPanel({
   savePlanStatus = 'idle',
   onSavePlan,
   creditStatus,
-  creditsLoading = false,
-  onBuyCredits,
   enableLocationLookup = true,
   panelView = 'plan',
   onPanelViewChange,
@@ -73,8 +70,6 @@ export default function SearchPanel({
   className = '',
 }) {
   const toInputRef = useRef(null);
-  const shellRef = useRef(null);
-  const mainPanelRef = useRef(null);
   const travelModeGate = useGatedAction('travel_modes');
   const distanceToggleGate = useGatedAction('distance_toggle');
   const group3Gate = useGatedAction('group_gravity_3');
@@ -180,26 +175,6 @@ export default function SearchPanel({
     media.addListener(updateViewport);
     return () => media.removeListener(updateViewport);
   }, []);
-
-  useLayoutEffect(() => {
-    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
-    const nodes = [shellRef.current, mainPanelRef.current].filter(Boolean);
-
-    nodes.forEach((node) => {
-      if (isDesktop || mobileSheetMode) {
-        node.style.setProperty('height', '100%', 'important');
-        node.style.setProperty('max-height', '100%', 'important');
-        node.style.setProperty('min-height', '0', 'important');
-        node.style.setProperty('overflow', 'hidden', 'important');
-        return;
-      }
-
-      node.style.removeProperty('max-height');
-      node.style.removeProperty('min-height');
-      node.style.removeProperty('overflow');
-      node.style.setProperty('height', 'auto', 'important');
-    });
-  }, [mobileSheetMode]);
 
   const shellClassName = className || `w-[420px] min-w-[420px] bg-white border-r border-gray-200 overflow-y-auto overflow-x-hidden z-[100] transition-transform duration-300 max-md:w-full max-md:min-w-0 max-md:border-r-0 max-md:border-t max-md:border-gray-200 ${
     mobileCollapsed ? 'max-md:max-h-0 max-md:overflow-hidden max-md:p-0 max-md:border-t-0' : ''
@@ -322,18 +297,15 @@ export default function SearchPanel({
     ? 'flex h-full min-h-0 flex-col px-4 pb-0 pt-2'
     : 'flex h-full min-h-0 flex-col p-6 pb-0 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6';
   const resultsPanelClassName = mobileSheetMode
-    ? 'min-h-0 flex-1 overflow-y-auto pb-24 pr-1'
+    ? 'results-scroll-panel min-h-0 flex-1 overflow-y-scroll pb-24 pr-1'
     : showPlannerControls
-    ? 'min-h-0 flex-1 overflow-y-auto border-t border-gray-100 pb-8 pr-1 pt-4 max-md:overflow-visible max-md:border-t-0 max-md:pb-0 max-md:pr-0 max-md:pt-0'
-    : 'min-h-0 flex-1 overflow-y-auto pb-8 pr-1 max-md:overflow-visible max-md:pb-0 max-md:pr-0';
+    ? 'results-scroll-panel min-h-0 flex-1 overflow-y-scroll border-t border-gray-100 pb-8 pr-1 pt-4 max-md:overflow-visible max-md:border-t-0 max-md:pb-0 max-md:pr-0 max-md:pt-0'
+    : 'results-scroll-panel min-h-0 flex-1 overflow-y-scroll pb-8 pr-1 max-md:overflow-visible max-md:pb-0 max-md:pr-0';
 
   return (
-    <div
-      ref={shellRef}
-      className={shellClassName}
-    >
+    <div className={shellClassName}>
       {alternatePanelView || (
-      <div ref={mainPanelRef} className={mainPanelClassName}>
+      <div className={mainPanelClassName}>
         {/* Search Section */}
         <div className={`shrink-0 pb-4 ${showPlannerControls ? '' : mobileSheetMode ? 'hidden' : 'md:hidden'}`}>
           <p className="text-sm text-gray-500 mb-5">
@@ -533,36 +505,7 @@ export default function SearchPanel({
             )}
           </button>
 
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-gray-700">
-                {creditStatus?.hasActiveSubscription
-                  ? 'Premium subscriber'
-                  : creditsLoading
-                    ? 'Checking credits...'
-                    : `${creditStatus?.credits || 0} search credits`}
-              </p>
-              <p className="text-[11px] text-gray-400">
-                {creditStatus?.hasActiveSubscription
-                  ? 'Searches included while your subscription is active'
-                  : 'Credits are used after successful searches'}
-              </p>
-            </div>
-            {!creditStatus?.hasActiveSubscription && (
-              <button
-                type="button"
-                onClick={onBuyCredits}
-                className="shrink-0 text-xs font-semibold text-teal-700 bg-white border border-teal-100 rounded-md px-2.5 py-1.5 hover:bg-teal-50 transition"
-              >
-                Buy
-              </button>
-            )}
-          </div>
         </div>
-
-        {isMobileViewport === true && !mobileSheetMode && (
-          <MainPageAd />
-        )}
 
         <div className={resultsPanelClassName}>
           {/* Results */}
@@ -664,9 +607,6 @@ export default function SearchPanel({
               {/* Search History (for logged-in users) */}
               <SearchHistory onResplit={onResplit} show={!hasResults} />
             </div>
-          )}
-          {isMobileViewport === false && (
-            <MainPageAd />
           )}
         </div>
       </div>

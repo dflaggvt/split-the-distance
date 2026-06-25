@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -126,7 +126,6 @@ export default function AppClient() {
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
   const cachedMidpointRef = useRef(null); // Track which midpoint the cache is for
-  const mainShellRef = useRef(null);
 
   const ensureDefaultResultFilters = useCallback(() => {
     setActiveFilters((prev) => (prev.length > 0 ? prev : DEFAULT_RESULT_FILTERS));
@@ -164,25 +163,6 @@ export default function AppClient() {
     media.addListener(updateViewport);
     return () => media.removeListener(updateViewport);
   }, []);
-
-  useLayoutEffect(() => {
-    const shell = mainShellRef.current;
-    if (!shell) return;
-
-    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
-    if (isDesktop) {
-      const devMarkerHeight = document.body.classList.contains('dev-environment') ? '26px' : '0px';
-      const shellHeight = `calc(100vh - 56px - ${devMarkerHeight})`;
-      shell.style.setProperty('height', shellHeight, 'important');
-      shell.style.setProperty('max-height', shellHeight, 'important');
-      shell.style.setProperty('overflow', 'hidden', 'important');
-      return;
-    }
-
-    shell.style.removeProperty('max-height');
-    shell.style.removeProperty('overflow');
-    shell.style.setProperty('height', 'auto', 'important');
-  });
 
   const selectPlannerView = useCallback((view) => {
     const nextView = view === 'recent' ? 'saved' : view;
@@ -1769,7 +1749,6 @@ export default function AppClient() {
 
       {/* Main App */}
       <main
-        ref={mainShellRef}
         className="app-shell-offset hidden h-[calc(100vh-56px)] min-h-0 mt-14 overflow-hidden bg-gray-50 md:flex"
       >
         <PlannerRail

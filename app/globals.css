@@ -129,6 +129,11 @@ body.dev-environment .app-shell-offset {
   margin-top: calc(3.5rem + var(--dev-marker-height));
 }
 
+body.dev-environment main.app-shell-offset {
+  height: calc(100vh - 3.5rem - var(--dev-marker-height)) !important;
+  max-height: calc(100vh - 3.5rem - var(--dev-marker-height)) !important;
+}
+
 body.dev-environment .mobile-app-shell {
   height: calc(100dvh - 3.5rem - var(--dev-marker-height));
 }
@@ -161,6 +166,30 @@ body.dev-environment .mobile-app-shell {
   border-radius: 3px;
 }
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.results-scroll-panel {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.results-scroll-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.results-scroll-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.results-scroll-panel::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+.results-scroll-panel::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
 
