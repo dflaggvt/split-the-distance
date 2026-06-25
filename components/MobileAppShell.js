@@ -7,7 +7,7 @@ import { filterPlacesInZone } from '@/lib/isochrone';
 
 const SHEET_HEIGHT = {
   peek: 'h-[92px]',
-  half: 'h-[34dvh] min-h-[260px]',
+  half: 'h-[28dvh] min-h-[220px]',
   full: 'h-[calc(100dvh-72px)]',
 };
 
