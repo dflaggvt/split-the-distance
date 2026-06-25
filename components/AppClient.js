@@ -1697,7 +1697,7 @@ export default function AppClient() {
       <>
         {/* Header (always visible) */}
         <header className="app-header fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
-          <div className="w-full max-w-[1440px] mx-auto px-3 md:px-5 flex items-center">
+          <div className="w-full px-3 md:pl-[514px] md:pr-5 flex items-center">
             <Link
               href="/"
               className="flex min-w-0 items-center gap-2.5 no-underline text-gray-900"
@@ -1724,7 +1724,7 @@ export default function AppClient() {
     <>
       {/* Header */}
       <header className="app-header fixed top-0 left-0 right-0 h-14 bg-white border-b border-gray-200 z-[1000] flex items-center">
-        <div className="w-full max-w-[1440px] mx-auto px-3 md:px-5 flex items-center justify-between gap-3">
+        <div className="w-full px-3 md:pl-[514px] md:pr-5 flex items-center justify-between gap-3">
           <Link
             href="/"
             className="flex min-w-0 items-center gap-2.5 no-underline text-gray-900"
