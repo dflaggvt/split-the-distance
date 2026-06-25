@@ -551,6 +551,18 @@ export default function SearchPanel({
                   onLocalOnlyToggle={onLocalOnlyToggle}
                 />
               </div>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5">
+                  <h2 className="text-[22px] font-medium leading-tight text-gray-900">Results</h2>
+                  <span
+                    className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-gray-500 text-[11px] font-semibold leading-none text-gray-600"
+                    title="Nearby places matching your selected categories."
+                    aria-label="Nearby places matching your selected categories"
+                  >
+                    i
+                  </span>
+                </div>
+              </div>
               <PlacesList
                 places={localOnly ? places.filter(p => !p.brand) : places}
                 loading={placesLoading}
