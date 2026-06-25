@@ -125,6 +125,8 @@ export default function AppClient() {
   const toastTimer = useRef(null);
   const initialLoadDone = useRef(false);
   const cachedMidpointRef = useRef(null); // Track which midpoint the cache is for
+  const pendingHistorySearchRef = useRef(false);
+  const [historySearchRequestId, setHistorySearchRequestId] = useState(0);
 
   const ensureDefaultResultFilters = useCallback(() => {
     setActiveFilters(DEFAULT_RESULT_FILTERS);
@@ -1059,15 +1061,36 @@ export default function AppClient() {
     ensureDefaultResultFilters,
   ]);
 
+  useEffect(() => {
+    if (!pendingHistorySearchRef.current) return;
+
+    pendingHistorySearchRef.current = false;
+    handleSplit();
+  }, [historySearchRequestId, handleSplit]);
+
   // ---- Handle re-split from search history ----
   const handleResplit = useCallback((entry) => {
+    const fromLat = Number(entry.fromLat);
+    const fromLng = Number(entry.fromLng);
+    const toLat = Number(entry.toLat);
+    const toLng = Number(entry.toLng);
+    const from = Number.isFinite(fromLat) && Number.isFinite(fromLng)
+      ? { name: entry.fromName, lat: fromLat, lon: fromLng }
+      : null;
+    const to = Number.isFinite(toLat) && Number.isFinite(toLng)
+      ? { name: entry.toName, lat: toLat, lon: toLng }
+      : null;
+
     // Populate inputs with the saved route
     setFromValue(entry.fromName);
     setToValue(entry.toName);
-    setFromLocation({ name: entry.fromName, lat: entry.fromLat, lon: entry.fromLng });
-    setToLocation({ name: entry.toName, lat: entry.toLat, lon: entry.toLng });
+    setFromLocation(from);
+    setToLocation(to);
+    setExtraLocations([]);
+    setActivePanelView('plan');
     if (entry.travelMode) setTravelMode(entry.travelMode);
     if (entry.midpointMode) setMidpointMode(entry.midpointMode);
+
     // Per-user event
     if (user?.id) {
       logUserEvent(user.id, 'search_history_resplit', {
@@ -1081,11 +1104,9 @@ export default function AppClient() {
       travelMode: entry.travelMode,
       midpointMode: entry.midpointMode,
     }, { userId: user?.id });
-    // Trigger the split on next tick (after state updates)
-    setTimeout(() => {
-      const splitBtn = document.querySelector('[data-split-btn]');
-      if (splitBtn) splitBtn.click();
-    }, 100);
+
+    pendingHistorySearchRef.current = true;
+    setHistorySearchRequestId((requestId) => requestId + 1);
   }, [user]);
 
   // ---- Handle drift radius toggle ----
