@@ -127,7 +127,7 @@ export default function AppClient() {
   const cachedMidpointRef = useRef(null); // Track which midpoint the cache is for
 
   const ensureDefaultResultFilters = useCallback(() => {
-    setActiveFilters((prev) => (prev.length > 0 ? prev : DEFAULT_RESULT_FILTERS));
+    setActiveFilters(DEFAULT_RESULT_FILTERS);
   }, []);
 
   // ---- Welcome Modal (signup / upgrade walkthrough) ----
