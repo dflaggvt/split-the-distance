@@ -165,7 +165,7 @@ export default function RouteInfo({
   };
 
   const renderDriftRadiusToggle = () => (
-    <div className="mt-2 pt-2 border-t border-gray-100">
+    <div className="mt-2 pt-2 border-t border-gray-100 max-md:mt-1.5 max-md:pt-1.5">
       <div className="flex items-center justify-between">
         <button
           onClick={() => driftGate.gate(() => {
@@ -175,7 +175,7 @@ export default function RouteInfo({
               onDriftRadiusChange?.(10);
             }
           })}
-          className="flex items-center gap-1.5 text-[13px] font-medium text-gray-600 hover:text-gray-800 transition-colors"
+          className="flex items-center gap-1.5 text-[13px] font-medium text-gray-600 hover:text-gray-800 transition-colors max-md:text-xs"
         >
           <span className="text-base">🎯</span>
           <span>Drift Radius</span>
@@ -213,12 +213,12 @@ export default function RouteInfo({
 
       {/* Tolerance pills — shown when drift radius is active */}
       {driftRadius && (
-        <div className="flex gap-1.5 mt-2 animate-fadeInUp">
+        <div className="flex gap-1.5 mt-2 animate-fadeInUp max-md:mt-1.5">
           {DRIFT_OPTIONS.map((min) => (
             <button
               key={min}
               onClick={() => onDriftRadiusChange?.(min)}
-              className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+              className={`flex-1 py-1.5 rounded-lg text-[12px] font-semibold transition-all max-md:py-1 max-md:text-[11px] ${
                 driftRadius.minutes === min
                   ? 'bg-teal-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
@@ -271,21 +271,21 @@ export default function RouteInfo({
       : 'animate-fadeInUp',
     className,
   ].filter(Boolean).join(' ');
-  const cardSpacingClass = isFloating ? 'mb-2' : 'mt-5 mb-3';
+  const cardSpacingClass = isFloating ? 'mb-2' : 'mt-5 mb-3 max-md:mt-2 max-md:mb-2';
   const standardCardClass = `${cardSpacingClass} rounded-xl overflow-hidden border border-orange-300 bg-white ${isFloating ? 'shadow-xl shadow-gray-900/15' : ''}`;
   const groupCardClass = `${cardSpacingClass} rounded-xl overflow-hidden border border-purple-300 bg-white ${isFloating ? 'shadow-xl shadow-gray-900/15' : ''}`;
-  const bannerClass = isFloating ? 'px-3 py-1.5' : 'px-4 py-2';
-  const bodyClass = isFloating ? 'px-3 pt-2.5 pb-2' : 'px-4 pt-3 pb-2';
-  const footerClass = isFloating ? 'px-3 py-2' : 'px-4 py-2.5';
+  const bannerClass = isFloating ? 'px-3 py-1.5' : 'px-4 py-2 max-md:px-3 max-md:py-1.5';
+  const bodyClass = isFloating ? 'px-3 pt-2.5 pb-2' : 'px-4 pt-3 pb-2 max-md:px-3 max-md:pt-2 max-md:pb-1.5';
+  const footerClass = isFloating ? 'px-3 py-2' : 'px-4 py-2.5 max-md:px-3 max-md:py-1.5';
   const titleClass = isFloating
     ? 'text-lg font-bold text-gray-900 leading-tight'
-    : 'text-[22px] font-bold text-gray-900 leading-tight';
+    : 'text-[22px] font-bold text-gray-900 leading-tight max-md:text-[20px]';
   const fallbackTitleClass = isFloating
     ? 'text-base font-bold text-gray-700 leading-tight'
-    : 'text-lg font-bold text-gray-700 leading-tight';
+    : 'text-lg font-bold text-gray-700 leading-tight max-md:text-base';
   const statsClass = isFloating
     ? 'flex items-center gap-1.5 mt-1.5 text-[13px] text-gray-500'
-    : 'flex items-center gap-1.5 mt-2 text-[15px] text-gray-500';
+    : 'flex items-center gap-1.5 mt-2 text-[15px] text-gray-500 max-md:mt-1 max-md:gap-1 max-md:text-[13px]';
 
   const executeShare = async (method) => {
     setShowShareMenu(false);
@@ -413,7 +413,7 @@ export default function RouteInfo({
         <div className={groupCardClass}>
           {/* Purple banner — GROUP MIDPOINT label */}
           <div className={`bg-gradient-to-r from-purple-500 to-indigo-500 ${bannerClass}`}>
-            <span className="text-white text-xs font-bold uppercase tracking-wider">
+            <span className="text-white text-xs font-bold uppercase tracking-wider max-md:text-[10px]">
               Group Meeting Point ({multiResult.locations?.length || '?'} people)
             </span>
           </div>
@@ -496,7 +496,7 @@ export default function RouteInfo({
         <div className={standardCardClass}>
           {/* Orange banner — HALFWAY POINT label only */}
           <div className={`bg-gradient-to-r from-orange-400 to-amber-400 ${bannerClass}`}>
-            <span className="text-white text-xs font-bold uppercase tracking-wider">Halfway Point</span>
+            <span className="text-white text-xs font-bold uppercase tracking-wider max-md:text-[10px]">Halfway Point</span>
           </div>
 
           {/* Body — city name + stats on white bg */}
