@@ -33,6 +33,15 @@ function NavIcon({ type }) {
     );
   }
 
+  if (type === 'search') {
+    return (
+      <svg {...common}>
+        <circle cx="11" cy="11" r="7" />
+        <path d="M16.5 16.5 21 21" />
+      </svg>
+    );
+  }
+
   if (type === 'ai') {
     return (
       <svg {...common}>
@@ -139,7 +148,9 @@ export default function MobileAppShell({
     return (!roadTripStops && driftRadius) ? filterPlacesInZone(base, driftRadius) : base;
   }, [driftRadius, localOnly, places, roadTripStops]);
 
-  const defaultSheetMode = panelView === 'ai'
+  const defaultSheetMode = panelView === 'search'
+    ? 'peek'
+    : panelView === 'ai'
     ? 'full'
     : panelView === 'saved'
       ? 'half'
@@ -148,6 +159,7 @@ export default function MobileAppShell({
         : 'peek';
   const [manualSheetMode, setManualSheetMode] = useState(null);
   const sheetMode = manualSheetMode || defaultSheetMode;
+  const showMobilePlanner = panelView === 'search' || (!hasResults && panelView === 'plan');
 
   const openPanelView = (view) => {
     onPanelViewChange?.(view);
@@ -158,6 +170,11 @@ export default function MobileAppShell({
     } else {
       setManualSheetMode('half');
     }
+  };
+
+  const openSearchView = () => {
+    onPanelViewChange?.('search');
+    setManualSheetMode('peek');
   };
 
   const cycleSheetMode = () => {
@@ -191,38 +208,40 @@ export default function MobileAppShell({
         />
       </div>
 
-      <div className="pointer-events-none absolute left-2 right-2 top-2 z-[70]">
-        <FloatingRoutePlanner
-          className="pointer-events-auto w-full"
-          fromValue={fromValue}
-          toValue={toValue}
-          onFromChange={onFromChange}
-          onToChange={onToChange}
-          onFromSelect={onFromSelect}
-          onToSelect={onToSelect}
-          onFromClear={onFromClear}
-          onToClear={onToClear}
-          onSwap={onSwap}
-          onSplit={onSplit}
-          loading={loading}
-          fromLocation={fromLocation}
-          toLocation={toLocation}
-          travelMode={travelMode}
-          onTravelModeChange={onTravelModeChange}
-          midpointMode={midpointMode}
-          onMidpointModeChange={onMidpointModeChange}
-          extraLocations={extraLocations}
-          onExtraLocationsChange={onExtraLocationsChange}
-          onError={onError}
-          creditStatus={creditStatus}
-          creditsLoading={creditsLoading}
-          onBuyCredits={onBuyCredits}
-          enableLocationLookup={enableLocationLookup}
-          panelCollapsed={sheetMode === 'peek'}
-          onTogglePanel={cycleSheetMode}
-          compactMobile
-        />
-      </div>
+      {showMobilePlanner && (
+        <div className="pointer-events-none absolute left-2 right-2 top-2 z-[70]">
+          <FloatingRoutePlanner
+            className="pointer-events-auto w-full"
+            fromValue={fromValue}
+            toValue={toValue}
+            onFromChange={onFromChange}
+            onToChange={onToChange}
+            onFromSelect={onFromSelect}
+            onToSelect={onToSelect}
+            onFromClear={onFromClear}
+            onToClear={onToClear}
+            onSwap={onSwap}
+            onSplit={onSplit}
+            loading={loading}
+            fromLocation={fromLocation}
+            toLocation={toLocation}
+            travelMode={travelMode}
+            onTravelModeChange={onTravelModeChange}
+            midpointMode={midpointMode}
+            onMidpointModeChange={onMidpointModeChange}
+            extraLocations={extraLocations}
+            onExtraLocationsChange={onExtraLocationsChange}
+            onError={onError}
+            creditStatus={creditStatus}
+            creditsLoading={creditsLoading}
+            onBuyCredits={onBuyCredits}
+            enableLocationLookup={enableLocationLookup}
+            panelCollapsed={sheetMode === 'peek'}
+            onTogglePanel={cycleSheetMode}
+            compactMobile
+          />
+        </div>
+      )}
 
       <div
         className={`absolute bottom-0 left-0 right-0 z-[90] rounded-t-[28px] border border-gray-200 bg-white shadow-2xl shadow-gray-900/20 transition-[height] duration-300 ${SHEET_HEIGHT[sheetMode]}`}
@@ -297,10 +316,16 @@ export default function MobileAppShell({
           />
         </div>
 
-        <nav className="absolute bottom-0 left-0 right-0 grid h-[64px] grid-cols-4 border-t border-gray-200 bg-white/95 backdrop-blur">
+        <nav className="absolute bottom-0 left-0 right-0 grid h-[64px] grid-cols-5 border-t border-gray-200 bg-white/95 backdrop-blur">
           <MobileNavButton
-            active={panelView === 'plan'}
-            label={hasResults ? 'Results' : 'Plan'}
+            active={showMobilePlanner}
+            label="Search"
+            icon="search"
+            onClick={openSearchView}
+          />
+          <MobileNavButton
+            active={!showMobilePlanner && panelView === 'plan' && hasResults}
+            label="Results"
             icon="results"
             onClick={() => openPanelView('plan')}
           />

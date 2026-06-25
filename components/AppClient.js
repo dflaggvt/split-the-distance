@@ -100,7 +100,7 @@ export default function AppClient() {
   const [activePlaceId, setActivePlaceId] = useState(null);
   const [hasResults, setHasResults] = useState(false);
   const [mobileCollapsed, setMobileCollapsed] = useState(false);
-  const [activePanelView, setActivePanelView] = useState('plan'); // plan | saved | ai
+  const [activePanelView, setActivePanelView] = useState('plan'); // plan | saved | ai | search
   const [plannerPanelCollapsed, setPlannerPanelCollapsed] = useState(false);
   const [isDesktopViewport, setIsDesktopViewport] = useState(false);
   const [toast, setToast] = useState(null);
@@ -870,6 +870,7 @@ export default function AppClient() {
         setDriftRadius(createDriftRadius(result.midpoint, travelMode));
         setRoute(null); // No single route for multi-location
         setHasResults(true);
+        setActivePanelView('plan');
         setPlaces([]);
         ensureDefaultResultFilters();
 
@@ -936,6 +937,7 @@ export default function AppClient() {
         setMidpoint(mp);
         setDriftRadius(createDriftRadius(mp, travelMode));
         setHasResults(true);
+        setActivePanelView('plan');
 
         // Update URL
         const params = new URLSearchParams({
@@ -1751,7 +1753,7 @@ export default function AppClient() {
         className="app-shell-offset hidden h-[calc(100vh-56px)] min-h-0 mt-14 overflow-hidden bg-gray-50 md:flex"
       >
         <PlannerRail
-          activeView={activePanelView}
+          activeView={activePanelView === 'search' ? 'plan' : activePanelView}
           collapsed={plannerPanelCollapsed}
           hasResults={hasResults}
           creditStatus={creditStatus}
