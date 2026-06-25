@@ -37,9 +37,6 @@ export default function FloatingRoutePlanner({
   extraLocations = [],
   onExtraLocationsChange,
   onError,
-  creditStatus,
-  creditsLoading,
-  onBuyCredits,
   enableLocationLookup,
   panelCollapsed,
   onTogglePanel,
@@ -288,29 +285,6 @@ export default function FloatingRoutePlanner({
             >
               {loading ? 'Calculating...' : 'Split'}
             </button>
-            {!compactMobile && (
-              <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-xs font-bold text-gray-700">
-                    {creditStatus?.hasActiveSubscription
-                      ? 'Premium'
-                      : creditsLoading
-                        ? 'Checking...'
-                        : `${creditStatus?.credits || 0} credits`}
-                  </p>
-                  {!creditStatus?.hasActiveSubscription && (
-                    <button
-                      type="button"
-                      onClick={onBuyCredits}
-                      className="text-xs font-bold text-teal-700 hover:text-teal-800"
-                    >
-                      Buy
-                    </button>
-                  )}
-                </div>
-                <p className="mt-0.5 text-[10px] text-gray-400">Used after successful searches</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
