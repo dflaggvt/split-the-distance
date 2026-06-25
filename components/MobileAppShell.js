@@ -240,13 +240,13 @@ export default function MobileAppShell({
         <button
           type="button"
           onClick={cycleSheetMode}
-          className="mx-auto mt-2 flex h-6 w-24 items-center justify-center"
+          className="mx-auto mt-1 flex h-5 w-24 items-center justify-center"
           aria-label="Resize results sheet"
         >
           <span className="h-1.5 w-12 rounded-full bg-gray-300" />
         </button>
 
-        <div className="h-[calc(100%-78px)] min-h-0">
+        <div className="h-[calc(100%-72px)] min-h-0">
           <SearchPanel
             fromValue={fromValue}
             toValue={toValue}

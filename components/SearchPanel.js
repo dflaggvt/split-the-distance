@@ -319,7 +319,7 @@ export default function SearchPanel({
 
   const alternatePanelView = panelView !== 'plan' ? renderAlternatePanelView() : null;
   const mainPanelClassName = mobileSheetMode
-    ? 'flex h-full min-h-0 flex-col p-5 pb-0'
+    ? 'flex h-full min-h-0 flex-col px-4 pb-0 pt-2'
     : 'flex h-full min-h-0 flex-col p-6 pb-0 max-md:block max-md:h-auto max-md:p-5 max-md:pb-6';
   const resultsPanelClassName = mobileSheetMode
     ? 'min-h-0 flex-1 overflow-y-auto pb-24 pr-1'
