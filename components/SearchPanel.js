@@ -202,42 +202,66 @@ export default function SearchPanel({
           ? 'h-full overflow-y-auto p-5 pb-24'
           : 'h-full overflow-y-auto p-6 pb-8 max-md:h-auto max-md:p-5 max-md:pb-6'
         }>
-          <PanelViewHeader
-            title="Saved plans"
-            body="Recent searches, saved routes, and AI plans you can come back to."
-          />
-          <div className="mb-5 grid grid-cols-3 gap-2">
-            {['Recent searches', 'Saved routes', 'AI plans'].map((item) => (
-              <div
-                key={item}
-                className="rounded-xl border border-teal-100 bg-teal-50/70 px-3 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-teal-700"
-              >
-                {item}
+          <div className="mb-6 flex items-start justify-between gap-3">
+            <div>
+              <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                </svg>
               </div>
-            ))}
+              <h2 className="text-2xl font-bold tracking-tight text-gray-950">Saved</h2>
+              <p className="mt-1 text-sm leading-5 text-gray-500">
+                Re-run routes and revisit AI meetup plans.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onPanelViewChange?.('plan')}
+              className="shrink-0 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
+            >
+              Plan route
+            </button>
           </div>
-          <div className="mb-5 rounded-xl border border-teal-100 bg-teal-50/60 p-4">
-            <p className="text-sm font-bold text-gray-900">Saved routes live with your recent searches.</p>
-            <p className="mt-1 text-sm text-gray-600">
-              After you calculate a route, it appears here so you can re-run it later.
-            </p>
-          </div>
-          <SearchHistory onResplit={onResplit} show label="Recent searches and saved routes" />
+
           {!isLoggedIn && (
-            <div className="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
-              <p className="text-sm font-semibold text-gray-900">Sign in to keep saved plans.</p>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-center">
+              <p className="text-sm font-bold text-gray-900">Sign in to keep saved plans</p>
               <p className="mt-1 text-sm text-gray-500">
                 Recent searches, routes, and AI plans stay with your account.
               </p>
             </div>
           )}
-          <div className="mb-3 mt-6">
-            <div className="text-xs font-bold uppercase tracking-wide text-gray-500">AI plans</div>
-            <p className="mt-1 text-sm text-gray-500">
-              Meetup plans generated from your route results.
-            </p>
-          </div>
-          <SavedAIPlansView />
+
+          {isLoggedIn && (
+            <>
+              <section className="mb-7">
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-950">Routes</h3>
+                    <p className="mt-0.5 text-xs text-gray-500">Tap a route to run it again.</p>
+                  </div>
+                </div>
+                <SearchHistory
+                  onResplit={onResplit}
+                  show
+                  label="Recent routes"
+                  variant="library"
+                  emptyTitle="No saved routes yet"
+                  emptyBody="Your completed searches will appear here."
+                />
+              </section>
+
+              <section>
+                <div className="mb-3">
+                  <h3 className="text-base font-bold text-gray-950">AI plans</h3>
+                  <p className="mt-0.5 text-xs text-gray-500">
+                    Meetup plans generated from your route results.
+                  </p>
+                </div>
+                <SavedAIPlansView />
+              </section>
+            </>
+          )}
         </div>
       );
     }
